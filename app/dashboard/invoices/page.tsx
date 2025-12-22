@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getInvoices } from '@/lib/actions/invoices'
 import CreateInvoiceButton from '@/components/invoices/create-invoice-button'
 import InvoiceList from '@/components/invoices/invoice-list'

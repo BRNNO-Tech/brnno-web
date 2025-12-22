@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getReviewRequests } from '@/lib/actions/reviews'
 import ReviewRequestList from '@/components/reviews/review-request-list'
 import Link from 'next/link'

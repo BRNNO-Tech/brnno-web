@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getServices } from '@/lib/actions/services'
 import AddServiceButton from '@/components/services/add-service-button'
 import ServiceList from '@/components/services/service-list'

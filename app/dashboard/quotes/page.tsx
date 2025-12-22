@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getQuotes } from '@/lib/actions/quotes'
 import CreateQuoteButton from '@/components/quotes/create-quote-button'
 import QuoteList from '@/components/quotes/quote-list'
