@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getClients } from '@/lib/actions/clients'
 import AddClientButton from '@/components/clients/add-client-button'
 import ClientList from '@/components/clients/client-list'
@@ -21,7 +23,7 @@ export default async function ClientsPage() {
       </div>
     )
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -35,7 +37,7 @@ export default async function ClientsPage() {
         </div>
         <AddClientButton />
       </div>
-      
+
       <ClientList clients={clients} />
     </div>
   )
