@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
+import { getBusiness } from '@/lib/actions/business'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function SettingsPage() {
@@ -29,77 +30,22 @@ export default function SettingsPage() {
       setLoadingBusiness(true)
       setError(null)
 
-      // Check environment variables first
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        setError('Supabase environment variables are not configured. Please check your Vercel project settings.')
-        setLoadingBusiness(false)
-        return
-      }
-
-      const supabase = createClient()
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser()
-
-      if (authError) {
-        console.error('Auth error:', authError)
-        setError(`Authentication error: ${authError.message}`)
-        setLoadingBusiness(false)
-        return
-      }
-
-      if (!user) {
-        setLoadingBusiness(false)
-        return
-      }
-
-      // Use explicit columns instead of '*' to avoid 406 errors
-      const { data, error: businessError } = await supabase
-        .from('businesses')
-        .select('id, name, email, phone, address, city, state, zip, website, description, review_automation_enabled, review_delay_hours, google_review_link, created_at, updated_at')
-        .eq('owner_id', user.id)
-        .single()
-
-      if (businessError) {
-        // Business doesn't exist - that's okay, we'll show the create form
-        if (businessError.code === 'PGRST116' || businessError.message?.includes('JSON object')) {
-          // No business found - this is expected for new users
-          setBusiness(null)
-        } else {
-          // Log error but don't show to user for 400/406 errors (these are often column/RLS issues)
-          const isAcceptableError = businessError.code === '406' ||
-            businessError.code === '400' ||
-            businessError.message?.includes('406') ||
-            businessError.message?.includes('400')
-
-          if (!isAcceptableError) {
-            console.error('Error loading business:', {
-              message: businessError.message,
-              code: businessError.code,
-              details: businessError.details,
-              hint: businessError.hint,
-            })
-            setError(`Error loading business: ${businessError.message}`)
-          } else {
-            // Silently ignore 400/406 errors - business might still exist, just can't query it
-            console.warn('Business query returned 400/406, but this is acceptable:', businessError.message)
-          }
-
-          // Keep existing business state if we have one, otherwise set to null
-          if (!business) {
-            setBusiness(null)
-          }
-        }
-      } else if (data) {
-        setBusiness(data)
+      // Use server action instead of client-side query to avoid 406 errors
+      const businessData = await getBusiness()
+      
+      if (businessData) {
+        setBusiness(businessData)
+      } else {
+        // No business found - that's okay, we'll show the create form
+        setBusiness(null)
       }
     } catch (err) {
-      console.error('Unexpected error loading business:', err)
-      setError(`Failed to load business information: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      console.error('Error loading business:', err)
+      // Don't show error if it's just "no business found"
+      if (err instanceof Error && !err.message.includes('No business found')) {
+        setError(`Failed to load business information: ${err.message}`)
+      }
+      setBusiness(null)
     } finally {
       setLoadingBusiness(false)
     }
