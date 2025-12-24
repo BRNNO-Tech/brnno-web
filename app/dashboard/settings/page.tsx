@@ -59,7 +59,7 @@ export default function SettingsPage() {
 
       const { data, error: businessError } = await supabase
         .from('businesses')
-        .select('id, name, email, phone, address, city, state, zip, website, description, review_automation_enabled, review_delay_hours, google_review_link, stripe_account_id, created_at, updated_at')
+        .select('*')
         .eq('owner_id', user.id)
         .single()
 
@@ -75,8 +75,8 @@ export default function SettingsPage() {
             details: businessError.details,
             hint: businessError.hint,
           })
-          // Don't set error for 406 - it might be a temporary issue
-          if (businessError.code !== '406' && businessError.message?.includes('406') === false) {
+          // Don't set error for 400/406 - these might be temporary issues or column mismatches
+          if (businessError.code !== '406' && businessError.code !== '400' && businessError.message?.includes('406') === false && businessError.message?.includes('400') === false) {
             setError(`Error loading business: ${businessError.message}`)
           }
           // Keep existing business state if we have one
@@ -552,24 +552,10 @@ export default function SettingsPage() {
                       Connect your Stripe account to accept online payments from
                       customers
                     </p>
-                    {business?.stripe_account_id ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-green-500" />
-                          <span className="text-sm font-medium text-green-600">
-                            Connected
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                          Account ID: {business?.stripe_account_id}
-                        </p>
-                        <Button variant="outline" size="sm" disabled>
-                          Manage in Stripe Dashboard
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button disabled>Connect Stripe (Coming Soon)</Button>
-                    )}
+                    <Button disabled>Connect Stripe (Coming Soon)</Button>
+                    <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                      Stripe integration will be available in a future update.
+                    </p>
                   </div>
                 </div>
               </div>
