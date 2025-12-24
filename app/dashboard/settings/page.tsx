@@ -27,15 +27,21 @@ export default function SettingsPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setLoadingBusiness(false)
+        return
+      }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('businesses')
         .select('*')
         .eq('owner_id', user.id)
         .single()
 
-      if (data) {
+      if (error) {
+        // Business doesn't exist - that's okay, we'll show the create form
+        console.log('No business found, will show create form')
+      } else if (data) {
         setBusiness(data)
       }
       setLoadingBusiness(false)
@@ -52,9 +58,12 @@ export default function SettingsPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
-    const updates = {
+    const businessData = {
       name: formData.get('name') as string,
       email: (formData.get('email') as string) || null,
       phone: (formData.get('phone') as string) || null,
@@ -66,17 +75,33 @@ export default function SettingsPage() {
       description: (formData.get('description') as string) || null,
     }
 
-    const { error } = await supabase
-      .from('businesses')
-      .update(updates)
-      .eq('owner_id', user.id)
-
-    if (error) {
-      alert('Failed to update business profile')
-      console.error(error)
+    let result
+    if (business) {
+      // Update existing business
+      result = await supabase
+        .from('businesses')
+        .update(businessData)
+        .eq('owner_id', user.id)
+        .select()
+        .single()
     } else {
-      alert('Business profile updated!')
-      setBusiness({ ...business, ...updates })
+      // Create new business
+      result = await supabase
+        .from('businesses')
+        .insert({
+          owner_id: user.id,
+          ...businessData,
+        })
+        .select()
+        .single()
+    }
+
+    if (result.error) {
+      alert(`Failed to ${business ? 'update' : 'create'} business profile: ${result.error.message}`)
+      console.error(result.error)
+    } else {
+      alert(`Business profile ${business ? 'updated' : 'created'}!`)
+      setBusiness(result.data)
     }
 
     setLoading(false)
@@ -91,7 +116,16 @@ export default function SettingsPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
+    if (!business) {
+      alert('Please complete your business profile first before configuring review settings.')
+      setLoading(false)
+      return
+    }
 
     const settings = {
       review_automation_enabled:
@@ -121,10 +155,6 @@ export default function SettingsPage() {
     return <div className="p-6">Loading settings...</div>
   }
 
-  if (!business) {
-    return <div className="p-6">No business found</div>
-  }
-
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -133,6 +163,14 @@ export default function SettingsPage() {
           Manage your business profile and preferences
         </p>
       </div>
+
+      {!business && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+          <p className="text-sm text-amber-900 dark:text-amber-100">
+            <strong>Complete your business setup:</strong> Please fill out your business information below to get started. This is required to use all features of the app.
+          </p>
+        </div>
+      )}
 
       <Tabs defaultValue="business" className="space-y-4">
         <TabsList>
@@ -148,7 +186,9 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Business Information</CardTitle>
               <CardDescription>
-                Update your business details and contact information
+                {business 
+                  ? 'Update your business details and contact information'
+                  : 'Complete your business setup to get started'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -160,7 +200,8 @@ export default function SettingsPage() {
                     <Input
                       id="name"
                       name="name"
-                      defaultValue={business.name}
+                      defaultValue={business?.name || ''}
+                      placeholder="Enter your business name"
                       required
                     />
                   </div>
@@ -172,7 +213,7 @@ export default function SettingsPage() {
                         id="email"
                         name="email"
                         type="email"
-                        defaultValue={business.email || ''}
+                        defaultValue={business?.email || ''}
                         placeholder="business@example.com"
                       />
                     </div>
@@ -182,7 +223,7 @@ export default function SettingsPage() {
                         id="phone"
                         name="phone"
                         type="tel"
-                        defaultValue={business.phone || ''}
+                        defaultValue={business?.phone || ''}
                         placeholder="(555) 123-4567"
                       />
                     </div>
@@ -194,7 +235,7 @@ export default function SettingsPage() {
                       id="website"
                       name="website"
                       type="url"
-                      defaultValue={business.website || ''}
+                      defaultValue={business?.website || ''}
                       placeholder="https://yourwebsite.com"
                     />
                   </div>
@@ -204,7 +245,7 @@ export default function SettingsPage() {
                     <Textarea
                       id="description"
                       name="description"
-                      defaultValue={business.description || ''}
+                      defaultValue={business?.description || ''}
                       placeholder="Tell customers about your business..."
                       rows={4}
                     />
@@ -222,7 +263,7 @@ export default function SettingsPage() {
                     <Input
                       id="address"
                       name="address"
-                      defaultValue={business.address || ''}
+                      defaultValue={business?.address || ''}
                       placeholder="123 Main St"
                     />
                   </div>
@@ -233,7 +274,7 @@ export default function SettingsPage() {
                       <Input
                         id="city"
                         name="city"
-                        defaultValue={business.city || ''}
+                        defaultValue={business?.city || ''}
                         placeholder="Salt Lake City"
                       />
                     </div>
@@ -242,7 +283,7 @@ export default function SettingsPage() {
                       <Input
                         id="state"
                         name="state"
-                        defaultValue={business.state || ''}
+                        defaultValue={business?.state || ''}
                         placeholder="UT"
                       />
                     </div>
@@ -251,7 +292,7 @@ export default function SettingsPage() {
                       <Input
                         id="zip"
                         name="zip"
-                        defaultValue={business.zip || ''}
+                        defaultValue={business?.zip || ''}
                         placeholder="84043"
                       />
                     </div>
@@ -260,7 +301,7 @@ export default function SettingsPage() {
 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={loading}>
-                    {loading ? 'Saving...' : 'Save Changes'}
+                    {loading ? (business ? 'Saving...' : 'Creating...') : (business ? 'Save Changes' : 'Create Business')}
                   </Button>
                 </div>
               </form>
@@ -285,7 +326,7 @@ export default function SettingsPage() {
                     name="review_automation_enabled"
                     type="checkbox"
                     value="true"
-                    defaultChecked={business.review_automation_enabled ?? true}
+                    defaultChecked={business?.review_automation_enabled ?? true}
                     className="h-4 w-4 rounded"
                   />
                   <Label htmlFor="review_automation_enabled" className="!mt-0">
@@ -303,7 +344,7 @@ export default function SettingsPage() {
                     type="number"
                     min="1"
                     max="168"
-                    defaultValue={business.review_delay_hours || 24}
+                    defaultValue={business?.review_delay_hours || 24}
                   />
                   <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                     Default: 24 hours after job completion
@@ -316,7 +357,7 @@ export default function SettingsPage() {
                     id="google_review_link"
                     name="google_review_link"
                     type="url"
-                    defaultValue={business.google_review_link || ''}
+                    defaultValue={business?.google_review_link || ''}
                     placeholder="https://g.page/r/..."
                   />
                   <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
@@ -363,7 +404,7 @@ export default function SettingsPage() {
                       Connect your Stripe account to accept online payments from
                       customers
                     </p>
-                    {business.stripe_account_id ? (
+                    {business?.stripe_account_id ? (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
@@ -372,7 +413,7 @@ export default function SettingsPage() {
                           </span>
                         </div>
                         <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                          Account ID: {business.stripe_account_id}
+                          Account ID: {business?.stripe_account_id}
                         </p>
                         <Button variant="outline" size="sm" disabled>
                           Manage in Stripe Dashboard
@@ -409,7 +450,7 @@ export default function SettingsPage() {
               <div>
                 <h3 className="mb-2 font-semibold">Email Address</h3>
                 <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-                  {business.email || 'No email set'}
+                  {business?.email || 'No email set'}
                 </p>
               </div>
 
