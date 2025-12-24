@@ -32,7 +32,7 @@ export default function SettingsPage() {
 
       // Use server action instead of client-side query to avoid 406 errors
       const businessData = await getBusiness()
-      
+
       if (businessData) {
         setBusiness(businessData)
       } else {
@@ -182,8 +182,19 @@ export default function SettingsPage() {
       // Success - set business immediately
       console.log('Business saved successfully:', result.data)
       setBusiness(result.data)
+      
+      // Reload business using server action to ensure we have latest data
+      try {
+        const reloadedBusiness = await getBusiness()
+        if (reloadedBusiness) {
+          setBusiness(reloadedBusiness)
+        }
+      } catch (reloadError) {
+        console.warn('Failed to reload business after save:', reloadError)
+        // Continue anyway - we already have result.data
+      }
+      
       alert(`Business profile ${business ? 'updated' : 'created'} successfully!`)
-      // No need to refresh - we already have the data and state is updated
     } catch (error) {
       console.error('Unexpected error saving business:', error)
       alert(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`)
