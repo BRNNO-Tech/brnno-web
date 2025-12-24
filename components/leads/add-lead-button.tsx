@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -13,23 +13,32 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Plus } from 'lucide-react'
-import { addLead } from '@/lib/actions/leads'
+import { createLead } from '@/lib/actions/leads'
+import { getServices } from '@/lib/actions/services'
 
 export default function AddLeadButton() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const formRef = useRef<HTMLFormElement>(null)
+  const [services, setServices] = useState<any[]>([])
+
+  useEffect(() => {
+    async function loadServices() {
+      const servicesData = await getServices()
+      setServices(servicesData)
+    }
+    if (open) loadServices()
+  }, [open])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
-    
+
     const formData = new FormData(e.currentTarget)
-    
+
     try {
-      await addLead(formData)
-      formRef.current?.reset()
+      await createLead(formData)
       setOpen(false)
+      e.currentTarget.reset()
     } catch (error) {
       console.error('Error creating lead:', error)
       alert('Failed to create lead')
@@ -39,10 +48,7 @@ export default function AddLeadButton() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      setOpen(isOpen)
-      if (!isOpen) formRef.current?.reset()
-    }}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -53,7 +59,7 @@ export default function AddLeadButton() {
         <DialogHeader>
           <DialogTitle>Add New Lead</DialogTitle>
         </DialogHeader>
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="name">Name *</Label>
             <Input
@@ -64,11 +70,12 @@ export default function AddLeadButton() {
             />
           </div>
           <div>
-            <Label htmlFor="phone">Phone</Label>
+            <Label htmlFor="phone">Phone *</Label>
             <Input
               id="phone"
               name="phone"
               type="tel"
+              required
               placeholder="(555) 123-4567"
             />
           </div>
@@ -86,33 +93,36 @@ export default function AddLeadButton() {
             <select
               id="source"
               name="source"
-              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50"
+              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
             >
               <option value="">Select source...</option>
               <option value="phone">Phone call</option>
               <option value="text">Text message</option>
               <option value="instagram">Instagram</option>
               <option value="facebook">Facebook</option>
-              <option value="referral">Referral</option>
               <option value="google">Google search</option>
+              <option value="referral">Referral</option>
+              <option value="website">Website</option>
               <option value="other">Other</option>
             </select>
           </div>
           <div>
-            <Label htmlFor="interested_in">Interested in</Label>
-            <Input
-              id="interested_in"
-              name="interested_in"
-              placeholder="Full detail, ceramic coating, etc."
-            />
-          </div>
-          <div>
-            <Label htmlFor="follow_up_date">Follow-up date</Label>
-            <Input
-              id="follow_up_date"
-              name="follow_up_date"
-              type="date"
-            />
+            <Label htmlFor="interested_in_service_id">Interested in</Label>
+            <select
+              id="interested_in_service_id"
+              name="interested_in_service_id"
+              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+            >
+              <option value="">Select service (optional)...</option>
+              {services.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name} - $
+                  {service.price != null
+                    ? Number(service.price).toFixed(2)
+                    : '0.00'}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <Label htmlFor="notes">Notes</Label>
@@ -126,10 +136,7 @@ export default function AddLeadButton() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                setOpen(false)
-                formRef.current?.reset()
-              }}
+              onClick={() => setOpen(false)}
             >
               Cancel
             </Button>

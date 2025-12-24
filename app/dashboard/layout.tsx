@@ -2,20 +2,44 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import {
+  LayoutDashboard,
+  Users,
+  Target,
+  Wrench,
+  Calendar,
+  FileText,
+  Receipt,
+  BarChart,
+  Star,
+  Settings,
+  LogOut,
+} from "lucide-react";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: "📊" },
-  { name: "Clients", href: "/dashboard/clients", icon: "👥" },
-  { name: "Leads", href: "/dashboard/leads", icon: "🎯" },
-  { name: "Services", href: "/dashboard/services", icon: "🛠️" },
-  { name: "Jobs", href: "/dashboard/jobs", icon: "📅" },
-  { name: "Quotes", href: "/dashboard/quotes", icon: "📄" },
-  { name: "Invoices", href: "/dashboard/invoices", icon: "🧾" },
-  { name: "Reports", href: "/dashboard/reports", icon: "📈" },
-  { name: "Reviews", href: "/dashboard/reviews", icon: "⭐" },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Clients", href: "/dashboard/clients", icon: Users },
+  { name: "Leads", href: "/dashboard/leads", icon: Target },
+  { name: "Services", href: "/dashboard/services", icon: Wrench },
+  { name: "Jobs", href: "/dashboard/jobs", icon: Calendar },
+  { name: "Quotes", href: "/dashboard/quotes", icon: FileText },
+  { name: "Invoices", href: "/dashboard/invoices", icon: Receipt },
+  { name: "Reports", href: "/dashboard/reports", icon: BarChart },
+  { name: "Reviews", href: "/dashboard/reviews", icon: Star },
 ];
 
 function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleSidebar: () => void }) {
+  const router = useRouter()
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
   return (
     <div className={`flex h-full flex-col border-r border-zinc-200 bg-white transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       {/* Logo / Business Name */}
@@ -36,17 +60,20 @@ function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleS
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => (
-          <Link
-            key={item.name}
-            href={item.href}
-            className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-            title={isCollapsed ? item.name : undefined}
-          >
-            <span className={`text-lg ${isCollapsed ? '' : 'mr-3'}`}>{item.icon}</span>
-            {!isCollapsed && <span>{item.name}</span>}
-          </Link>
-        ))}
+        {navigation.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+              title={isCollapsed ? item.name : undefined}
+            >
+              <Icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
+              {!isCollapsed && <span>{item.name}</span>}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Divider */}
@@ -59,14 +86,15 @@ function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleS
           className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           title={isCollapsed ? "Settings" : undefined}
         >
-          <span className={`text-lg ${isCollapsed ? '' : 'mr-3'}`}>⚙️</span>
+          <Settings className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
           {!isCollapsed && <span>Settings</span>}
         </Link>
         <button
+          onClick={handleLogout}
           className="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           title={isCollapsed ? "Logout" : undefined}
         >
-          <span className={`text-lg ${isCollapsed ? '' : 'mr-3'}`}>🚪</span>
+          <LogOut className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
           {!isCollapsed && <span>Logout</span>}
         </button>
       </div>

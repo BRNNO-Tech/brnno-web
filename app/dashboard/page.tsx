@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Briefcase, FileText, DollarSign } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import FollowUpReminders from '@/components/dashboard/follow-up-reminders'
 
 export default async function DashboardPage() {
   let stats
@@ -28,7 +29,7 @@ export default async function DashboardPage() {
       </div>
     )
   }
-  
+
   return (
     <div className="space-y-6">
       <div>
@@ -39,7 +40,7 @@ export default async function DashboardPage() {
           Welcome to your dashboard. Here's an overview of your business.
         </p>
       </div>
-      
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -53,7 +54,7 @@ export default async function DashboardPage() {
             <div className="text-3xl font-bold">{stats.totalClients}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
@@ -65,7 +66,7 @@ export default async function DashboardPage() {
             <div className="text-3xl font-bold">{stats.activeJobs}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
@@ -77,7 +78,7 @@ export default async function DashboardPage() {
             <div className="text-3xl font-bold">{stats.pendingInvoices}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
@@ -90,7 +91,10 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
+
+      {/* Follow-up Reminders */}
+      <FollowUpReminders />
+
       {/* Recent Activity & Quick Actions */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -131,7 +135,7 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
