@@ -115,16 +115,16 @@ export default function SettingsPage() {
 
       // Use server action to save business
       const savedBusiness = await saveBusiness(businessData, business?.id)
-      
+
       console.log('Business saved successfully:', savedBusiness)
       setBusiness(savedBusiness)
-      
+
       // Reload to ensure we have the latest
       const reloadedBusiness = await getBusiness()
       if (reloadedBusiness) {
         setBusiness(reloadedBusiness)
       }
-      
+
       alert(`Business profile ${business ? 'updated' : 'created'} successfully!`)
     } catch (error) {
       console.error('Unexpected error saving business:', error)

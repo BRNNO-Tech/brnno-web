@@ -4,7 +4,7 @@ If you're seeing errors about missing Supabase environment variables, follow the
 
 ## Step 1: Verify Environment Variables in Vercel
 
-1. Go to your Vercel project: https://vercel.com
+1. Go to your Vercel project: <https://vercel.com>
 2. Navigate to your project → **Settings** → **Environment Variables**
 3. Verify these two variables are set:
    - `NEXT_PUBLIC_SUPABASE_URL`
@@ -12,7 +12,7 @@ If you're seeing errors about missing Supabase environment variables, follow the
 
 ## Step 2: Get Your Supabase Credentials
 
-1. Go to your Supabase project: https://app.supabase.com
+1. Go to your Supabase project: <https://app.supabase.com>
 2. Navigate to **Settings** → **API**
 3. Copy:
    - **Project URL** → This is your `NEXT_PUBLIC_SUPABASE_URL`
@@ -41,6 +41,7 @@ After adding/updating environment variables:
 ## Step 5: Verify
 
 After redeployment, check:
+
 - [ ] App loads without errors
 - [ ] You can log in
 - [ ] Settings page loads

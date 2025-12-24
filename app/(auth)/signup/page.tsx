@@ -57,10 +57,10 @@ export default function SignupPage() {
       }
     })
 
-    console.log('Signup result:', { 
-      hasUser: !!data?.user, 
+    console.log('Signup result:', {
+      hasUser: !!data?.user,
       hasError: !!signUpError,
-      error: signUpError 
+      error: signUpError
     })
 
     if (signUpError) {
