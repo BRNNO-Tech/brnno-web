@@ -16,6 +16,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
 import { getBusiness, saveBusiness } from '@/lib/actions/business'
+import { getBusinessHours, updateBusinessHours } from '@/lib/actions/schedule'
+import { createStripeConnectAccount } from '@/lib/actions/stripe-connect'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function SettingsPage() {
@@ -24,6 +26,62 @@ export default function SettingsPage() {
   const [business, setBusiness] = useState<any>(null)
   const [loadingBusiness, setLoadingBusiness] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [bookingUrl, setBookingUrl] = useState<string>('')
+  const [businessHours, setBusinessHours] = useState<any>(null)
+  const [loadingHours, setLoadingHours] = useState(false)
+  const [loadingStripe, setLoadingStripe] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBookingUrl(`${window.location.origin}`)
+    }
+  }, [])
+
+  useEffect(() => {
+    async function loadBusinessHours() {
+      if (!business) return
+      try {
+        const hours = await getBusinessHours()
+        setBusinessHours(hours)
+      } catch (err) {
+        console.error('Error loading business hours:', err)
+      }
+    }
+    loadBusinessHours()
+  }, [business])
+
+  // Check URL params for Stripe redirect
+  useEffect(() => {
+    async function handleStripeRedirect() {
+      const params = new URLSearchParams(window.location.search)
+      const stripeParam = params.get('stripe')
+
+      if (stripeParam === 'success' && business) {
+        alert('Stripe account connected successfully!')
+        // Update business to mark onboarding complete
+        const supabase = createClient()
+        await supabase.from('businesses').update({
+          stripe_onboarding_completed: true
+        }).eq('owner_id', business.owner_id)
+
+        // Reload business data
+        const updatedBusiness = await getBusiness()
+        if (updatedBusiness) {
+          setBusiness(updatedBusiness)
+        }
+
+        // Remove param from URL
+        window.history.replaceState({}, '', '/dashboard/settings')
+      } else if (stripeParam === 'refresh') {
+        alert('Stripe setup was interrupted. Please try again.')
+        window.history.replaceState({}, '', '/dashboard/settings')
+      }
+    }
+
+    if (business) {
+      handleStripeRedirect()
+    }
+  }, [business])
 
   async function loadBusiness() {
     try {
@@ -35,6 +93,33 @@ export default function SettingsPage() {
 
       if (businessData) {
         setBusiness(businessData)
+
+        // Auto-generate subdomain if missing
+        if (!businessData.subdomain || businessData.subdomain.trim() === '') {
+          console.log('Business missing subdomain, auto-generating...')
+          try {
+            // Save with existing data - this will trigger subdomain generation
+            const updatedBusiness = await saveBusiness({
+              name: businessData.name,
+              email: businessData.email,
+              phone: businessData.phone,
+              address: businessData.address,
+              city: businessData.city,
+              state: businessData.state,
+              zip: businessData.zip,
+              website: businessData.website,
+              description: businessData.description,
+            }, businessData.id)
+
+            if (updatedBusiness) {
+              setBusiness(updatedBusiness)
+              console.log('Subdomain auto-generated:', updatedBusiness.subdomain)
+            }
+          } catch (subdomainError) {
+            console.error('Error auto-generating subdomain:', subdomainError)
+            // Don't show error to user - they can still save manually
+          }
+        }
       } else {
         // No business found - that's okay, we'll show the create form
         setBusiness(null)
@@ -178,6 +263,65 @@ export default function SettingsPage() {
     setLoading(false)
   }
 
+  async function handleBusinessHours(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setLoadingHours(true)
+
+    try {
+      const formData = new FormData(e.currentTarget)
+
+      const hours: any = {}
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+
+      days.forEach(day => {
+        const closed = formData.get(`${day}_closed`) === 'true'
+        if (closed) {
+          hours[day] = { closed: true }
+        } else {
+          const open = formData.get(`${day}_open`) as string
+          const close = formData.get(`${day}_close`) as string
+          if (open && close) {
+            hours[day] = { open, close, closed: false }
+          } else {
+            // Default hours if not set
+            hours[day] = { open: '09:00', close: '17:00', closed: false }
+          }
+        }
+      })
+
+      await updateBusinessHours(hours)
+      setBusinessHours(hours)
+      alert('Business hours updated successfully!')
+    } catch (error) {
+      console.error('Error updating business hours:', error)
+      alert('Failed to update business hours')
+    } finally {
+      setLoadingHours(false)
+    }
+  }
+
+  async function handleStripeConnect() {
+    setLoadingStripe(true)
+    try {
+      // This will redirect to Stripe, so we won't reach the catch block on success
+      // redirect() throws NEXT_REDIRECT internally - this is expected behavior
+      await createStripeConnectAccount()
+      // If we get here, something went wrong (shouldn't happen due to redirect)
+      setLoadingStripe(false)
+    } catch (error: any) {
+      // Check if this is a NEXT_REDIRECT error (expected behavior)
+      if (error?.message === 'NEXT_REDIRECT' || error?.digest?.includes('NEXT_REDIRECT')) {
+        // This is expected - the redirect is happening
+        return
+      }
+
+      console.error('Stripe error:', error)
+      const errorMessage = error?.message || 'Failed to connect Stripe. Please try again.'
+      alert(`Error: ${errorMessage}\n\nIf this persists, check:\n1. STRIPE_SECRET_KEY is set in environment variables\n2. Your internet connection\n3. Try refreshing the page`)
+      setLoadingStripe(false)
+    }
+  }
+
   if (loadingBusiness) {
     return <div className="p-6">Loading settings...</div>
   }
@@ -210,6 +354,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="business" className="space-y-4">
         <TabsList>
           <TabsTrigger value="business">Business Profile</TabsTrigger>
+          <TabsTrigger value="schedule">Schedule Settings</TabsTrigger>
           <TabsTrigger value="reviews">Review Automation</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
@@ -227,6 +372,35 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {business?.subdomain && (
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <Label className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2 block">
+                    Your Booking Page URL
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 border rounded text-sm text-blue-600 dark:text-blue-400 break-all">
+                      {bookingUrl ? `${bookingUrl}/${business.subdomain}` : `/${business.subdomain}`}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const url = bookingUrl
+                          ? `${bookingUrl}/${business.subdomain}`
+                          : `/${business.subdomain}`
+                        window.open(url, '_blank')
+                      }}
+                    >
+                      Open
+                    </Button>
+                  </div>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                    Share this link with customers to let them book appointments
+                  </p>
+                </div>
+              )}
+
               <form onSubmit={handleBusinessUpdate} className="space-y-6">
                 {/* Basic Info */}
                 <div className="space-y-4">
@@ -344,6 +518,69 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
+        {/* Schedule Settings Tab */}
+        <TabsContent value="schedule">
+          <Card>
+            <CardHeader>
+              <CardTitle>Business Hours</CardTitle>
+              <CardDescription>
+                Set your weekly business hours. Customers can only book during these times.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleBusinessHours} className="space-y-6">
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                  const dayKey = day.toLowerCase()
+                  const dayHours = businessHours?.[dayKey]
+                  const isClosed = dayHours?.closed === true
+
+                  return (
+                    <div key={day} className="flex items-center gap-4 rounded-lg border p-4">
+                      <div className="w-24 font-medium text-zinc-900 dark:text-zinc-50">
+                        {day}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`${dayKey}_closed`}
+                          name={`${dayKey}_closed`}
+                          value="true"
+                          defaultChecked={isClosed}
+                          className="h-4 w-4 rounded"
+                        />
+                        <Label htmlFor={`${dayKey}_closed`} className="!mt-0 text-sm">
+                          Closed
+                        </Label>
+                      </div>
+                      <div className="flex flex-1 items-center gap-2" style={{ display: isClosed ? 'none' : 'flex' }}>
+                        <Input
+                          type="time"
+                          name={`${dayKey}_open`}
+                          defaultValue={dayHours?.open || '09:00'}
+                          className="w-32"
+                        />
+                        <span className="text-zinc-600 dark:text-zinc-400">to</span>
+                        <Input
+                          type="time"
+                          name={`${dayKey}_close`}
+                          defaultValue={dayHours?.close || '17:00'}
+                          className="w-32"
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={loadingHours}>
+                    {loadingHours ? 'Saving...' : 'Save Hours'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Review Automation Tab */}
         <TabsContent value="reviews">
           <Card>
@@ -420,38 +657,64 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="rounded-lg border border-zinc-200 p-6 dark:border-zinc-700">
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-6">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900">
-                    <svg
-                      className="h-6 w-6 text-blue-600"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
+                  <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                    <svg className="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 1.409 0 2.232.586 2.232 1.574h2.091c-.08-1.694-1.327-3.051-3.443-3.437V2h-2.11v1.626c-2.17.385-3.458 1.859-3.458 3.621 0 2.336 1.945 3.289 4.326 4.134 2.008.649 3.018 1.295 3.018 2.365 0 1.001-.783 1.584-2.129 1.584-1.635 0-2.596-.709-2.596-1.869h-2.11c0 1.869 1.327 3.379 3.706 3.764V20h2.11v-1.774c2.17-.385 3.458-1.904 3.458-3.813 0-2.577-2.024-3.525-4.638-4.263z" />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <h3 className="mb-1 text-lg font-semibold">
-                      Stripe Connect
-                    </h3>
-                    <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-                      Connect your Stripe account to accept online payments from
-                      customers
+                    <h3 className="font-semibold text-lg mb-1">Stripe Connect</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                      Connect your Stripe account to accept online payments from customers
                     </p>
-                    <Button disabled>Connect Stripe (Coming Soon)</Button>
-                    <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
-                      Stripe integration will be available in a future update.
-                    </p>
+                    {business?.stripe_account_id ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                          <span className="text-sm font-medium text-green-600">
+                            {business.stripe_onboarding_completed ? 'Connected & Active' : 'Connected (Setup Incomplete)'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                          Account ID: {business.stripe_account_id}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleStripeConnect}
+                            disabled={loadingStripe}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {loadingStripe ? 'Loading...' : 'Manage Stripe Account'}
+                          </Button>
+                          {!business.stripe_onboarding_completed && (
+                            <Button
+                              onClick={handleStripeConnect}
+                              disabled={loadingStripe}
+                              size="sm"
+                            >
+                              Complete Setup
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={handleStripeConnect}
+                        disabled={loadingStripe}
+                      >
+                        {loadingStripe ? 'Connecting...' : 'Connect Stripe Account'}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950">
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-4">
                 <p className="text-sm text-blue-900 dark:text-blue-100">
-                  💡 <strong>Note:</strong> Stripe Connect integration will be
-                  available when the customer booking system is launched. This
-                  allows customers to pay you directly through the booking page.
+                  <strong>How it works:</strong> When customers book through your BRNNO page and pay, the money goes directly to your Stripe account (minus Stripe's 2.9% + $0.30 fee). We never touch your money.
                 </p>
               </div>
             </CardContent>

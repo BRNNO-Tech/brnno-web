@@ -54,13 +54,27 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Allow access to auth routes without authentication
-  const isAuthRoute = 
+  const isAuthRoute =
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup') ||
     request.nextUrl.pathname.startsWith('/auth')
 
+  // Allow access to booking routes without authentication
+  // Booking routes are at /[subdomain] or /[subdomain]/book
+  // Check if path doesn't start with known protected routes and could be a subdomain
+  const pathname = request.nextUrl.pathname
+  const isBookingRoute =
+    !pathname.startsWith('/dashboard') &&
+    !pathname.startsWith('/login') &&
+    !pathname.startsWith('/signup') &&
+    !pathname.startsWith('/auth') &&
+    !pathname.startsWith('/_next') &&
+    !pathname.startsWith('/api') &&
+    pathname !== '/' &&
+    !pathname.includes('.')
+
   // If no user and trying to access protected route, redirect to login
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isBookingRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

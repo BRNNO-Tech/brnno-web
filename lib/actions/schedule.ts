@@ -1,0 +1,436 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { getBusinessId } from './utils'
+import { revalidatePath } from 'next/cache'
+
+/**
+ * Expands recurring time blocks into individual instances for a date range
+ */
+function expandRecurringBlocks(blocks: any[], startDate: Date, endDate: Date): any[] {
+  const expanded: any[] = []
+
+  for (const block of blocks) {
+    if (!block.is_recurring || !block.recurrence_pattern) {
+      // Non-recurring block - add as-is if in range
+      const blockStart = new Date(block.start_time)
+      const blockEnd = new Date(block.end_time)
+      if (blockStart <= endDate && blockEnd >= startDate) {
+        expanded.push(block)
+      }
+      continue
+    }
+
+    // Recurring block - expand it
+    const baseStart = new Date(block.start_time)
+    const baseEnd = new Date(block.end_time)
+    const duration = baseEnd.getTime() - baseStart.getTime()
+
+    let currentDate = new Date(baseStart)
+    let occurrenceCount = 0
+    const maxOccurrences = block.recurrence_count || 999
+    const endDateLimit = block.recurrence_end_date ? new Date(block.recurrence_end_date) : endDate
+
+    while (currentDate <= endDate && currentDate <= endDateLimit && occurrenceCount < maxOccurrences) {
+      if (currentDate >= startDate) {
+        const instanceStart = new Date(currentDate)
+        const instanceEnd = new Date(instanceStart.getTime() + duration)
+
+        expanded.push({
+          ...block,
+          id: `${block.id}_${occurrenceCount}`, // Unique ID for each instance
+          start_time: instanceStart.toISOString(),
+          end_time: instanceEnd.toISOString(),
+          is_recurring_instance: true,
+          original_id: block.id,
+        })
+      }
+
+      // Move to next occurrence
+      occurrenceCount++
+      switch (block.recurrence_pattern) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + 1)
+          break
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + 7)
+          break
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + 1)
+          break
+        case 'yearly':
+          currentDate.setFullYear(currentDate.getFullYear() + 1)
+          break
+      }
+    }
+  }
+
+  return expanded
+}
+
+/**
+ * Gets all time blocks (personal time, holidays) for the business
+ * Expands recurring blocks into individual instances
+ */
+export async function getTimeBlocks(startDate?: string, endDate?: string) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  // Fetch all blocks (including recurring ones)
+  let query = supabase
+    .from('time_blocks')
+    .select('*')
+    .eq('business_id', businessId)
+    .order('start_time', { ascending: true })
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error fetching time blocks:', error)
+    throw new Error(`Failed to fetch time blocks: ${error.message}`)
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  // Expand recurring blocks if date range is provided
+  if (startDate && endDate) {
+    return expandRecurringBlocks(data, new Date(startDate), new Date(endDate))
+  }
+
+  return data
+}
+
+/**
+ * Creates a new time block (personal time, holiday, etc.)
+ */
+export async function createTimeBlock(data: {
+  title: string
+  start_time: string
+  end_time: string
+  type: 'personal' | 'holiday' | 'unavailable'
+  description?: string | null
+  is_recurring?: boolean
+  recurrence_pattern?: 'daily' | 'weekly' | 'monthly' | 'yearly' | null
+  recurrence_end_date?: string | null
+  recurrence_count?: number | null
+}) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  const { data: timeBlock, error } = await supabase
+    .from('time_blocks')
+    .insert({
+      business_id: businessId,
+      ...data,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating time block:', error)
+    throw new Error(`Failed to create time block: ${error.message}`)
+  }
+
+  revalidatePath('/dashboard/schedule')
+  return timeBlock
+}
+
+/**
+ * Deletes a time block
+ */
+export async function deleteTimeBlock(id: string) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  const { error } = await supabase
+    .from('time_blocks')
+    .delete()
+    .eq('id', id)
+    .eq('business_id', businessId)
+
+  if (error) {
+    console.error('Error deleting time block:', error)
+    throw new Error(`Failed to delete time block: ${error.message}`)
+  }
+
+  revalidatePath('/dashboard/schedule')
+}
+
+/**
+ * Gets jobs for the schedule (scheduled and in_progress)
+ */
+export async function getScheduledJobs(startDate?: string, endDate?: string) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  let query = supabase
+    .from('jobs')
+    .select(`
+      *,
+      client:clients(name, phone, email)
+    `)
+    .eq('business_id', businessId)
+    .in('status', ['scheduled', 'in_progress'])
+    .order('scheduled_date', { ascending: true })
+
+  if (startDate && endDate) {
+    query = query
+      .gte('scheduled_date', startDate)
+      .lte('scheduled_date', endDate)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error fetching scheduled jobs:', error)
+    throw new Error(`Failed to fetch jobs: ${error.message}`)
+  }
+
+  return data || []
+}
+
+/**
+ * Gets business hours from business settings
+ */
+export async function getBusinessHours() {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  const { data: business, error } = await supabase
+    .from('businesses')
+    .select('business_hours')
+    .eq('id', businessId)
+    .single()
+
+  if (error) {
+    console.error('Error fetching business hours:', error)
+    return null
+  }
+
+  return business?.business_hours || null
+}
+
+/**
+ * Updates business hours
+ */
+export async function updateBusinessHours(hours: {
+  monday?: { open: string; close: string; closed?: boolean } | null
+  tuesday?: { open: string; close: string; closed?: boolean } | null
+  wednesday?: { open: string; close: string; closed?: boolean } | null
+  thursday?: { open: string; close: string; closed?: boolean } | null
+  friday?: { open: string; close: string; closed?: boolean } | null
+  saturday?: { open: string; close: string; closed?: boolean } | null
+  sunday?: { open: string; close: string; closed?: boolean } | null
+}) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  const { error } = await supabase
+    .from('businesses')
+    .update({ business_hours: hours })
+    .eq('id', businessId)
+
+  if (error) {
+    console.error('Error updating business hours:', error)
+    throw new Error(`Failed to update business hours: ${error.message}`)
+  }
+
+  revalidatePath('/dashboard/schedule')
+  revalidatePath('/dashboard/settings')
+}
+
+/**
+ * Updates a job's scheduled date (for drag and drop)
+ */
+export async function updateJobDate(jobId: string, newDate: string) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  // Verify job belongs to business
+  const { data: job, error: fetchError } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('id', jobId)
+    .eq('business_id', businessId)
+    .single()
+
+  if (fetchError || !job) {
+    throw new Error('Job not found or access denied')
+  }
+
+  const { error } = await supabase
+    .from('jobs')
+    .update({ scheduled_date: newDate })
+    .eq('id', jobId)
+
+  if (error) {
+    console.error('Error updating job date:', error)
+    throw new Error(`Failed to update job date: ${error.message}`)
+  }
+
+  revalidatePath('/dashboard/schedule')
+  revalidatePath('/dashboard/jobs')
+}
+
+/**
+ * Checks if a time slot is available for booking
+ * Returns available time slots for a given date
+ * This function can be called without authentication (for customer booking)
+ */
+export async function getAvailableTimeSlots(
+  businessId: string,
+  date: string,
+  durationMinutes: number = 60
+): Promise<string[]> {
+  const supabase = await createClient()
+
+  // Use server client for public access (no auth required)
+
+  // Get business hours
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('business_hours')
+    .eq('id', businessId)
+    .single()
+
+  // Default business hours if not set (9 AM - 5 PM, Mon-Fri)
+  const defaultHours = {
+    monday: { open: '09:00', close: '17:00', closed: false },
+    tuesday: { open: '09:00', close: '17:00', closed: false },
+    wednesday: { open: '09:00', close: '17:00', closed: false },
+    thursday: { open: '09:00', close: '17:00', closed: false },
+    friday: { open: '09:00', close: '17:00', closed: false },
+    saturday: { closed: true },
+    sunday: { closed: true },
+  }
+
+  const businessHours = business?.business_hours || defaultHours
+
+  // Get day of week (0 = Sunday, 1 = Monday, etc.)
+  const dayIndex = new Date(date).getDay()
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  const dayOfWeek = dayNames[dayIndex] as keyof typeof businessHours
+  const dayHours = businessHours[dayOfWeek]
+
+  if (!dayHours || dayHours.closed) {
+    return [] // Day is closed
+  }
+
+  // Get time blocks for the date
+  const startOfDay = new Date(date)
+  startOfDay.setHours(0, 0, 0, 0)
+  const endOfDay = new Date(date)
+  endOfDay.setHours(23, 59, 59, 999)
+
+  // Fetch time blocks that might overlap with this day
+  // We'll filter them properly after expanding recurring blocks
+  const { data: timeBlocks } = await supabase
+    .from('time_blocks')
+    .select('*')
+    .eq('business_id', businessId)
+
+  // Get existing jobs for the date
+  const { data: jobs } = await supabase
+    .from('jobs')
+    .select('scheduled_date, estimated_duration')
+    .eq('business_id', businessId)
+    .eq('status', 'scheduled')
+    .gte('scheduled_date', startOfDay.toISOString())
+    .lte('scheduled_date', endOfDay.toISOString())
+
+  // Expand recurring time blocks and filter to only those that overlap with the target day
+  const allTimeBlocks = timeBlocks
+    ? expandRecurringBlocks(timeBlocks, startOfDay, endOfDay).filter(block => {
+      const blockStart = new Date(block.start_time)
+      const blockEnd = new Date(block.end_time)
+      // Block overlaps if it starts before day ends and ends after day starts
+      return blockStart <= endOfDay && blockEnd >= startOfDay
+    })
+    : []
+
+  // Parse business hours
+  const [openHour, openMinute] = dayHours.open.split(':').map(Number)
+  const [closeHour, closeMinute] = dayHours.close.split(':').map(Number)
+
+  const openTime = new Date(date)
+  openTime.setHours(openHour, openMinute, 0, 0)
+  const closeTime = new Date(date)
+  closeTime.setHours(closeHour, closeMinute, 0, 0)
+
+  // Generate available time slots (every 30 minutes)
+  const availableSlots: string[] = []
+  const slotInterval = 30 // minutes
+  let currentTime = new Date(openTime)
+
+  while (currentTime < closeTime) {
+    const slotEnd = new Date(currentTime.getTime() + durationMinutes * 60 * 1000)
+
+    // Check if slot fits within business hours
+    if (slotEnd > closeTime) {
+      break
+    }
+
+    // Check if slot conflicts with time blocks
+    const conflictsWithBlock = allTimeBlocks.some(block => {
+      const blockStart = new Date(block.start_time)
+      const blockEnd = new Date(block.end_time)
+      return (
+        (currentTime >= blockStart && currentTime < blockEnd) ||
+        (slotEnd > blockStart && slotEnd <= blockEnd) ||
+        (currentTime <= blockStart && slotEnd >= blockEnd)
+      )
+    })
+
+    // Check if slot conflicts with existing jobs
+    // Only check jobs that have a valid scheduled_date with a time component
+    const conflictsWithJob = jobs?.some(job => {
+      if (!job.scheduled_date) return false
+      const jobStart = new Date(job.scheduled_date)
+
+      // Skip jobs that don't have a time set (just a date)
+      // If the time is midnight (00:00:00), it might be a date-only entry
+      const hasTime = jobStart.getHours() !== 0 || jobStart.getMinutes() !== 0 || jobStart.getSeconds() !== 0
+      if (!hasTime) return false
+
+      const jobDuration = (job.estimated_duration || 60) * 60 * 1000
+      const jobEnd = new Date(jobStart.getTime() + jobDuration)
+      return (
+        (currentTime >= jobStart && currentTime < jobEnd) ||
+        (slotEnd > jobStart && slotEnd <= jobEnd) ||
+        (currentTime <= jobStart && slotEnd >= jobEnd)
+      )
+    })
+
+    if (!conflictsWithBlock && !conflictsWithJob) {
+      const timeString = currentTime.toTimeString().slice(0, 5) // HH:MM format
+      availableSlots.push(timeString)
+    }
+
+    // Move to next slot
+    currentTime = new Date(currentTime.getTime() + slotInterval * 60 * 1000)
+  }
+
+  return availableSlots
+}
+
+/**
+ * Checks if a specific date/time is available for booking
+ */
+export async function checkTimeSlotAvailability(
+  businessId: string,
+  dateTime: string,
+  durationMinutes: number = 60
+): Promise<boolean> {
+  const date = new Date(dateTime).toISOString().split('T')[0]
+  const availableSlots = await getAvailableTimeSlots(businessId, date, durationMinutes)
+  const requestedTime = new Date(dateTime).toTimeString().slice(0, 5)
+
+  // Check if requested time is within 30 minutes of any available slot
+  return availableSlots.some(slot => {
+    const slotTime = new Date(`${date}T${slot}`).getTime()
+    const requestedTimeMs = new Date(dateTime).getTime()
+    return Math.abs(slotTime - requestedTimeMs) < 30 * 60 * 1000 // 30 minutes tolerance
+  })
+}

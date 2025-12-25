@@ -8,24 +8,31 @@ import { getBusinessId } from './utils'
 export async function getJobs() {
   const supabase = await createClient()
   const businessId = await getBusinessId()
-  
+
   const { data: jobs, error } = await supabase
     .from('jobs')
     .select(`
       *,
-      client:clients(name, phone, email)
+      client:clients(name, phone, email),
+      assignments:job_assignments(
+        id,
+        team_member:team_members!job_assignments_team_member_id_fkey(id, name, role)
+      )
     `)
     .eq('business_id', businessId)
     .order('scheduled_date', { ascending: true })
-  
-  if (error) throw error
+
+  if (error) {
+    console.error('Error fetching jobs:', JSON.stringify(error, null, 2))
+    throw error
+  }
   return jobs || []
 }
 
 export async function addJob(formData: FormData) {
   const supabase = await createClient()
   const businessId = await getBusinessId()
-  
+
   const jobData = {
     business_id: businessId,
     client_id: formData.get('client_id') as string || null,
@@ -45,26 +52,29 @@ export async function addJob(formData: FormData) {
     client_notes: formData.get('client_notes') as string || null,
     internal_notes: formData.get('internal_notes') as string || null,
   }
-  
+
   const { error } = await supabase
     .from('jobs')
     .insert(jobData)
-  
-  if (error) throw error
-  
+
+  if (error) {
+    console.error('Error creating job:', JSON.stringify(error, null, 2))
+    throw error
+  }
+
   revalidatePath('/dashboard/jobs')
 }
 
 export async function updateJobStatus(id: string, status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled') {
   const supabase = await createClient()
-  
+
   const { error } = await supabase
     .from('jobs')
     .update({ status })
     .eq('id', id)
-  
+
   if (error) throw error
-  
+
   // Trigger review request when job is completed
   if (status === 'completed') {
     try {
@@ -74,13 +84,13 @@ export async function updateJobStatus(id: string, status: 'scheduled' | 'in_prog
       // Don't fail the job update if review request fails
     }
   }
-  
+
   revalidatePath('/dashboard/jobs')
 }
 
 export async function updateJob(id: string, formData: FormData) {
   const supabase = await createClient()
-  
+
   const jobData = {
     client_id: formData.get('client_id') as string || null,
     title: formData.get('title') as string,
@@ -98,27 +108,47 @@ export async function updateJob(id: string, formData: FormData) {
     client_notes: formData.get('client_notes') as string || null,
     internal_notes: formData.get('internal_notes') as string || null,
   }
-  
+
   const { error } = await supabase
     .from('jobs')
     .update(jobData)
     .eq('id', id)
-  
+
   if (error) throw error
-  
+
   revalidatePath('/dashboard/jobs')
 }
 
 export async function deleteJob(id: string) {
   const supabase = await createClient()
-  
+
   const { error } = await supabase
     .from('jobs')
     .delete()
     .eq('id', id)
-  
+
   if (error) throw error
-  
+
   revalidatePath('/dashboard/jobs')
+}
+
+export async function getJob(id: string) {
+  const supabase = await createClient()
+
+  const { data: job, error } = await supabase
+    .from('jobs')
+    .select(`
+      *,
+      client:clients(*),
+      assignments:job_assignments(
+        id,
+        team_member:team_members!job_assignments_team_member_id_fkey(*)
+      )
+    `)
+    .eq('id', id)
+    .single()
+
+  if (error) throw error
+  return job
 }
 

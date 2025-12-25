@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { signOut } from "@/lib/actions/auth";
 import {
   LayoutDashboard,
   Users,
   Target,
   Wrench,
   Calendar,
+  CalendarDays,
   FileText,
   Receipt,
   BarChart,
@@ -22,7 +22,9 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Clients", href: "/dashboard/clients", icon: Users },
   { name: "Leads", href: "/dashboard/leads", icon: Target },
+  { name: "Team", href: "/dashboard/team", icon: Users },
   { name: "Services", href: "/dashboard/services", icon: Wrench },
+  { name: "Schedule", href: "/dashboard/schedule", icon: CalendarDays },
   { name: "Jobs", href: "/dashboard/jobs", icon: Calendar },
   { name: "Quotes", href: "/dashboard/quotes", icon: FileText },
   { name: "Invoices", href: "/dashboard/invoices", icon: Receipt },
@@ -31,13 +33,9 @@ const navigation = [
 ];
 
 function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleSidebar: () => void }) {
-  const router = useRouter()
-
   async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    // Use server action for proper cookie handling
+    await signOut()
   }
 
   return (
@@ -63,15 +61,15 @@ function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleS
         {navigation.map((item) => {
           const Icon = item.icon;
           return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-              title={isCollapsed ? item.name : undefined}
-            >
+          <Link
+            key={item.name}
+            href={item.href}
+            className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+            title={isCollapsed ? item.name : undefined}
+          >
               <Icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-              {!isCollapsed && <span>{item.name}</span>}
-            </Link>
+            {!isCollapsed && <span>{item.name}</span>}
+          </Link>
           );
         })}
       </nav>

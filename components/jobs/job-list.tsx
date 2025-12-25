@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Trash2, Play, CheckCircle, XCircle, Edit } from 'lucide-react'
 import { deleteJob, updateJobStatus } from '@/lib/actions/jobs'
 import EditJobDialog from './edit-job-dialog'
+import AssignJobDialog from './assign-job-dialog'
 import { useState } from 'react'
 
 type Job = {
@@ -27,6 +28,14 @@ type Job = {
   internal_notes: string | null
   client_id: string | null
   client: { name: string } | null
+  assignments?: {
+    id: string
+    team_member: {
+      id: string
+      name: string
+      role: string
+    }
+  }[]
 }
 
 export default function JobList({ jobs }: { jobs: Job[] }) {
@@ -34,7 +43,7 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
 
   async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this job?')) return
-    
+
     try {
       await deleteJob(id)
     } catch (error) {
@@ -73,40 +82,52 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
                   <h3 className="font-semibold text-lg">{job.title}</h3>
                   <Badge variant={
                     job.status === 'completed' ? 'default' :
-                    job.status === 'in_progress' ? 'secondary' :
-                    job.status === 'cancelled' ? 'destructive' :
-                    'outline'
+                      job.status === 'in_progress' ? 'secondary' :
+                        job.status === 'cancelled' ? 'destructive' :
+                          'outline'
                   }>
                     {job.status.replace('_', ' ')}
                   </Badge>
                   <Badge variant={
                     job.priority === 'urgent' ? 'destructive' :
-                    job.priority === 'high' ? 'secondary' :
-                    'outline'
+                      job.priority === 'high' ? 'secondary' :
+                        'outline'
                   }>
                     {job.priority}
                   </Badge>
+
+                  {/* Show assigned team member */}
+                  {job.assignments && job.assignments.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-semibold text-blue-600">
+                        {job.assignments[0].team_member.name.charAt(0)}
+                      </div>
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {job.assignments[0].team_member.name}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                
+
                 {job.client && (
                   <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {job.client.name}
                   </p>
                 )}
-                
+
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   {job.scheduled_date ? new Date(job.scheduled_date).toLocaleString() : 'Not scheduled'}
                   {job.service_type && ` • ${job.service_type}`}
                   {job.address && ` • ${job.city}, ${job.state}`}
                 </p>
-                
+
                 {job.estimated_cost && (
                   <p className="mt-2 font-semibold">
                     ${job.estimated_cost.toFixed(2)}
                   </p>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-2">
                 {job.status === 'scheduled' && (
                   <Button
@@ -118,7 +139,7 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
                     Start
                   </Button>
                 )}
-                
+
                 {job.status === 'in_progress' && (
                   <Button
                     size="sm"
@@ -128,7 +149,7 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
                     Complete
                   </Button>
                 )}
-                
+
                 {job.status !== 'cancelled' && job.status !== 'completed' && (
                   <Button
                     size="sm"
@@ -139,7 +160,7 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
                     Cancel
                   </Button>
                 )}
-                
+
                 <Button
                   variant="ghost"
                   size="icon"
@@ -147,7 +168,12 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
-                
+
+                <AssignJobDialog
+                  jobId={job.id}
+                  currentAssignment={job.assignments?.[0]?.team_member}
+                />
+
                 <Button
                   variant="ghost"
                   size="icon"

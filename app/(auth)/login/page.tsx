@@ -22,23 +22,43 @@ export default function LoginPage() {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
 
-    const supabase = createClient()
+    try {
+      const supabase = createClient()
 
-    // Sign in with Supabase
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+      // Validate client was created properly
+      if (!supabase) {
+        setError('Failed to initialize authentication. Please check your configuration.')
+        setLoading(false)
+        return
+      }
 
-    if (signInError) {
-      setError(signInError.message)
+      // Sign in with Supabase
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) {
+        setError(signInError.message)
+        setLoading(false)
+        return
+      }
+
+      // Success - redirect
+      router.push('/dashboard')
+      router.refresh()
+    } catch (error: any) {
+      console.error('Login error:', error)
+      // Handle network errors
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError' || error.message?.includes('fetch')) {
+        setError('Network error: Unable to connect to authentication server. Please check:\n1. Your internet connection\n2. Supabase environment variables are set correctly\n3. Your Supabase project is active')
+      } else if (error.message) {
+        setError(error.message)
+      } else {
+        setError('An unexpected error occurred. Please try again.')
+      }
       setLoading(false)
-      return
     }
-
-    // Redirect to dashboard after successful login
-    router.push('/dashboard')
-    router.refresh()
   }
 
   return (

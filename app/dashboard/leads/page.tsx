@@ -22,7 +22,7 @@ export default async function LeadsPage() {
   )
   const convertedLeads = allLeads.filter((l: any) => l.status === 'converted')
   const lostLeads = allLeads.filter((l: any) => l.status === 'lost')
-
+  
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -45,8 +45,8 @@ export default async function LeadsPage() {
               View Analytics
             </Button>
           </Link>
-          <AddLeadButton />
-        </div>
+        <AddLeadButton />
+      </div>
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">

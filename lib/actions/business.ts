@@ -4,6 +4,75 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 /**
+ * Generates a URL-friendly subdomain from a business name
+ * Converts to lowercase, removes special characters, replaces spaces with hyphens
+ */
+function generateSubdomainSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+}
+
+/**
+ * Generates a unique subdomain for a business
+ * Checks database for existing subdomains and appends number if needed
+ */
+async function generateSubdomain(name: string, excludeBusinessId?: string): Promise<string> {
+  const supabase = await createClient()
+
+  const baseSubdomain = generateSubdomainSlug(name)
+
+  // If base subdomain is empty (all special chars), use a fallback
+  if (!baseSubdomain) {
+    return `business-${Date.now()}`
+  }
+
+  // Check if subdomain exists
+  let query = supabase
+    .from('businesses')
+    .select('id')
+    .eq('subdomain', baseSubdomain)
+
+  if (excludeBusinessId) {
+    query = query.neq('id', excludeBusinessId)
+  }
+
+  const { data: existing } = await query
+
+  // If subdomain is available, return it
+  if (!existing || existing.length === 0) {
+    return baseSubdomain
+  }
+
+  // If exists, try with numbers appended
+  for (let i = 2; i <= 100; i++) {
+    const candidateSubdomain = `${baseSubdomain}-${i}`
+
+    let checkQuery = supabase
+      .from('businesses')
+      .select('id')
+      .eq('subdomain', candidateSubdomain)
+
+    if (excludeBusinessId) {
+      checkQuery = checkQuery.neq('id', excludeBusinessId)
+    }
+
+    const { data: existingCandidate } = await checkQuery
+
+    if (!existingCandidate || existingCandidate.length === 0) {
+      return candidateSubdomain
+    }
+  }
+
+  // Fallback to timestamp if all attempts fail
+  return `${baseSubdomain}-${Date.now()}`
+}
+
+/**
  * Gets the current user's business data
  * Server-side action to avoid 406 errors
  */
@@ -58,6 +127,7 @@ export async function saveBusiness(businessData: {
   zip?: string | null
   website?: string | null
   description?: string | null
+  subdomain?: string | null
 }, existingBusinessId?: string) {
   const supabase = await createClient()
 
@@ -71,12 +141,18 @@ export async function saveBusiness(businessData: {
     throw new Error('Not authenticated')
   }
 
+  // Auto-generate subdomain if not provided
+  let finalBusinessData = { ...businessData }
+  if (!finalBusinessData.subdomain || finalBusinessData.subdomain.trim() === '') {
+    finalBusinessData.subdomain = await generateSubdomain(businessData.name, existingBusinessId)
+  }
+
   let result
   if (existingBusinessId) {
     // Update existing business
     result = await supabase
       .from('businesses')
-      .update(businessData)
+      .update(finalBusinessData)
       .eq('owner_id', user.id)
       .eq('id', existingBusinessId)
       .select()
@@ -87,7 +163,7 @@ export async function saveBusiness(businessData: {
       .from('businesses')
       .insert({
         owner_id: user.id,
-        ...businessData,
+        ...finalBusinessData,
       })
       .select()
       .single()

@@ -32,9 +32,9 @@ export default function AddLeadButton() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
-
+    
     const formData = new FormData(e.currentTarget)
-
+    
     try {
       await createLead(formData)
       setOpen(false)

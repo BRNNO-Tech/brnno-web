@@ -11,8 +11,15 @@ export function createClient() {
       'Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel project settings.'
     )
     console.error('Supabase Client Error:', error.message)
-    // Still return a client to prevent crashes, but operations will fail
-    return createBrowserClient('', '')
+    throw error // Throw instead of returning invalid client
+  }
+
+  // Validate URL format
+  try {
+    new URL(supabaseUrl)
+  } catch {
+    console.error('Invalid Supabase URL:', supabaseUrl)
+    throw new Error('Invalid Supabase URL format')
   }
 
   return createBrowserClient(
@@ -24,7 +31,8 @@ export function createClient() {
       },
       global: {
         headers: {
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
       }
     }

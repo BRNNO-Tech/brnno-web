@@ -48,7 +48,7 @@ export default function LeadList({
 }) {
   async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this lead?')) return
-
+    
     try {
       await deleteLead(id)
     } catch (error) {
@@ -71,7 +71,7 @@ export default function LeadList({
 
   async function handleConvert(id: string) {
     if (!confirm('Convert this lead to a client?')) return
-
+    
     try {
       await convertLeadToClient(id)
       alert('Lead converted to client!')
@@ -100,9 +100,9 @@ export default function LeadList({
         )
         const urgency = lead.score === 'hot' && timeSinceCreated < 2
 
-        return (
+  return (
           <Card
-            key={lead.id}
+                key={lead.id}
             className={`p-6 ${urgency ? 'border-2 border-red-500' : ''}`}
           >
             <div className="mb-4 flex items-start justify-between">
@@ -113,8 +113,8 @@ export default function LeadList({
                     <span className="rounded bg-red-500 px-2 py-0.5 text-xs text-white">
                       URGENT
                     </span>
-                  )}
-                </div>
+      )}
+    </div>
                 <Badge
                   variant={
                     lead.score === 'hot'
@@ -125,36 +125,36 @@ export default function LeadList({
                   }
                 >
                   {lead.score}
-                </Badge>
-              </div>
+          </Badge>
+        </div>
               <div className="flex gap-1">
                 <Link href={`/dashboard/leads/${lead.id}`}>
                   <Button variant="ghost" size="icon">
                     <Eye className="h-4 w-4" />
                   </Button>
                 </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
+        <Button
+          variant="ghost"
+          size="icon"
                   onClick={() => handleDelete(lead.id)}
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+        >
+          <Trash2 className="h-4 w-4 text-red-500" />
+        </Button>
               </div>
-            </div>
-
+      </div>
+      
             <div className="mb-4 space-y-2 text-sm">
-              {lead.phone && (
-                <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-                  <Phone className="h-4 w-4" />
+        {lead.phone && (
+          <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+            <Phone className="h-4 w-4" />
                   <a href={`tel:${lead.phone}`} className="hover:underline">
                     {lead.phone}
                   </a>
-                </div>
-              )}
-              {lead.email && (
-                <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-                  <Mail className="h-4 w-4" />
+          </div>
+        )}
+        {lead.email && (
+          <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+            <Mail className="h-4 w-4" />
                   <a
                     href={`mailto:${lead.email}`}
                     className="text-xs hover:underline"
@@ -185,74 +185,74 @@ export default function LeadList({
                       style={{ width: `${lead.booking_progress}%` }}
                     />
                   </div>
-                </div>
-              )}
-              {lead.source && (
+          </div>
+        )}
+        {lead.source && (
                 <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  Source: {lead.source}
-                </p>
-              )}
+            Source: {lead.source}
+          </p>
+        )}
               <p className="text-xs text-zinc-600 dark:text-zinc-400">
                 Created{' '}
                 {timeSinceCreated < 1
                   ? 'less than an hour ago'
                   : `${timeSinceCreated} hours ago`}
-              </p>
+          </p>
               {lead.last_contacted_at && (
                 <p className="text-xs text-zinc-600 dark:text-zinc-400">
                   Last contact:{' '}
                   {new Date(lead.last_contacted_at).toLocaleString()}
                   {lead.follow_up_count > 0 &&
                     ` (${lead.follow_up_count} attempts)`}
-                </p>
-              )}
-            </div>
+          </p>
+        )}
+      </div>
 
             {type !== 'converted' && type !== 'lost' && (
               <div className="flex flex-wrap gap-2">
-                {lead.status === 'new' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
+        {lead.status === 'new' && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
                     onClick={() => handleStatusChange(lead.id, 'contacted')}
-                  >
+          >
                     <MessageSquare className="mr-1 h-3 w-3" />
-                    Contacted
-                  </Button>
-                )}
-                {lead.status === 'contacted' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
+            Contacted
+          </Button>
+        )}
+        {lead.status === 'contacted' && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
                     onClick={() => handleStatusChange(lead.id, 'quoted')}
-                  >
-                    Quoted
-                  </Button>
-                )}
+          >
+            Quoted
+          </Button>
+        )}
                 {(lead.status === 'quoted' ||
                   lead.status === 'contacted' ||
                   lead.status === 'nurturing') && (
-                    <Button
-                      size="sm"
-                      className="flex-1"
+          <Button
+            size="sm"
+            className="flex-1"
                       onClick={() => handleConvert(lead.id)}
-                    >
+          >
                       <UserPlus className="mr-1 h-3 w-3" />
-                      Convert
-                    </Button>
-                  )}
-                <Button
-                  size="sm"
-                  variant="destructive"
+            Convert
+          </Button>
+        )}
+          <Button
+            size="sm"
+            variant="destructive"
                   onClick={() => handleStatusChange(lead.id, 'lost')}
-                >
-                  Lost
-                </Button>
+          >
+            Lost
+          </Button>
               </div>
-            )}
-          </Card>
+        )}
+    </Card>
         )
       })}
     </div>
