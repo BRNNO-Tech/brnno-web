@@ -27,16 +27,16 @@ export default async function JobDetailPage({
               <h1 className="text-3xl font-bold">{job.title}</h1>
               <Badge variant={
                 job.status === 'completed' ? 'default' :
-                job.status === 'in_progress' ? 'secondary' :
-                job.status === 'cancelled' ? 'destructive' :
-                'outline'
+                  job.status === 'in_progress' ? 'secondary' :
+                    job.status === 'cancelled' ? 'destructive' :
+                      'outline'
               }>
                 {job.status.replace('_', ' ')}
               </Badge>
               <Badge variant={
                 job.priority === 'urgent' ? 'destructive' :
-                job.priority === 'high' ? 'secondary' :
-                'outline'
+                  job.priority === 'high' ? 'secondary' :
+                    'outline'
               }>
                 {job.priority}
               </Badge>
@@ -51,9 +51,9 @@ export default async function JobDetailPage({
               currentAssignment={
                 job.assignments?.[0]?.team_member
                   ? {
-                      id: job.assignments[0].team_member.id,
-                      name: job.assignments[0].team_member.name
-                    }
+                    id: job.assignments[0].team_member.id,
+                    name: job.assignments[0].team_member.name
+                  }
                   : null
               }
             />
@@ -128,29 +128,29 @@ export default async function JobDetailPage({
                 </div>
               </CardContent>
             </Card>
-            
-             <Card>
+
+            <Card>
               <CardHeader>
                 <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-zinc-400" />
-                        <p className="text-sm font-medium text-zinc-500">Client Notes</p>
-                    </div>
-                    <p className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap pl-6">
-                        {job.client_notes || 'None'}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-zinc-400" />
+                    <p className="text-sm font-medium text-zinc-500">Client Notes</p>
+                  </div>
+                  <p className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap pl-6">
+                    {job.client_notes || 'None'}
+                  </p>
                 </div>
                 <div className="space-y-1">
-                     <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-zinc-400" />
-                        <p className="text-sm font-medium text-zinc-500">Internal Notes</p>
-                    </div>
-                    <p className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap pl-6">
-                        {job.internal_notes || 'None'}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-zinc-400" />
+                    <p className="text-sm font-medium text-zinc-500">Internal Notes</p>
+                  </div>
+                  <p className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap pl-6">
+                    {job.internal_notes || 'None'}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -218,11 +218,11 @@ export default async function JobDetailPage({
                       </div>
                     </div>
                     <AssignJobDialog
-                        jobId={job.id}
-                        currentAssignment={{
-                            id: job.assignments[0].team_member.id,
-                            name: job.assignments[0].team_member.name
-                        }}
+                      jobId={job.id}
+                      currentAssignment={{
+                        id: job.assignments[0].team_member.id,
+                        name: job.assignments[0].team_member.name
+                      }}
                     />
                   </div>
                 ) : (

@@ -48,6 +48,12 @@ export default async function BookingPage({
   params: Promise<{ subdomain: string }>
 }) {
   const { subdomain } = await params
+  
+  // Don't handle reserved routes
+  if (subdomain === 'invite' || subdomain === 'dashboard' || subdomain === 'worker' || subdomain === 'api') {
+    notFound()
+  }
+  
   const business = await getBusiness(subdomain)
 
   if (!business) {

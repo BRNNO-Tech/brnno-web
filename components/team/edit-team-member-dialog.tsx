@@ -78,7 +78,7 @@ export default function EditTeamMemberDialog({ member }: { member: TeamMember })
                 <Input id="email" name="email" type="email" required defaultValue={member.email} />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone (Optional)</Label>
@@ -86,9 +86,9 @@ export default function EditTeamMemberDialog({ member }: { member: TeamMember })
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                <select 
-                  id="role" 
-                  name="role" 
+                <select
+                  id="role"
+                  name="role"
                   defaultValue={member.role}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -101,35 +101,35 @@ export default function EditTeamMemberDialog({ member }: { member: TeamMember })
 
             <div className="space-y-2">
               <Label htmlFor="skills">Skills (comma separated)</Label>
-              <Input 
-                id="skills" 
-                name="skills" 
-                defaultValue={member.skills?.join(', ') || ''} 
+              <Input
+                id="skills"
+                name="skills"
+                defaultValue={member.skills?.join(', ') || ''}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
-                <Input 
-                  id="hourly_rate" 
-                  name="hourly_rate" 
-                  type="number" 
-                  min="0" 
-                  step="0.01" 
-                  defaultValue={member.hourly_rate || ''} 
+                <Input
+                  id="hourly_rate"
+                  name="hourly_rate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  defaultValue={member.hourly_rate || ''}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="commission_rate">Commission (%)</Label>
-                <Input 
-                  id="commission_rate" 
-                  name="commission_rate" 
-                  type="number" 
-                  min="0" 
-                  max="100" 
-                  step="0.1" 
-                  defaultValue={member.commission_rate || ''} 
+                <Input
+                  id="commission_rate"
+                  name="commission_rate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  defaultValue={member.commission_rate || ''}
                 />
               </div>
             </div>

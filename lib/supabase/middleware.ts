@@ -57,6 +57,7 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute =
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup') ||
+    request.nextUrl.pathname.startsWith('/worker-signup') ||
     request.nextUrl.pathname.startsWith('/auth')
 
   // Allow access to booking routes without authentication
@@ -67,7 +68,9 @@ export async function updateSession(request: NextRequest) {
     !pathname.startsWith('/dashboard') &&
     !pathname.startsWith('/login') &&
     !pathname.startsWith('/signup') &&
+    !pathname.startsWith('/worker-signup') &&
     !pathname.startsWith('/auth') &&
+    !pathname.startsWith('/worker') &&
     !pathname.startsWith('/_next') &&
     !pathname.startsWith('/api') &&
     pathname !== '/' &&
@@ -83,7 +86,14 @@ export async function updateSession(request: NextRequest) {
   // Redirect authenticated users away from auth pages
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    // Check if user is a worker before redirecting
+    // Use RPC function to bypass RLS
+    const { data: workerData } = await supabase
+      .rpc('check_team_member_by_email', { check_email: user.email || '' })
+    
+    const worker = workerData && workerData.length > 0 ? workerData[0] : null
+    
+    url.pathname = worker ? '/worker' : '/dashboard'
     return NextResponse.redirect(url)
   }
 

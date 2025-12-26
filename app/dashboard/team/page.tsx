@@ -1,7 +1,6 @@
 import { getTeamMembers } from '@/lib/actions/team'
 import AddTeamMemberButton from '@/components/team/add-team-member-button'
-// TeamMemberList component does not exist yet; create it or use a placeholder
-// For now, we'll inline the list rendering to avoid the missing module error
+import TeamMemberList from '@/components/team/team-member-list'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, DollarSign, Award, TrendingUp } from 'lucide-react'
 
@@ -99,25 +98,13 @@ export default async function TeamPage() {
             </div>
 
             {/* Team List */}
-            {/* Inline team list rendering until TeamMemberList component is created */}
-            <div className="space-y-4">
-                {members.map((member) => (
-                    <Card key={member.id}>
-                        <CardContent className="flex items-center justify-between p-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-800" />
-                                <div>
-                                    <p className="font-semibold">{member.name}</p>
-                                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{member.email}</p>
-                                </div>
-                            </div>
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${member.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'}`}>
-                                {member.status}
-                            </span>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+            <TeamMemberList members={members.map(m => ({
+                ...m,
+                user_id: m.user_id || null,
+                total_jobs_completed: (m as any).total_jobs_completed || 0,
+                average_rating: (m as any).average_rating || 0,
+                total_earnings: (m as any).total_earnings || 0,
+            }))} />
         </div>
     )
 }

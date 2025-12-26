@@ -18,6 +18,7 @@ type TeamMember = {
   skills: string[] | null
   hourly_rate: number | null
   commission_rate: number | null
+  user_id: string | null  // Add this field
   total_jobs_completed: number
   average_rating: number
   total_earnings: number

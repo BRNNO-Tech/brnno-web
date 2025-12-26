@@ -61,15 +61,15 @@ function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleS
         {navigation.map((item) => {
           const Icon = item.icon;
           return (
-          <Link
-            key={item.name}
-            href={item.href}
-            className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-            title={isCollapsed ? item.name : undefined}
-          >
+            <Link
+              key={item.name}
+              href={item.href}
+              className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+              title={isCollapsed ? item.name : undefined}
+            >
               <Icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-            {!isCollapsed && <span>{item.name}</span>}
-          </Link>
+              {!isCollapsed && <span>{item.name}</span>}
+            </Link>
           );
         })}
       </nav>

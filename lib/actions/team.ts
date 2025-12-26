@@ -109,30 +109,89 @@ export async function deleteTeamMember(id: string) {
 export async function assignJobToMember(jobId: string, memberId: string) {
   const supabase = await createClient()
 
-  // First check if already assigned to remove old assignment
-  // Or if we support multiple assignments, we might just add a new one
-  // For now, assuming one assignment per job for simplicity, or we just add a new row
-  // The UI suggests reassigning, so let's clear existing assignments for this job first?
-  // Or just insert a new assignment.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
 
-  // Let's delete existing assignments for this job to keep it single-assignment for now
-  await supabase
+  // Check if assignment already exists
+  const { data: existing } = await supabase
     .from('job_assignments')
-    .delete()
+    .select('id')
     .eq('job_id', jobId)
+    .single()
 
-  const { error } = await supabase
-    .from('job_assignments')
-    .insert({
+  if (existing) {
+    // Update existing assignment
+    const { error } = await supabase
+      .from('job_assignments')
+      .update({
+        team_member_id: memberId,
+        assigned_at: new Date().toISOString(),
+      })
+      .eq('job_id', jobId)
+
+    if (error) throw error
+  } else {
+    // Create new assignment
+    const assignmentData: any = {
       job_id: jobId,
       team_member_id: memberId,
       assigned_at: new Date().toISOString(),
-      status: 'assigned'
-    })
+    }
 
-  if (error) {
-    console.error('Error assigning job:', JSON.stringify(error, null, 2))
-    throw error
+    // Only add assigned_by if the column exists (check by trying to insert)
+    // For now, we'll skip it to avoid schema issues
+    const { error } = await supabase
+      .from('job_assignments')
+      .insert(assignmentData)
+
+    if (error) {
+      // If unique constraint violation, update instead
+      if (error.code === '23505') {
+        const { error: updateError } = await supabase
+          .from('job_assignments')
+          .update({
+            team_member_id: memberId,
+            assigned_at: new Date().toISOString(),
+          })
+          .eq('job_id', jobId)
+
+        if (updateError) throw updateError
+      } else {
+        throw error
+      }
+    }
   }
+
   revalidatePath('/dashboard/jobs')
+}
+
+export async function getJobAssignments(jobId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('job_assignments')
+    .select(`
+      *,
+      team_member:team_members(*)
+    `)
+    .eq('job_id', jobId)
+
+  if (error) throw error
+  return data || []
+}
+
+export async function getMemberJobs(memberId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('job_assignments')
+    .select(`
+      *,
+      job:jobs(*)
+    `)
+    .eq('team_member_id', memberId)
+    .order('assigned_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
 }

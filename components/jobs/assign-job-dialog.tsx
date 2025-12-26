@@ -53,7 +53,7 @@ export default function AssignJobDialog({ jobId, currentAssignment }: {
         <DialogHeader>
           <DialogTitle>Assign Job to Team Member</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-2">
           {members.length === 0 ? (
             <p className="text-center text-zinc-600 dark:text-zinc-400 py-8">

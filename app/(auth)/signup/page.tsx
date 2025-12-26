@@ -34,79 +34,119 @@ export default function SignupPage() {
 
     const supabase = createClient()
 
-    // Check environment variables
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    try {
+      // FIRST: Check if this email belongs to an existing team member
+      // Use RPC function to bypass RLS
+      const { data: workerData, error: workerCheckError } = await supabase
+        .rpc('check_team_member_by_email', { check_email: email })
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      setError('Supabase is not configured. Please contact support.')
-      setLoading(false)
-      return
-    }
-
-    console.log('Attempting signup for:', email)
-
-    // Sign up with Supabase
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name,
-        }
+      const existingWorker = workerData && workerData.length > 0 ? workerData[0] : null
+      
+      if (workerCheckError) {
+        throw workerCheckError
       }
-    })
 
-    console.log('Signup result:', {
-      hasUser: !!data?.user,
-      hasError: !!signUpError,
-      error: signUpError
-    })
+      if (existingWorker) {
+        // They're a WORKER - create auth account and link it
+        
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name,
+              user_type: 'worker'
+            }
+          }
+        })
 
-    if (signUpError) {
-      console.error('Signup error details:', {
-        message: signUpError.message,
-        status: signUpError.status,
-        name: signUpError.name,
+        // If user already exists, try to sign them in instead
+        if (signUpError && signUpError.message.includes('already registered')) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          })
+
+          if (signInError) {
+            throw new Error('This email is already registered. Please use the login page or reset your password.')
+          }
+
+          // Link if not already linked
+          if (signInData.user && !existingWorker.user_id) {
+            await supabase
+              .from('team_members')
+              .update({ user_id: signInData.user.id })
+              .eq('id', existingWorker.id)
+          }
+
+          window.location.href = '/worker'
+          return
+        }
+
+        if (signUpError) throw signUpError
+        if (!authData.user) throw new Error('Failed to create account')
+
+        // Link the auth user to the team member record
+        const { error: updateError } = await supabase
+          .from('team_members')
+          .update({ user_id: authData.user.id })
+          .eq('id', existingWorker.id)
+
+        if (updateError) {
+          throw new Error(`Failed to link your account: ${updateError.message}`)
+        }
+
+        // Sign them in
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+        
+        if (signInError) {
+          throw new Error(`Failed to sign in: ${signInError.message}`)
+        }
+
+        // Wait a moment for the database update to propagate
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // Redirect to worker dashboard
+        window.location.href = '/worker'
+        return
+      }
+
+      // NOT a worker - create BUSINESS OWNER account
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            user_type: 'business_owner'
+          }
+        }
       })
-      setError(`Signup failed: ${signUpError.message}${signUpError.status ? ` (Status: ${signUpError.status})` : ''}`)
+
+      if (signUpError) throw signUpError
+      if (!data.user) throw new Error('Failed to create account')
+
+      // Create a business record for the new user
+      const { error: businessError } = await supabase
+        .from('businesses')
+        .insert({
+          owner_id: data.user.id,
+          name: name + "'s Business",
+        })
+
+      if (businessError) {
+        // Still allow them to proceed - they can create business in settings
+        console.error('Error creating business:', businessError)
+      }
+
+      // Redirect to dashboard
+      router.push('/dashboard')
+      
+    } catch (err: any) {
+      setError(err.message || 'Failed to create account')
       setLoading(false)
-      return
     }
-
-    if (!data.user) {
-      setError('Failed to create account. Please try again.')
-      setLoading(false)
-      return
-    }
-
-    console.log('User created, attempting to create business for user:', data.user.id)
-
-    // Create a business record for the new user
-    const { data: businessData, error: businessError } = await supabase
-      .from('businesses')
-      .insert({
-        owner_id: data.user.id,
-        name: name + "'s Business", // Default business name
-      })
-      .select()
-      .single()
-
-    if (businessError) {
-      // Log the error but don't block signup - user can create business in settings
-      console.error('Error creating business during signup:', {
-        message: businessError.message,
-        code: businessError.code,
-        details: businessError.details,
-        hint: businessError.hint,
-      })
-      // Still allow them to proceed - they can create business in settings
-    } else {
-      console.log('Business created successfully:', businessData)
-    }
-
-    // Redirect to dashboard after successful signup
-    router.push('/dashboard')
   }
 
   return (
@@ -177,8 +217,9 @@ export default function SignupPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 pr-10 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 sm:text-sm"
+                  className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 pr-10 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 sm:text-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                   placeholder="••••••••"
+                  style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' } as any}
                 />
                 <button
                   type="button"
@@ -239,8 +280,9 @@ export default function SignupPage() {
                   type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 pr-10 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 sm:text-sm"
+                  className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 pr-10 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 sm:text-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                   placeholder="••••••••"
+                  style={{ WebkitTextSecurity: showConfirmPassword ? 'none' : 'disc' } as any}
                 />
                 <button
                   type="button"

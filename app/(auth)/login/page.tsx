@@ -44,8 +44,28 @@ export default function LoginPage() {
         return
       }
 
-      // Success - redirect
-      router.push('/dashboard')
+      // Get authenticated user
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        setError('Failed to get user information')
+        setLoading(false)
+        return
+      }
+
+      // Check if user is a team member (worker) by user_id
+      const { data: worker } = await supabase
+        .from('team_members')
+        .select('id, role, business_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      // Success - redirect based on role
+      if (worker) {
+        router.push('/worker')
+      } else {
+        router.push('/dashboard')
+      }
       router.refresh()
     } catch (error: any) {
       console.error('Login error:', error)
