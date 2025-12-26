@@ -117,7 +117,7 @@ export async function assignJobToMember(jobId: string, memberId: string) {
     .from('job_assignments')
     .select('id')
     .eq('job_id', jobId)
-    .single()
+    .maybeSingle()
 
   if (existing) {
     // Update existing assignment
