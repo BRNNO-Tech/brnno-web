@@ -3,72 +3,97 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Step1Account from './steps/step-1-account'
+import Step2Business from './steps/step-2-business'
+import Step3Customize from './steps/step-3-customize'
 
-// Force dynamic rendering to prevent static generation issues
 export const dynamic = 'force-dynamic'
 
+type FormData = {
+  // Step 1
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+  // Step 2
+  businessName: string
+  phone: string
+  address: string
+  city: string
+  state: string
+  zip: string
+  // Step 3
+  subdomain: string
+  description: string
+}
+
 export default function SignupPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    businessName: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
+    subdomain: '',
+    description: '',
+  })
+
+  const updateFormData = (data: Partial<FormData>) => {
+    setFormData((prev) => ({ ...prev, ...data }))
+  }
+
+  async function handleSubmit() {
     setLoading(true)
     setError('')
-
-    const formData = new FormData(e.currentTarget)
-    const name = formData.get('name') as string
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
-    const confirmPassword = formData.get('confirm-password') as string
-
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
-    }
 
     const supabase = createClient()
 
     try {
-      // FIRST: Check if this email belongs to an existing team member
-      // Use RPC function to bypass RLS
+      // Check if email belongs to an existing team member (worker)
       const { data: workerData, error: workerCheckError } = await supabase
-        .rpc('check_team_member_by_email', { check_email: email })
+        .rpc('check_team_member_by_email', { check_email: formData.email })
 
       const existingWorker = workerData && workerData.length > 0 ? workerData[0] : null
-      
+
       if (workerCheckError) {
         throw workerCheckError
       }
 
       if (existingWorker) {
         // They're a WORKER - create auth account and link it
-        
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
+          email: formData.email,
+          password: formData.password,
           options: {
             data: {
-              full_name: name,
-              user_type: 'worker'
-            }
-          }
+              full_name: formData.name,
+              user_type: 'worker',
+            },
+          },
         })
 
         // If user already exists, try to sign them in instead
         if (signUpError && signUpError.message.includes('already registered')) {
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password
-          })
+          const { data: signInData, error: signInError } =
+            await supabase.auth.signInWithPassword({
+              email: formData.email,
+              password: formData.password,
+            })
 
           if (signInError) {
-            throw new Error('This email is already registered. Please use the login page or reset your password.')
+            throw new Error(
+              'This email is already registered. Please use the login page or reset your password.'
+            )
           }
 
           // Link if not already linked
@@ -97,14 +122,17 @@ export default function SignupPage() {
         }
 
         // Sign them in
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-        
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        })
+
         if (signInError) {
           throw new Error(`Failed to sign in: ${signInError.message}`)
         }
 
         // Wait a moment for the database update to propagate
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 500))
 
         // Redirect to worker dashboard
         window.location.href = '/worker'
@@ -112,37 +140,41 @@ export default function SignupPage() {
       }
 
       // NOT a worker - create BUSINESS OWNER account
-
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
         options: {
           data: {
-            full_name: name,
-            user_type: 'business_owner'
-          }
-        }
+            full_name: formData.name,
+            user_type: 'business_owner',
+          },
+        },
       })
 
       if (signUpError) throw signUpError
       if (!data.user) throw new Error('Failed to create account')
 
-      // Create a business record for the new user
-      const { error: businessError } = await supabase
-        .from('businesses')
-        .insert({
-          owner_id: data.user.id,
-          name: name + "'s Business",
-        })
+      // Create a complete business record with all the collected information
+      const { error: businessError } = await supabase.from('businesses').insert({
+        owner_id: data.user.id,
+        name: formData.businessName,
+        phone: formData.phone || null,
+        address: formData.address || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        zip: formData.zip || null,
+        subdomain: formData.subdomain || null,
+        description: formData.description || null,
+        email: formData.email, // Use account email as business email
+      })
 
       if (businessError) {
-        // Still allow them to proceed - they can create business in settings
         console.error('Error creating business:', businessError)
+        throw new Error(`Failed to create business: ${businessError.message}`)
       }
 
       // Redirect to dashboard
       router.push('/dashboard')
-      
     } catch (err: any) {
       setError(err.message || 'Failed to create account')
       setLoading(false)
@@ -150,15 +182,20 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black px-4">
       <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900">
-        <div>
-          <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-            Create your account
-          </h2>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Get started by creating your account.
-          </p>
+        {/* Progress indicator */}
+        <div className="flex items-center justify-center gap-2">
+          {[1, 2, 3].map((step) => (
+            <div
+              key={step}
+              className={`h-2 flex-1 rounded-full transition-colors ${
+                step <= currentStep
+                  ? 'bg-zinc-900 dark:bg-zinc-50'
+                  : 'bg-zinc-200 dark:bg-zinc-700'
+              }`}
+            />
+          ))}
         </div>
 
         {error && (
@@ -167,194 +204,61 @@ export default function SignupPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-              >
-                Full name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 sm:text-sm"
-                placeholder="John Doe"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-              >
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 sm:text-sm"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-              >
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 pr-10 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 sm:text-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
-                  placeholder="••••••••"
-                  style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' } as any}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="h-5 w-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228L3.98 8.223m0 0A10.477 10.477 0 001.934 12m1.046-3.777m0 0L12 12m-8.976-3.777L12 12"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="h-5 w-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label
-                htmlFor="confirm-password"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
-              >
-                Confirm password
-              </label>
-              <div className="relative">
-                <input
-                  id="confirm-password"
-                  name="confirm-password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 pr-10 text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 sm:text-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
-                  placeholder="••••••••"
-                  style={{ WebkitTextSecurity: showConfirmPassword ? 'none' : 'disc' } as any}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
-                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                >
-                  {showConfirmPassword ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="h-5 w-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228L3.98 8.223m0 0A10.477 10.477 0 001.934 12m1.046-3.777m0 0L12 12m-8.976-3.777L12 12"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                      stroke="currentColor"
-                      className="h-5 w-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
+        {currentStep === 1 && (
+          <Step1Account
+            formData={{
+              name: formData.name,
+              email: formData.email,
+              password: formData.password,
+              confirmPassword: formData.confirmPassword,
+            }}
+            onUpdate={updateFormData}
+            onNext={() => setCurrentStep(2)}
+          />
+        )}
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-600 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Creating account...' : 'Create account'}
-            </button>
-          </div>
+        {currentStep === 2 && (
+          <Step2Business
+            formData={{
+              businessName: formData.businessName,
+              phone: formData.phone,
+              address: formData.address,
+              city: formData.city,
+              state: formData.state,
+              zip: formData.zip,
+            }}
+            onUpdate={updateFormData}
+            onNext={() => setCurrentStep(3)}
+            onBack={() => setCurrentStep(1)}
+          />
+        )}
 
-          <div className="text-center text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">
-              Already have an account?{" "}
-            </span>
-            <a
-              href="/login"
-              className="font-medium text-zinc-900 hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-300"
-            >
-              Sign in
-            </a>
-          </div>
-        </form>
+        {currentStep === 3 && (
+          <Step3Customize
+            formData={{
+              subdomain: formData.subdomain,
+              description: formData.description,
+            }}
+            businessName={formData.businessName}
+            onUpdate={updateFormData}
+            onSubmit={handleSubmit}
+            onBack={() => setCurrentStep(2)}
+            loading={loading}
+          />
+        )}
+
+        <div className="text-center text-sm">
+          <span className="text-zinc-600 dark:text-zinc-400">
+            Already have an account?{' '}
+          </span>
+          <a
+            href="/login"
+            className="font-medium text-zinc-900 hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-300"
+          >
+            Sign in
+          </a>
+        </div>
       </div>
     </div>
-  );
+  )
 }
-
