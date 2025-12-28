@@ -30,7 +30,7 @@ export async function getWorkerJobs() {
       *,
       job:jobs(
         *,
-        client:clients(name, phone, email)
+        client:clients(name, phone, email, address, city, state, zip)
       )
     `)
     .eq('team_member_id', worker.id)
