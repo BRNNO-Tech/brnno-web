@@ -35,16 +35,16 @@ const features = [
 
 export default function Features() {
   return (
-    <section id="features" className="py-20 px-6 scroll-mt-20">
+    <section id="features" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 scroll-mt-20">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold mb-4">Everything You Need</h2>
-          <p className="text-xl text-zinc-600 dark:text-zinc-400">
+        <div className="text-center mb-12 sm:mb-16">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-3 sm:mb-4">Everything You Need</h2>
+          <p className="text-base sm:text-lg md:text-xl text-zinc-600 dark:text-zinc-400 px-4">
             Powerful features to help you run your business efficiently
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {features.map((feature) => (
             <div
               key={feature.title}

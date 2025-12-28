@@ -46,16 +46,16 @@ const plans = [
 
 export default function Pricing() {
   return (
-    <section id="pricing" className="py-20 px-6 bg-zinc-50 dark:bg-zinc-900/50 scroll-mt-20">
+    <section id="pricing" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 bg-zinc-50 dark:bg-zinc-900/50 scroll-mt-20">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-xl text-zinc-600 dark:text-zinc-400">
+        <div className="text-center mb-12 sm:mb-16">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-3 sm:mb-4">Simple, Transparent Pricing</h2>
+          <p className="text-base sm:text-lg md:text-xl text-zinc-600 dark:text-zinc-400 px-4">
             Choose the plan that's right for your business
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-sm md:max-w-none mx-auto">
           {plans.map((plan) => (
             <div
               key={plan.name}

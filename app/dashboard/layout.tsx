@@ -17,6 +17,8 @@ import {
   Star,
   Settings,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 
 const navigation = [
@@ -33,28 +35,54 @@ const navigation = [
   { name: "Reviews", href: "/dashboard/reviews", icon: Star },
 ];
 
-function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleSidebar: () => void }) {
+function Sidebar({ 
+  isCollapsed, 
+  toggleSidebar, 
+  isMobile = false,
+  onMobileClose 
+}: { 
+  isCollapsed: boolean
+  toggleSidebar: () => void
+  isMobile?: boolean
+  onMobileClose?: () => void
+}) {
   async function handleLogout() {
     // Use server action for proper cookie handling
     await signOut()
   }
 
+  const handleLinkClick = () => {
+    if (isMobile && onMobileClose) {
+      onMobileClose()
+    }
+  }
+
   return (
-    <div className={`flex h-full flex-col border-r border-zinc-200 bg-white transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900 ${isCollapsed ? 'w-16' : 'w-64'}`}>
+    <div className={`flex h-full flex-col border-r border-zinc-200 bg-white transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900 ${isCollapsed && !isMobile ? 'w-16' : 'w-64'}`}>
       {/* Logo / Business Name */}
       <div className="flex h-16 items-center justify-between border-b border-zinc-200 px-6 dark:border-zinc-800">
-        {!isCollapsed && (
+        {(!isCollapsed || isMobile) && (
           <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
             BRNNO
           </h1>
         )}
-        <button
-          onClick={toggleSidebar}
-          className="rounded-md p-1.5 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? "→" : "←"}
-        </button>
+        {isMobile ? (
+          <button
+            onClick={onMobileClose}
+            className="rounded-md p-1.5 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        ) : (
+          <button
+            onClick={toggleSidebar}
+            className="rounded-md p-1.5 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? "→" : "←"}
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -65,11 +93,12 @@ function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleS
             <Link
               key={item.name}
               href={item.href}
-              className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-              title={isCollapsed ? item.name : undefined}
+              onClick={handleLinkClick}
+              className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 min-h-[44px]"
+              title={isCollapsed && !isMobile ? item.name : undefined}
             >
-              <Icon className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-              {!isCollapsed && <span>{item.name}</span>}
+              <Icon className={`h-5 w-5 ${isCollapsed && !isMobile ? '' : 'mr-3'}`} />
+              {(!isCollapsed || isMobile) && <span>{item.name}</span>}
             </Link>
           );
         })}
@@ -82,26 +111,27 @@ function Sidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean; toggleS
       <div className="space-y-1 px-3 py-4">
         <Link
           href="/dashboard/settings"
-          className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-          title={isCollapsed ? "Settings" : undefined}
+          onClick={handleLinkClick}
+          className="group flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 min-h-[44px]"
+          title={isCollapsed && !isMobile ? "Settings" : undefined}
         >
-          <Settings className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-          {!isCollapsed && <span>Settings</span>}
+          <Settings className={`h-5 w-5 ${isCollapsed && !isMobile ? '' : 'mr-3'}`} />
+          {(!isCollapsed || isMobile) && <span>Settings</span>}
         </Link>
         <button
           onClick={handleLogout}
-          className="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-          title={isCollapsed ? "Logout" : undefined}
+          className="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 min-h-[44px]"
+          title={isCollapsed && !isMobile ? "Logout" : undefined}
         >
-          <LogOut className={`h-5 w-5 ${isCollapsed ? '' : 'mr-3'}`} />
-          {!isCollapsed && <span>Logout</span>}
+          <LogOut className={`h-5 w-5 ${isCollapsed && !isMobile ? '' : 'mr-3'}`} />
+          {(!isCollapsed || isMobile) && <span>Logout</span>}
         </button>
       </div>
     </div>
   );
 }
 
-function Topbar() {
+function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle: () => void }) {
   const [businessName, setBusinessName] = useState<string>('Loading...')
 
   useEffect(() => {
@@ -125,20 +155,28 @@ function Topbar() {
   const initial = businessName.charAt(0).toUpperCase()
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center gap-4">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+    <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-4 sm:px-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center gap-3">
+        {/* Mobile menu button */}
+        <button
+          onClick={onMobileMenuToggle}
+          className="md:hidden p-2 rounded-md text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+          aria-label="Open menu"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+        <h2 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-50 truncate">
           {businessName}
         </h2>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <Link
           href="/dashboard/settings"
-          className="rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="hidden sm:flex rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
           Settings
         </Link>
-        <div className="h-10 w-10 rounded-full bg-zinc-300 dark:bg-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-400">
+        <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-zinc-300 dark:bg-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-400">
           <span className="text-sm font-medium">{initial}</span>
         </div>
       </div>
@@ -152,13 +190,38 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-zinc-50 dark:bg-black">
-      <Sidebar isCollapsed={isCollapsed} toggleSidebar={() => setIsCollapsed(!isCollapsed)} />
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <Sidebar isCollapsed={isCollapsed} toggleSidebar={() => setIsCollapsed(!isCollapsed)} />
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          {/* Sidebar */}
+          <div className="fixed left-0 top-0 bottom-0 w-64 animate-in slide-in-from-left">
+            <Sidebar 
+              isCollapsed={false} 
+              toggleSidebar={() => {}} 
+              isMobile={true}
+              onMobileClose={() => setIsMobileMenuOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <Topbar onMobileMenuToggle={() => setIsMobileMenuOpen(true)} />
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
