@@ -13,10 +13,10 @@ export default async function TeamPage() {
     // Note: These fields (total_jobs_completed, total_earnings, average_rating) 
     // need to be calculated or added to the database schema/query later.
     // For now, we'll default them to 0 if they don't exist on the type.
-    const totalJobsCompleted = members.reduce((sum, m) => sum + (m.total_jobs_completed || 0), 0)
-    const totalEarnings = members.reduce((sum, m) => sum + (m.total_earnings || 0), 0)
+    const totalJobsCompleted = members.reduce((sum, m) => sum + ((m as any).total_jobs_completed || 0), 0)
+    const totalEarnings = members.reduce((sum, m) => sum + ((m as any).total_earnings || 0), 0)
     const avgRating = members.length > 0
-        ? members.reduce((sum, m) => sum + (m.average_rating || 0), 0) / members.length
+        ? members.reduce((sum, m) => sum + ((m as any).average_rating || 0), 0) / members.length
         : 0
 
     return (
