@@ -37,6 +37,7 @@ type Job = {
       role: string
     }
   }[]
+  asset_details?: Record<string, any> | null
 }
 
 export default function JobList({ jobs }: { jobs: Job[] }) {
@@ -133,9 +134,18 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
                 </div>
 
                 {job.client && (
-                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {job.client.name}
-                  </p>
+                  <div className="mb-2">
+                    <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      {job.client.name}
+                    </p>
+                    {job.asset_details && Object.keys(job.asset_details).length > 0 && (
+                       <p className="text-xs text-zinc-500 mt-0.5">
+                         {Object.entries(job.asset_details)
+                           .map(([key, value]) => `${value}`)
+                           .join(' • ')}
+                       </p>
+                    )}
+                  </div>
                 )}
 
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
