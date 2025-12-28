@@ -42,6 +42,19 @@ const plans = [
       'VIP onboarding + dedicated success support',
     ],
   },
+  {
+    name: 'Custom',
+    price: 'Custom',
+    description: "Need something special? We'll build it for you.",
+    features: [
+      'Bespoke onboarding',
+      'Custom integrations',
+      'Enterprise SLAs',
+      'Dedicated account manager',
+      'White-glove support',
+    ],
+    contactOnly: true,
+  },
 ]
 
 export default function Pricing() {
@@ -81,11 +94,19 @@ export default function Pricing() {
                 )}
               </div>
 
-              <Link href="/signup" className="block mb-6">
-                <Button className="w-full" variant={plan.popular ? 'default' : 'outline'}>
-                  Get Started
-                </Button>
-              </Link>
+              {plan.contactOnly ? (
+                <Link href="/contact" className="block mb-6">
+                  <Button className="w-full" variant="secondary">
+                    Contact Us
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/signup" className="block mb-6">
+                  <Button className="w-full" variant={plan.popular ? 'default' : 'outline'}>
+                    Get Started
+                  </Button>
+                </Link>
+              )}
 
               <ul className="space-y-3">
                 {plan.features.map((feature) => (
