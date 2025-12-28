@@ -19,6 +19,12 @@ export default async function JobsPage() {
     job.assignments && job.assignments.length > 0
   )
 
+  // Map team members to include required fields with defaults
+  const mappedTeamMembers = teamMembers.map(m => ({
+    ...m,
+    total_jobs_completed: (m as any).total_jobs_completed || 0,
+  }))
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -49,7 +55,7 @@ export default async function JobsPage() {
         </TabsContent>
 
         <TabsContent value="unassigned">
-          <UnassignedJobsList jobs={unassignedJobs} teamMembers={teamMembers} />
+          <UnassignedJobsList jobs={unassignedJobs} teamMembers={mappedTeamMembers} />
         </TabsContent>
 
         <TabsContent value="assigned">
