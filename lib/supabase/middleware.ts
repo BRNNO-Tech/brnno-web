@@ -76,8 +76,18 @@ export async function updateSession(request: NextRequest) {
     pathname !== '/' &&
     !pathname.includes('.')
 
+  // Public routes that don't require authentication
+  const isPublicRoute =
+    isAuthRoute ||
+    isBookingRoute ||
+    pathname === '/' ||
+    pathname === '/landing' ||
+    pathname === '/contact' ||
+    pathname === '/add-ons' ||
+    pathname === '/ai-add-ons'
+
   // If no user and trying to access protected route, redirect to login
-  if (!user && !isAuthRoute && !isBookingRoute) {
+  if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
