@@ -205,22 +205,28 @@ export default function AIAddOnsPage() {
                   </div>
                 ) : (
                   <>
-                    <ul className="space-y-2 mb-4">
-                      <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">What it does:</p>
-                      {addon.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-2">
-                          <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm text-zinc-700 dark:text-zinc-300">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {addon.features && (
+                      <ul className="space-y-2 mb-4">
+                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">What it does:</p>
+                        {addon.features.map((feature) => (
+                          <li key={feature} className="flex items-start gap-2">
+                            <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                            <span className="text-sm text-zinc-700 dark:text-zinc-300">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     <div className="space-y-2 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                        <strong>Best for:</strong> {addon.bestFor}
-                      </p>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                        <strong>Why it sells:</strong> {addon.whyItSells}
-                      </p>
+                      {addon.bestFor && (
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                          <strong>Best for:</strong> {addon.bestFor}
+                        </p>
+                      )}
+                      {addon.whyItSells && (
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                          <strong>Why it sells:</strong> {addon.whyItSells}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
