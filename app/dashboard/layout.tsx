@@ -1,7 +1,7 @@
 'use client'
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/lib/actions/auth";
 import { getBusiness } from "@/lib/actions/business";
@@ -131,8 +131,10 @@ function Sidebar({
         {navigation.map((item) => {
           // Single item (Dashboard)
           if (!item.type) {
-            const Icon = item.icon
+            const Icon = item.icon as React.ComponentType<{ className?: string }>
             const isActive = pathname === item.href
+            
+            if (!Icon) return null
             
             return (
               <Link
@@ -155,7 +157,7 @@ function Sidebar({
           // Group
           if (isCollapsed && !isMobile) {
             // When collapsed, show only group icon (first item's icon)
-            const FirstIcon = item.items?.[0]?.icon
+            const FirstIcon = item.items?.[0]?.icon as React.ComponentType<{ className?: string }> | undefined
             return FirstIcon ? (
               <div key={item.name} className="py-2">
                 <div className="h-8 w-8 mx-auto rounded-lg bg-zinc-800/50 flex items-center justify-center">
@@ -186,8 +188,10 @@ function Sidebar({
               {!isGroupCollapsed && (
                 <div className="space-y-1 ml-2">
                   {item.items?.map((subItem) => {
-                    const Icon = subItem.icon
+                    const Icon = subItem.icon as React.ComponentType<{ className?: string }> | undefined
                     const isActive = pathname === subItem.href || (subItem.href !== '/dashboard' && pathname?.startsWith(subItem.href))
+                    
+                    if (!Icon) return null
                     
                     return (
                       <Link
