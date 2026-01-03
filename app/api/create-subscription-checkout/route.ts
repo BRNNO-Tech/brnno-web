@@ -26,34 +26,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Type guard for billing period
+    const period: 'monthly' | 'yearly' = billingPeriod === 'monthly' || billingPeriod === 'yearly' 
+      ? billingPeriod 
+      : 'monthly'
+
     // Get the correct price ID based on plan, billing period, and team size
     let priceId: string | undefined
 
     if (planId === 'starter') {
-      priceId = billingPeriod === 'monthly'
+      priceId = period === 'monthly'
         ? process.env.STRIPE_STARTER_MONTHLY_PRICE_ID
         : process.env.STRIPE_STARTER_YEARLY_PRICE_ID
     } else if (planId === 'pro') {
       const finalTeamSize = teamSize || 2
       if (finalTeamSize <= 2) {
-        priceId = billingPeriod === 'monthly'
+        priceId = period === 'monthly'
           ? process.env.STRIPE_PRICE_PRO_1_2_MONTHLY
           : process.env.STRIPE_PRICE_PRO_1_2_ANNUAL
       } else {
         // teamSize === 3
-        priceId = billingPeriod === 'monthly'
+        priceId = period === 'monthly'
           ? process.env.STRIPE_PRICE_PRO_3_MONTHLY
           : process.env.STRIPE_PRICE_PRO_3_ANNUAL
       }
     } else if (planId === 'fleet') {
       const finalTeamSize = teamSize || 3
       if (finalTeamSize <= 3) {
-        priceId = billingPeriod === 'monthly'
+        priceId = period === 'monthly'
           ? process.env.STRIPE_PRICE_FLEET_1_3_MONTHLY
           : process.env.STRIPE_PRICE_FLEET_1_3_ANNUAL
       } else {
         // teamSize === 4 or 5
-        priceId = billingPeriod === 'monthly'
+        priceId = period === 'monthly'
           ? process.env.STRIPE_PRICE_FLEET_4_5_MONTHLY
           : process.env.STRIPE_PRICE_FLEET_4_5_ANNUAL
       }
@@ -105,7 +110,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         user_id: userId,
         plan_id: planId,
-        billing_period: billingPeriod,
+        billing_period: period,
         business_name: businessName || '',
         team_size: finalTeamSize.toString(),
         signup_lead_id: signupLeadId || '', // Track signup lead for conversion
@@ -116,7 +121,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           user_id: userId,
           plan_id: planId,
-          billing_period: billingPeriod,
+          billing_period: period,
           business_name: businessName || '',
           team_size: finalTeamSize.toString(),
           signup_lead_id: signupLeadId || '', // Track signup lead for conversion
