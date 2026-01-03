@@ -108,7 +108,6 @@ export async function POST(request: NextRequest) {
           const subscriptionId = session.subscription as string
           const subscription = await stripe.subscriptions.retrieve(subscriptionId)
           const customerId = subscription.customer as string
-          const currentPeriodEnd = (subscription as any).current_period_end || subscription.current_period_end
 
           // Check if business already exists
           const { data: existingBusiness } = await supabase
