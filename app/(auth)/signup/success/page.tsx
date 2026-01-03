@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export default function SignupSuccessPage() {
+function SignupSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
@@ -129,6 +129,27 @@ export default function SignupSuccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignupSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black px-4">
+          <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg dark:bg-zinc-900 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+            <div>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+                Loading...
+              </h2>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <SignupSuccessContent />
+    </Suspense>
   )
 }
 
