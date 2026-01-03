@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
           // Get subscription details
           const subscriptionId = session.subscription as string
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as Stripe.Subscription
           const customerId = subscription.customer as string
 
           // Check if business already exists
