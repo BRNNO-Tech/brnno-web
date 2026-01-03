@@ -3,12 +3,6 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["iad1"],
-  "crons": [
-    {
-      "path": "/api/cron/send-signup-recovery",
-      "schedule": "0 * * * *"
-    }
-  ]
+  "regions": ["iad1"]
 }
 
