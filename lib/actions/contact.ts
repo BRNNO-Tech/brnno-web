@@ -35,6 +35,12 @@ export async function submitContactForm(formData: FormData) {
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
   const toEmail = process.env.CONTACT_EMAIL || 'support@brnno.com'
 
+  console.log('Attempting to send contact form email:', {
+    from: fromEmail,
+    to: toEmail,
+    hasApiKey: !!process.env.RESEND_API_KEY
+  })
+
   try {
     const result = await resend.emails.send({
       from: `BRNNO Contact <${fromEmail}>`,
@@ -53,7 +59,23 @@ export async function submitContactForm(formData: FormData) {
       `
     })
 
-    console.log('Contact form email sent successfully:', result)
+    // Check if Resend returned an error in the response
+    if (result.error) {
+      console.error('Resend API returned an error:', {
+        error: result.error,
+        message: result.error.message,
+        name: result.error.name
+      })
+      // Still return success since form was saved to database
+      return { success: true, emailSent: false, emailError: result.error.message }
+    }
+
+    console.log('Contact form email sent successfully:', {
+      id: result.data?.id,
+      from: fromEmail,
+      to: toEmail
+    })
+    return { success: true, emailSent: true }
   } catch (emailError) {
     console.error('Failed to send email notification:', emailError)
     // Log the full error for debugging
@@ -63,8 +85,11 @@ export async function submitContactForm(formData: FormData) {
         name: emailError.name,
         stack: emailError.stack
       })
+    } else {
+      console.error('Email error (non-Error object):', JSON.stringify(emailError, null, 2))
     }
     // Don't throw - form submission still succeeded
+    return { success: true, emailSent: false, emailError: emailError instanceof Error ? emailError.message : 'Unknown error' }
   }
 
   return { success: true }
