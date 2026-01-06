@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { sendBookingConfirmation } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    // Use service role client to bypass RLS for public booking flow
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing Supabase configuration:', {
+        hasUrl: !!supabaseUrl,
+        hasServiceKey: !!supabaseServiceKey
+      })
+      return NextResponse.json(
+        { 
+          error: 'Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY environment variable',
+          hint: 'Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables'
+        },
+        { status: 500 }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
 
     // Combine date and time
     const dateTime = new Date(`${scheduledDate}T${scheduledTime}`)

@@ -123,7 +123,9 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">${stats.revenueMTD.toFixed(2)}</div>
+            <div className="text-3xl font-bold text-white">
+              ${typeof stats.revenueMTD === 'number' ? stats.revenueMTD.toFixed(2) : '0.00'}
+            </div>
           </CardContent>
         </Card>
       </div>

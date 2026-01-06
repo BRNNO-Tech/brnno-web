@@ -28,18 +28,36 @@ export async function getDashboardStats() {
     .eq('status', 'unpaid')
   
   // Get month-to-date revenue
+  // Use payments table for accurate payment dates, or invoices created this month if no payment record
   const startOfMonth = new Date()
   startOfMonth.setDate(1)
   startOfMonth.setHours(0, 0, 0, 0)
   
+  // Get payments made this month
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('amount, created_at, invoice_id')
+    .eq('business_id', businessId)
+    .gte('created_at', startOfMonth.toISOString())
+  
+  // Get invoices created this month that are paid but might not have a payment record (e.g., online bookings)
   const { data: paidInvoices } = await supabase
     .from('invoices')
-    .select('total')
+    .select('total, created_at, id')
     .eq('business_id', businessId)
     .eq('status', 'paid')
-    .gte('updated_at', startOfMonth.toISOString())
+    .gte('created_at', startOfMonth.toISOString())
   
-  const revenueMTD = paidInvoices?.reduce((sum, inv) => sum + (inv.total || 0), 0) || 0
+  // Calculate revenue from payments
+  const revenueFromPayments = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+  
+  // Calculate revenue from invoices that don't have payment records (avoid double counting)
+  const invoiceIdsWithPayments = new Set(payments?.map(p => p.invoice_id) || [])
+  const revenueFromInvoices = paidInvoices
+    ?.filter(inv => !invoiceIdsWithPayments.has(inv.id))
+    .reduce((sum, inv) => sum + (inv.total || 0), 0) || 0
+  
+  const revenueMTD = revenueFromPayments + revenueFromInvoices
   
   // Get recent activity (last 10 completed jobs, paid invoices, new clients)
   const { data: recentJobs } = await supabase
@@ -85,7 +103,7 @@ export async function getMonthlyRevenue() {
   const supabase = await createClient()
   const businessId = await getBusinessId()
   
-  // Get last 6 months of paid invoices
+  // Get last 6 months of paid invoices (same approach as reports)
   const sixMonthsAgo = new Date()
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
   sixMonthsAgo.setDate(1)
@@ -93,11 +111,11 @@ export async function getMonthlyRevenue() {
   
   const { data: paidInvoices, error } = await supabase
     .from('invoices')
-    .select('total, updated_at')
+    .select('total, created_at')
     .eq('business_id', businessId)
     .eq('status', 'paid')
-    .gte('updated_at', sixMonthsAgo.toISOString())
-    .order('updated_at', { ascending: true })
+    .gte('created_at', sixMonthsAgo.toISOString())
+    .order('created_at', { ascending: true })
   
   if (error) throw error
   
@@ -115,7 +133,7 @@ export async function getMonthlyRevenue() {
   
   // Sum revenue by month
   paidInvoices?.forEach(invoice => {
-    const date = new Date(invoice.updated_at)
+    const date = new Date(invoice.created_at)
     const monthKey = `${monthNames[date.getMonth()]}`
     if (monthlyData.hasOwnProperty(monthKey)) {
       monthlyData[monthKey] += invoice.total || 0
