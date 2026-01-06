@@ -1,4 +1,4 @@
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 import { getClients } from '@/lib/actions/clients'
 import AddClientButton from '@/components/clients/add-client-button'
