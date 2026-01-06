@@ -7,8 +7,13 @@ import { ArrowLeft, Calendar, Clock, User, Mail, Phone, Car, Home, Box } from 'l
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { INDUSTRY_CONFIGS, DEFAULT_INDUSTRY } from '@/lib/config/industry-assets'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
 const MOCK_PAYMENTS = process.env.NEXT_PUBLIC_MOCK_PAYMENTS === 'true'
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null
 
 type Business = {
   id: string
@@ -225,13 +230,188 @@ function MockPayment({ business, bookingData }: any) {
 }
 
 function RealPayment({ business, bookingData }: any) {
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function createPaymentIntent() {
+      try {
+        const amount = Math.round((bookingData.service.price || 0) * 100) // Convert to cents
+
+        const response = await fetch('/api/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount,
+            stripeAccountId: business.stripe_account_id,
+            businessId: business.id,
+            bookingData,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to create payment intent')
+        }
+
+        const { clientSecret: secret } = await response.json()
+        setClientSecret(secret)
+      } catch (err: any) {
+        console.error('Error creating payment intent:', err)
+        setError(err.message || 'Failed to initialize payment')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (business.stripe_account_id) {
+      createPaymentIntent()
+    } else {
+      setError('Stripe account not connected')
+      setLoading(false)
+    }
+  }, [business, bookingData])
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <p className="text-zinc-600 dark:text-zinc-400">Loading payment form...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error || !clientSecret) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-6">
+            <p className="font-semibold text-red-800 dark:text-red-200 mb-2">Payment Error</p>
+            <p className="text-sm text-red-600 dark:text-red-300">{error || 'Failed to initialize payment'}</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!stripePromise) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 p-6">
+            <p className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Configuration Error</p>
+            <p className="text-sm text-yellow-600 dark:text-yellow-300">
+              Stripe publishable key is not configured. Please set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in your environment variables.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Elements stripe={stripePromise} options={{ clientSecret }}>
+      <StripePaymentForm business={business} bookingData={bookingData} />
+    </Elements>
+  )
+}
+
+function StripePaymentForm({ business, bookingData }: any) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    
+    if (!stripe || !elements) {
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Confirm payment
+      const { error: submitError } = await elements.submit()
+      if (submitError) {
+        setError(submitError.message || 'Payment form validation failed')
+        setLoading(false)
+        return
+      }
+
+      const { error: confirmError } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/${business.subdomain}/book/confirmation?success=true`,
+        },
+        redirect: 'if_required',
+      })
+
+      if (confirmError) {
+        setError(confirmError.message || 'Payment failed')
+        setLoading(false)
+        return
+      }
+
+      // Payment succeeded - create booking
+      console.log('[StripePaymentForm] Payment confirmed, creating booking...')
+      const response = await fetch('/api/create-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingData),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('[StripePaymentForm] Booking created successfully:', result)
+        sessionStorage.removeItem('bookingData')
+        router.push(`/${business.subdomain}/book/confirmation?success=true`)
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('[StripePaymentForm] Booking creation failed:', errorData)
+        setError(errorData.error || 'Failed to create booking')
+        setLoading(false)
+      }
+    } catch (err: any) {
+      console.error('Payment error:', err)
+      setError(err.message || 'An error occurred during payment')
+      setLoading(false)
+    }
+  }
+
   return (
     <Card>
       <CardContent className="p-8">
-        <p className="font-semibold mb-2">Real Stripe Payment</p>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Set NEXT_PUBLIC_MOCK_PAYMENTS=true in .env.local to test without Stripe
-        </p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <h2 className="font-semibold text-lg mb-4">Payment Details</h2>
+            <PaymentElement />
+          </div>
+
+          {error && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-4">
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={!stripe || loading}
+            size="lg"
+            className="w-full"
+          >
+            {loading ? 'Processing...' : `Pay $${bookingData.service.price.toFixed(2)}`}
+          </Button>
+
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
+            Your payment is secure and encrypted
+          </p>
+        </form>
       </CardContent>
     </Card>
   )

@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Create job
+    console.log('[create-booking] Creating job for business:', businessId)
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
@@ -121,9 +122,17 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (jobError || !job) {
-      throw new Error('Failed to create job')
+    if (jobError) {
+      console.error('[create-booking] Job creation error:', jobError)
+      throw new Error(`Failed to create job: ${jobError.message}`)
     }
+    
+    if (!job) {
+      console.error('[create-booking] Job creation returned no data')
+      throw new Error('Failed to create job: No data returned')
+    }
+    
+    console.log('[create-booking] Job created successfully:', job.id)
 
     // 3. Create invoice (marked as paid if real payment, unpaid if mock)
     const mockMode = process.env.NEXT_PUBLIC_MOCK_PAYMENTS === 'true'
