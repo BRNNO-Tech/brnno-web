@@ -57,6 +57,7 @@ export async function updateClient(id: string, formData: FormData) {
   if (error) throw error
   
   revalidatePath('/dashboard/clients')
+  revalidatePath(`/dashboard/clients/${id}`)
 }
 
 export async function deleteClient(id: string) {
@@ -70,5 +71,123 @@ export async function deleteClient(id: string) {
   if (error) throw error
   
   revalidatePath('/dashboard/clients')
+}
+
+export async function getClient(id: string) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+  
+  if (!id) {
+    throw new Error('Client ID is required')
+  }
+  
+  // Get client info
+  const { data: client, error: clientError } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', id)
+    .eq('business_id', businessId)
+    .single()
+  
+  if (clientError) {
+    // Handle "no rows" error specifically
+    if (clientError.code === 'PGRST116' || clientError.message?.includes('JSON object')) {
+      throw new Error('Client not found')
+    }
+    console.error('Error fetching client:', {
+      code: clientError.code,
+      message: clientError.message,
+      details: clientError.details,
+      hint: clientError.hint
+    })
+    throw new Error(`Failed to fetch client: ${clientError.message}`)
+  }
+  
+  if (!client) {
+    throw new Error('Client not found')
+  }
+  
+  // Get all jobs for this client
+  const { data: jobs, error: jobsError } = await supabase
+    .from('jobs')
+    .select('id, title, status, scheduled_date, estimated_cost, estimated_duration, created_at')
+    .eq('client_id', id)
+    .eq('business_id', businessId)
+    .order('scheduled_date', { ascending: false })
+  
+  if (jobsError) {
+    // Safely log error without accessing potentially undefined properties
+    try {
+      console.error('Error fetching client jobs:', {
+        code: jobsError.code || 'unknown',
+        message: jobsError.message || String(jobsError),
+        details: jobsError.details || null,
+        hint: jobsError.hint || null,
+        clientId: id
+      })
+    } catch (logError) {
+      // If logging fails, just log the error as string
+      console.error('Error fetching client jobs (could not serialize):', String(jobsError))
+    }
+    // Don't throw - just use empty array
+  }
+  
+  // Get all invoices for this client
+  const { data: invoices, error: invoicesError } = await supabase
+    .from('invoices')
+    .select('id, invoice_number, total, status, created_at, due_date')
+    .eq('client_id', id)
+    .eq('business_id', businessId)
+    .order('created_at', { ascending: false })
+  
+  if (invoicesError) {
+    // Safely log error without accessing potentially undefined properties
+    try {
+      console.error('Error fetching client invoices:', {
+        code: invoicesError.code || 'unknown',
+        message: invoicesError.message || String(invoicesError),
+        details: invoicesError.details || null,
+        hint: invoicesError.hint || null,
+        clientId: id
+      })
+    } catch (logError) {
+      // If logging fails, just log the error as string
+      console.error('Error fetching client invoices (could not serialize):', String(invoicesError))
+    }
+    // Don't throw - just use empty array
+  }
+  
+  // Calculate stats
+  const totalJobs = jobs?.length || 0
+  const completedJobs = jobs?.filter(j => j.status === 'completed').length || 0
+  const totalRevenue = invoices?.reduce((sum, inv) => {
+    if (inv.status === 'paid') return sum + (inv.total || 0)
+    return sum
+  }, 0) || 0
+  const outstandingBalance = invoices?.reduce((sum, inv) => {
+    if (inv.status === 'unpaid' || inv.status === 'overdue') return sum + (inv.total || 0)
+    return sum
+  }, 0) || 0
+  const averageJobValue = completedJobs > 0 
+    ? jobs?.filter(j => j.status === 'completed' && j.estimated_cost)
+        .reduce((sum, j) => sum + (j.estimated_cost || 0), 0) / completedJobs
+    : 0
+  
+  const lastJob = jobs && jobs.length > 0 ? jobs[0] : null
+  
+  return {
+    ...client,
+    jobs: jobs || [],
+    invoices: invoices || [],
+    stats: {
+      totalJobs,
+      completedJobs,
+      totalRevenue,
+      outstandingBalance,
+      averageJobValue,
+      lastJobDate: lastJob?.scheduled_date || null,
+      isRepeatClient: totalJobs > 1
+    }
+  }
 }
 

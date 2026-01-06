@@ -84,12 +84,30 @@ export default function ScheduleCalendar({
   }
 
   // Format time from datetime string
+  // The datetime comes from the database as an ISO string (UTC)
+  // We need to display it in the user's local timezone
   function formatTime(datetime: string): string {
-    return new Date(datetime).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    })
+    if (!datetime) return ''
+    
+    try {
+      const date = new Date(datetime)
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date:', datetime)
+        return ''
+      }
+      
+      // Format in user's local timezone (toLocaleTimeString uses local timezone by default)
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
+    } catch (error) {
+      console.error('Error formatting time:', error, datetime)
+      return ''
+    }
   }
 
   // Navigate months

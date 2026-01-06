@@ -42,7 +42,14 @@ export default function CheckoutForm({ business }: { business: Business }) {
       return
     }
     setBookingData(JSON.parse(data))
-  }, [business.subdomain])
+    
+    // Debug: Log payment mode
+    console.log('[CheckoutForm] Payment mode check:')
+    console.log('  - MOCK_PAYMENTS:', MOCK_PAYMENTS)
+    console.log('  - NEXT_PUBLIC_MOCK_PAYMENTS env:', process.env.NEXT_PUBLIC_MOCK_PAYMENTS)
+    console.log('  - Has Stripe account:', !!business.stripe_account_id)
+    console.log('  - Stripe account ID:', business.stripe_account_id)
+  }, [business.subdomain, business.stripe_account_id])
 
   if (!bookingData) {
     return (
@@ -157,9 +164,8 @@ export default function CheckoutForm({ business }: { business: Business }) {
 
           {/* Payment */}
           <div className="lg:col-span-2">
-            {MOCK_PAYMENTS ? (
-              <MockPayment business={business} bookingData={bookingData} />
-            ) : business.stripe_account_id ? (
+            {/* Show Stripe if connected, otherwise show invoice-style checkout (no payment option) */}
+            {business.stripe_account_id ? (
               <RealPayment business={business} bookingData={bookingData} />
             ) : (
               <NoPaymentOption business={business} bookingData={bookingData} />
@@ -429,9 +435,34 @@ function StripePaymentForm({ business, bookingData }: any) {
 function NoPaymentOption({ business, bookingData }: any) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Calculate appointment date/time display
+  const appointmentDate = new Date(`${bookingData.scheduledDate}T${bookingData.scheduledTime}`)
+  const formattedDate = appointmentDate.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  })
+  const formattedTime = appointmentDate.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  })
+  
+  // Calculate end time based on duration
+  const duration = bookingData.service.duration_minutes || 60
+  const endTime = new Date(appointmentDate.getTime() + duration * 60 * 1000)
+  const formattedEndTime = endTime.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  })
 
   async function handleBookingWithoutPayment() {
     setLoading(true)
+    setError(null)
 
     try {
       const response = await fetch('/api/create-booking', {
@@ -439,7 +470,6 @@ function NoPaymentOption({ business, bookingData }: any) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...bookingData,
-          // Mark as unpaid since no payment
         }),
       })
 
@@ -447,13 +477,13 @@ function NoPaymentOption({ business, bookingData }: any) {
         sessionStorage.removeItem('bookingData')
         router.push(`/${business.subdomain}/book/confirmation?success=true`)
       } else {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-        alert(`Failed to create booking: ${error.error || 'Unknown error'}`)
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        setError(errorData.error || 'Failed to create booking')
         setLoading(false)
       }
     } catch (err: any) {
       console.error('Error creating booking:', err)
-      alert(`Failed to create booking: ${err.message || 'Unknown error'}`)
+      setError(err.message || 'Failed to create booking')
       setLoading(false)
     }
   }
@@ -462,35 +492,150 @@ function NoPaymentOption({ business, bookingData }: any) {
     <Card>
       <CardContent className="p-8">
         <div className="space-y-6">
-          <div className="rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-6">
-            <p className="font-semibold mb-2">Payment Not Available</p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
-              This business hasn't set up online payments yet. You can still complete your booking request below.
-            </p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              The business will contact you to confirm your appointment and arrange payment.
+          {/* Contact Information Section */}
+          <div>
+            <h2 className="font-semibold text-lg mb-4">Contact Information</h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">
+                    First Name
+                  </label>
+                  <div className="px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm">
+                    {bookingData.customer.name.split(' ')[0] || bookingData.customer.name}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">
+                    Last Name
+                  </label>
+                  <div className="px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm">
+                    {bookingData.customer.name.split(' ').slice(1).join(' ') || '-'}
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">
+                  Email
+                </label>
+                <div className="px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm">
+                  {bookingData.customer.email}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">
+                  Phone Number
+                </label>
+                <div className="px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm">
+                  {bookingData.customer.phone || 'Not provided'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Appointment Summary */}
+          <div className="border-t pt-6">
+            <h2 className="font-semibold text-lg mb-4">Appointment Summary</h2>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-zinc-400 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium">{formattedDate}</p>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    {formattedTime} - {formattedEndTime}
+                  </p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-1">
+                    Est. due at appointment: ${bookingData.service.price.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <User className="h-5 w-5 text-zinc-400 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium">{business.name}</p>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    {bookingData.service.name}
+                  </p>
+                  {bookingData.service.description && (
+                    <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-1">
+                      {bookingData.service.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cost Breakdown */}
+          <div className="border-t pt-6">
+            <h2 className="font-semibold text-lg mb-4">Cost Breakdown</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-600 dark:text-zinc-400">Subtotal</span>
+                <span className="font-medium">${bookingData.service.price.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-600 dark:text-zinc-400">Taxes</span>
+                <span className="font-medium">$0.00</span>
+              </div>
+              <div className="border-t pt-3 flex justify-between text-lg font-bold">
+                <span>Total</span>
+                <span className="text-green-600 dark:text-green-400">
+                  ${bookingData.service.price.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Information */}
+          <div className="border-t pt-6">
+            <h2 className="font-semibold text-lg mb-4">Payment Information</h2>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-600 dark:text-zinc-400">Due today</span>
+                <span className="font-medium">$0.00</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-600 dark:text-zinc-400">Due at appointment</span>
+                <span className="font-medium">${bookingData.service.price.toFixed(2)}</span>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-3">
+              Payment will be collected at the time of service. The business will contact you to confirm your appointment.
             </p>
           </div>
 
-          <div className="space-y-4">
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">What happens when you click:</p>
-              <ul className="text-sm space-y-1 list-disc list-inside text-zinc-700 dark:text-zinc-300">
-                <li>Creates booking request in the system</li>
-                <li>Business owner will be notified</li>
-                <li>They'll contact you to confirm and arrange payment</li>
-                <li>You'll receive a confirmation email</li>
-              </ul>
+          {/* Notes Section */}
+          {bookingData.notes && (
+            <div className="border-t pt-6">
+              <h2 className="font-semibold text-lg mb-2">Appointment Notes</h2>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">{bookingData.notes}</p>
             </div>
+          )}
 
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-4">
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            </div>
+          )}
+
+          {/* Booking Button */}
+          <div className="border-t pt-6">
             <Button
               onClick={handleBookingWithoutPayment}
               disabled={loading}
               size="lg"
               className="w-full"
             >
-              {loading ? 'Creating booking...' : `Submit Booking Request ($${bookingData.service.price.toFixed(2)})`}
+              {loading ? 'Creating booking...' : 'Book Appointment'}
             </Button>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mt-3">
+              By booking, you agree to the cancellation policy. The business will contact you to confirm.
+            </p>
           </div>
         </div>
       </CardContent>

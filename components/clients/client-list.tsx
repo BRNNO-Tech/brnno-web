@@ -2,10 +2,11 @@
 
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Mail, Phone, Trash2, Edit } from 'lucide-react'
+import { Mail, Phone, Trash2, Edit, Eye } from 'lucide-react'
 import { deleteClient } from '@/lib/actions/clients'
 import EditClientDialog from './edit-client-dialog'
 import { useState } from 'react'
+import Link from 'next/link'
 
 type Client = {
   id: string
@@ -50,10 +51,16 @@ export default function ClientList({ clients }: { clients: Client[] }) {
                 <h3 className="font-semibold text-lg">{client.name}</h3>
               </div>
               <div className="flex gap-1">
+                <Link href={`/dashboard/clients/${client.id}`}>
+                  <Button variant="ghost" size="icon" title="View Details">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </Link>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setEditingClient(client)}
+                  title="Edit"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -61,6 +68,7 @@ export default function ClientList({ clients }: { clients: Client[] }) {
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDelete(client.id)}
+                  title="Delete"
                 >
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>

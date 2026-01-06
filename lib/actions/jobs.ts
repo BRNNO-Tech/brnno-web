@@ -33,13 +33,26 @@ export async function addJob(formData: FormData) {
   const supabase = await createClient()
   const businessId = await getBusinessId()
 
+  // Convert datetime-local value to ISO string
+  // datetime-local format: "YYYY-MM-DDTHH:mm" (no timezone)
+  // We need to treat it as local time and convert to ISO
+  let scheduledDate: string | null = null
+  const scheduledDateInput = formData.get('scheduled_date') as string | null
+  if (scheduledDateInput) {
+    // datetime-local gives us local time, create a Date object from it
+    // This will be interpreted as local time by JavaScript
+    const localDate = new Date(scheduledDateInput)
+    // Convert to ISO string (UTC) for storage
+    scheduledDate = localDate.toISOString()
+  }
+
   const jobData = {
     business_id: businessId,
     client_id: formData.get('client_id') as string || null,
     title: formData.get('title') as string,
     description: formData.get('description') as string || null,
     service_type: formData.get('service_type') as string || null,
-    scheduled_date: formData.get('scheduled_date') as string || null,
+    scheduled_date: scheduledDate,
     estimated_duration: formData.get('estimated_duration') ? parseInt(formData.get('estimated_duration') as string) : null,
     estimated_cost: formData.get('estimated_cost') ? parseFloat(formData.get('estimated_cost') as string) : null,
     status: 'scheduled',
@@ -91,12 +104,22 @@ export async function updateJobStatus(id: string, status: 'scheduled' | 'in_prog
 export async function updateJob(id: string, formData: FormData) {
   const supabase = await createClient()
 
+  // Convert datetime-local value to ISO string
+  let scheduledDate: string | null = null
+  const scheduledDateInput = formData.get('scheduled_date') as string | null
+  if (scheduledDateInput) {
+    // datetime-local gives us local time, create a Date object from it
+    const localDate = new Date(scheduledDateInput)
+    // Convert to ISO string (UTC) for storage
+    scheduledDate = localDate.toISOString()
+  }
+
   const jobData = {
     client_id: formData.get('client_id') as string || null,
     title: formData.get('title') as string,
     description: formData.get('description') as string || null,
     service_type: formData.get('service_type') as string || null,
-    scheduled_date: formData.get('scheduled_date') as string || null,
+    scheduled_date: scheduledDate,
     estimated_duration: formData.get('estimated_duration') ? parseInt(formData.get('estimated_duration') as string) : null,
     estimated_cost: formData.get('estimated_cost') ? parseFloat(formData.get('estimated_cost') as string) : null,
     priority: formData.get('priority') as string || 'medium',
