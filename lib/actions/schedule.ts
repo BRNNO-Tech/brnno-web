@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { getBusinessId } from './utils'
 import { revalidatePath } from 'next/cache'
 
@@ -284,9 +285,21 @@ export async function getAvailableTimeSlots(
   date: string,
   durationMinutes: number = 60
 ): Promise<string[]> {
-  const supabase = await createClient()
+  // Use service role client to bypass RLS for public booking access
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  // Use server client for public access (no auth required)
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing Supabase configuration for public booking access')
+    throw new Error('Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY')
+  }
+
+  const supabase = createServiceClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
 
   // Get business hours
   const { data: business } = await supabase

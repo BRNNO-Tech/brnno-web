@@ -1,11 +1,28 @@
 import { notFound, redirect } from 'next/navigation'
 import BookingForm from '@/components/booking/booking-form'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
+// Create service role client for public booking access
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase configuration for public booking access')
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
+}
+
 async function getBusiness(subdomain: string) {
-  const supabase = await createClient()
+  const supabase = getSupabaseClient()
 
   const { data: business, error } = await supabase
     .from('businesses')
@@ -25,7 +42,7 @@ async function getBusiness(subdomain: string) {
 }
 
 async function getService(serviceId: string, businessId: string) {
-  const supabase = await createClient()
+  const supabase = getSupabaseClient()
 
   const { data: service, error } = await supabase
     .from('services')

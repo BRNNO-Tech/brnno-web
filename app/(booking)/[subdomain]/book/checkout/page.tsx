@@ -1,11 +1,25 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import CheckoutForm from '@/components/booking/checkout-form'
 
 export const dynamic = 'force-dynamic'
 
 async function getBusiness(subdomain: string) {
-  const supabase = await createClient()
+  // Use service role client to bypass RLS for public booking access
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing Supabase configuration for public booking access')
+    return null
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
 
   const { data: business, error } = await supabase
     .from('businesses')
