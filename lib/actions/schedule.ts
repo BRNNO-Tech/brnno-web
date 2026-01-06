@@ -350,17 +350,17 @@ export async function getAvailableTimeSlots(
   const dayOfWeek = dayNames[dayIndex] as keyof typeof businessHours
   const dayHours = businessHours[dayOfWeek]
 
-  console.log(`[getAvailableTimeSlots] Day of week: ${dayOfWeek} (index: ${dayIndex})`)
+  console.log(`[getAvailableTimeSlots] Day of week: ${String(dayOfWeek)} (index: ${dayIndex})`)
   console.log(`[getAvailableTimeSlots] Day hours:`, dayHours)
 
   if (!dayHours || dayHours.closed) {
-    console.log(`[getAvailableTimeSlots] Day ${dayOfWeek} is closed for business ${businessId}`)
+    console.log(`[getAvailableTimeSlots] Day ${String(dayOfWeek)} is closed for business ${businessId}`)
     return [] // Day is closed
   }
 
   // Validate that open and close times exist
   if (!dayHours.open || !dayHours.close) {
-    console.error(`[getAvailableTimeSlots] Missing open/close times for ${dayOfWeek}:`, dayHours)
+    console.error(`[getAvailableTimeSlots] Missing open/close times for ${String(dayOfWeek)}:`, dayHours)
     // Use defaults if missing
     dayHours.open = '09:00'
     dayHours.close = '17:00'
@@ -407,7 +407,7 @@ export async function getAvailableTimeSlots(
   const closeTime = new Date(dateObj)
   closeTime.setHours(closeHour, closeMinute, 0, 0)
 
-  console.log(`[getAvailableTimeSlots] Date: ${date}, Day: ${dayOfWeek}, Hours: ${dayHours.open} - ${dayHours.close}, OpenTime: ${openTime.toISOString()}, CloseTime: ${closeTime.toISOString()}`)
+  console.log(`[getAvailableTimeSlots] Date: ${date}, Day: ${String(dayOfWeek)}, Hours: ${dayHours.open} - ${dayHours.close}, OpenTime: ${openTime.toISOString()}, CloseTime: ${closeTime.toISOString()}`)
 
   // Generate available time slots (every 30 minutes)
   const availableSlots: string[] = []
