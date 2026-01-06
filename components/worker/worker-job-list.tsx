@@ -124,27 +124,29 @@ export default function WorkerJobList({ assignments }: { assignments: Assignment
             </div>
 
             {/* Customer Info (Simplified for List) */}
-            <div className="border-t pt-4 mb-4">
-               <div className="flex justify-between items-center">
-                 <p className="text-sm font-medium">{client.name}</p>
-                 <div className="flex gap-2">
-                   {client.phone && (
-                      <a href={`tel:${client.phone}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20">
-                          <Phone className="h-4 w-4" />
-                        </Button>
-                      </a>
-                   )}
-                   {mapsUrl && (
-                      <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20">
-                          <Navigation className="h-4 w-4" />
-                        </Button>
-                      </a>
-                   )}
+            {client && (
+              <div className="border-t pt-4 mb-4">
+                 <div className="flex justify-between items-center">
+                   <p className="text-sm font-medium">{client.name}</p>
+                   <div className="flex gap-2">
+                     {client.phone && (
+                        <a href={`tel:${client.phone}`}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20">
+                            <Phone className="h-4 w-4" />
+                          </Button>
+                        </a>
+                     )}
+                     {mapsUrl && (
+                        <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/20">
+                            <Navigation className="h-4 w-4" />
+                          </Button>
+                        </a>
+                     )}
+                   </div>
                  </div>
-               </div>
-            </div>
+              </div>
+            )}
 
             {/* Actions */}
             <Link href={`/worker/jobs/${job.id}`}>

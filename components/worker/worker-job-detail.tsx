@@ -5,9 +5,10 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Calendar, Clock, MapPin, Phone, Mail, Navigation, Play, Square, CheckCircle, Car } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, MapPin, Phone, Mail, Navigation, Play, Square, CheckCircle, Car, Navigation2, MapPin as MapPinIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import JobPhotoUpload from './job-photo-upload'
 
 type Assignment = {
   id: string
@@ -45,12 +46,22 @@ type Worker = {
   name: string
 }
 
+type Photo = {
+  id: string
+  photo_type: 'before' | 'after' | 'other'
+  storage_url: string
+  description: string | null
+  uploaded_at: string
+}
+
 export default function WorkerJobDetail({
   assignment,
-  worker
+  worker,
+  initialPhotos = []
 }: {
   assignment: Assignment
   worker: Worker
+  initialPhotos?: Photo[]
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -118,6 +129,33 @@ export default function WorkerJobDetail({
     } catch (error) {
       console.error('Clock out error:', error)
       alert('Failed to clock out')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleStatusUpdate(status: 'on_my_way' | 'arrived' | 'in_progress') {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/worker/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignmentId: assignment.id,
+          jobId: job.id,
+          status
+        })
+      })
+
+      if (response.ok) {
+        router.refresh()
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to update status')
+      }
+    } catch (error) {
+      console.error('Status update error:', error)
+      alert('Failed to update status')
     } finally {
       setLoading(false)
     }
@@ -251,73 +289,106 @@ export default function WorkerJobDetail({
         </Card>
 
         {/* Customer Info */}
-        <Card className="p-6">
-          <h2 className="font-semibold text-lg mb-4">Customer Information</h2>
-          <div className="space-y-4">
-            <div>
-              <p className="font-medium text-lg">{client.name}</p>
-            </div>
+        {client && (
+          <Card className="p-6">
+            <h2 className="font-semibold text-lg mb-4">Customer Information</h2>
+            <div className="space-y-4">
+              <div>
+                <p className="font-medium text-lg">{client.name}</p>
+              </div>
 
-            <div className="grid gap-3">
-              {client.phone && (
-                <a
-                  href={`tel:${client.phone}`}
-                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-                >
-                  <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
-                    <Phone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Call Customer</p>
-                    <p className="text-zinc-600 dark:text-zinc-400">{client.phone}</p>
-                  </div>
-                </a>
-              )}
+              <div className="grid gap-3">
+                {client.phone && (
+                  <a
+                    href={`tel:${client.phone}`}
+                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                  >
+                    <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
+                      <Phone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Call Customer</p>
+                      <p className="text-zinc-600 dark:text-zinc-400">{client.phone}</p>
+                    </div>
+                  </a>
+                )}
 
-              {client.email && (
-                <a
-                  href={`mailto:${client.email}`}
-                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-                >
-                  <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
-                    <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Email Customer</p>
-                    <p className="text-zinc-600 dark:text-zinc-400">{client.email}</p>
-                  </div>
-                </a>
-              )}
+                {client.email && (
+                  <a
+                    href={`mailto:${client.email}`}
+                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                  >
+                    <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
+                      <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Email Customer</p>
+                      <p className="text-zinc-600 dark:text-zinc-400">{client.email}</p>
+                    </div>
+                  </a>
+                )}
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
+
+        {/* Photo Upload */}
+        <JobPhotoUpload
+          assignmentId={assignment.id}
+          jobId={job.id}
+          initialPhotos={initialPhotos}
+          readOnly={job.status === 'completed'}
+        />
 
         {/* Action Buttons */}
         <Card className="p-6">
           <h2 className="font-semibold text-lg mb-4">Job Actions</h2>
 
           <div className="space-y-4">
+            {/* Status Updates */}
             {!assignment.clocked_in_at && job.status !== 'completed' && (
-              <Button
-                onClick={handleClockIn}
-                disabled={loading}
-                className="w-full h-12 text-lg gap-2"
-              >
-                <Play className="h-5 w-5" />
-                Start Job (Clock In)
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => handleStatusUpdate('on_my_way')}
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full h-12 text-lg gap-2"
+                >
+                  <Navigation2 className="h-5 w-5" />
+                  On My Way
+                </Button>
+                <Button
+                  onClick={() => handleStatusUpdate('arrived')}
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full h-12 text-lg gap-2"
+                >
+                  <MapPinIcon className="h-5 w-5" />
+                  Arrived at Location
+                </Button>
+                <Button
+                  onClick={handleClockIn}
+                  disabled={loading}
+                  className="w-full h-12 text-lg gap-2"
+                >
+                  <Play className="h-5 w-5" />
+                  Start Job (Clock In)
+                </Button>
+              </div>
             )}
 
             {assignment.clocked_in_at && !assignment.clocked_out_at && (
-              <Button
-                onClick={handleClockOut}
-                disabled={loading}
-                variant="destructive"
-                className="w-full h-12 text-lg gap-2"
-              >
-                <Square className="h-5 w-5 fill-current" />
-                End Job (Clock Out)
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={handleClockOut}
+                  disabled={loading}
+                  variant="destructive"
+                  className="w-full h-12 text-lg gap-2"
+                >
+                  <Square className="h-5 w-5 fill-current" />
+                  End Job (Clock Out)
+                </Button>
+              </div>
             )}
 
             {job.status !== 'completed' && (

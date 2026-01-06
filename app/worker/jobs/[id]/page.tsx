@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getWorkerProfile } from '@/lib/actions/worker-auth'
+import { getJobPhotos } from '@/lib/actions/job-photos'
 import { notFound, redirect } from 'next/navigation'
 import WorkerJobDetail from '@/components/worker/worker-job-detail'
-
-
 
 export const dynamic = 'force-dynamic'
 
@@ -35,5 +34,14 @@ export default async function WorkerJobPage({ params }: { params: Promise<{ id: 
     notFound()
   }
 
-  return <WorkerJobDetail assignment={assignment} worker={worker} />
+  // Get photos for this assignment
+  let photos = []
+  try {
+    photos = await getJobPhotos(assignment.id)
+  } catch (error) {
+    console.error('Error loading photos:', error)
+    // Don't fail the page if photos can't be loaded
+  }
+
+  return <WorkerJobDetail assignment={assignment} worker={worker} initialPhotos={photos} />
 }
