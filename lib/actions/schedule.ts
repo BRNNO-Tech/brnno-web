@@ -302,11 +302,16 @@ export async function getAvailableTimeSlots(
   })
 
   // Get business hours
-  const { data: business } = await supabase
+  const { data: business, error: businessError } = await supabase
     .from('businesses')
     .select('business_hours')
     .eq('id', businessId)
     .single()
+
+  if (businessError) {
+    console.error('[getAvailableTimeSlots] Error fetching business:', businessError)
+    // Continue with defaults if business not found
+  }
 
   // Default business hours if not set (9 AM - 5 PM, Mon-Fri)
   const defaultHours = {
@@ -320,21 +325,51 @@ export async function getAvailableTimeSlots(
   }
 
   const businessHours = business?.business_hours || defaultHours
+  console.log(`[getAvailableTimeSlots] Business hours for ${businessId}:`, JSON.stringify(businessHours))
+  console.log(`[getAvailableTimeSlots] Requested date: ${date}`)
 
+  // Parse date correctly (YYYY-MM-DD format)
+  // Create date in local timezone to avoid UTC issues
+  const dateParts = date.split('-')
+  if (dateParts.length !== 3) {
+    console.error(`[getAvailableTimeSlots] Invalid date format: ${date}`)
+    return []
+  }
+  
+  const [year, month, day] = dateParts.map(Number)
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    console.error(`[getAvailableTimeSlots] Invalid date values: ${date}`)
+    return []
+  }
+  
+  const dateObj = new Date(year, month - 1, day) // month is 0-indexed
+  
   // Get day of week (0 = Sunday, 1 = Monday, etc.)
-  const dayIndex = new Date(date).getDay()
+  const dayIndex = dateObj.getDay()
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
   const dayOfWeek = dayNames[dayIndex] as keyof typeof businessHours
   const dayHours = businessHours[dayOfWeek]
 
+  console.log(`[getAvailableTimeSlots] Day of week: ${dayOfWeek} (index: ${dayIndex})`)
+  console.log(`[getAvailableTimeSlots] Day hours:`, dayHours)
+
   if (!dayHours || dayHours.closed) {
+    console.log(`[getAvailableTimeSlots] Day ${dayOfWeek} is closed for business ${businessId}`)
     return [] // Day is closed
   }
 
-  // Get time blocks for the date
-  const startOfDay = new Date(date)
+  // Validate that open and close times exist
+  if (!dayHours.open || !dayHours.close) {
+    console.error(`[getAvailableTimeSlots] Missing open/close times for ${dayOfWeek}:`, dayHours)
+    // Use defaults if missing
+    dayHours.open = '09:00'
+    dayHours.close = '17:00'
+  }
+
+  // Get time blocks for the date (use local date object)
+  const startOfDay = new Date(dateObj)
   startOfDay.setHours(0, 0, 0, 0)
-  const endOfDay = new Date(date)
+  const endOfDay = new Date(dateObj)
   endOfDay.setHours(23, 59, 59, 999)
 
   // Fetch time blocks that might overlap with this day
@@ -367,10 +402,12 @@ export async function getAvailableTimeSlots(
   const [openHour, openMinute] = dayHours.open.split(':').map(Number)
   const [closeHour, closeMinute] = dayHours.close.split(':').map(Number)
 
-  const openTime = new Date(date)
+  const openTime = new Date(dateObj)
   openTime.setHours(openHour, openMinute, 0, 0)
-  const closeTime = new Date(date)
+  const closeTime = new Date(dateObj)
   closeTime.setHours(closeHour, closeMinute, 0, 0)
+
+  console.log(`[getAvailableTimeSlots] Date: ${date}, Day: ${dayOfWeek}, Hours: ${dayHours.open} - ${dayHours.close}, OpenTime: ${openTime.toISOString()}, CloseTime: ${closeTime.toISOString()}`)
 
   // Generate available time slots (every 30 minutes)
   const availableSlots: string[] = []
@@ -425,6 +462,8 @@ export async function getAvailableTimeSlots(
     currentTime = new Date(currentTime.getTime() + slotInterval * 60 * 1000)
   }
 
+  console.log(`[getAvailableTimeSlots] Found ${availableSlots.length} available slots for ${date}:`, availableSlots.slice(0, 5), availableSlots.length > 5 ? '...' : '')
+  
   return availableSlots
 }
 
