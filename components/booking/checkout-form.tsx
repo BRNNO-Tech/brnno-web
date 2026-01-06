@@ -159,8 +159,10 @@ export default function CheckoutForm({ business }: { business: Business }) {
           <div className="lg:col-span-2">
             {MOCK_PAYMENTS ? (
               <MockPayment business={business} bookingData={bookingData} />
-            ) : (
+            ) : business.stripe_account_id ? (
               <RealPayment business={business} bookingData={bookingData} />
+            ) : (
+              <NoPaymentOption business={business} bookingData={bookingData} />
             )}
           </div>
         </div>
@@ -265,10 +267,17 @@ function RealPayment({ business, bookingData }: any) {
       }
     }
 
-    if (business.stripe_account_id) {
+    // Check if we should use Stripe or mock payments
+    const mockMode = process.env.NEXT_PUBLIC_MOCK_PAYMENTS === 'true'
+    
+    if (mockMode) {
+      // In mock mode, don't create payment intent - will use MockPayment component
+      setLoading(false)
+    } else if (business.stripe_account_id) {
       createPaymentIntent()
     } else {
-      setError('Stripe account not connected')
+      // No Stripe connected and not in mock mode - show message but allow booking without payment
+      setError('Payment not available - booking will be created without payment')
       setLoading(false)
     }
   }, [business, bookingData])
@@ -412,6 +421,78 @@ function StripePaymentForm({ business, bookingData }: any) {
             Your payment is secure and encrypted
           </p>
         </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+function NoPaymentOption({ business, bookingData }: any) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+
+  async function handleBookingWithoutPayment() {
+    setLoading(true)
+
+    try {
+      const response = await fetch('/api/create-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...bookingData,
+          // Mark as unpaid since no payment
+        }),
+      })
+
+      if (response.ok) {
+        sessionStorage.removeItem('bookingData')
+        router.push(`/${business.subdomain}/book/confirmation?success=true`)
+      } else {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+        alert(`Failed to create booking: ${error.error || 'Unknown error'}`)
+        setLoading(false)
+      }
+    } catch (err: any) {
+      console.error('Error creating booking:', err)
+      alert(`Failed to create booking: ${err.message || 'Unknown error'}`)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-8">
+        <div className="space-y-6">
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-6">
+            <p className="font-semibold mb-2">Payment Not Available</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+              This business hasn't set up online payments yet. You can still complete your booking request below.
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              The business will contact you to confirm your appointment and arrange payment.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">What happens when you click:</p>
+              <ul className="text-sm space-y-1 list-disc list-inside text-zinc-700 dark:text-zinc-300">
+                <li>Creates booking request in the system</li>
+                <li>Business owner will be notified</li>
+                <li>They'll contact you to confirm and arrange payment</li>
+                <li>You'll receive a confirmation email</li>
+              </ul>
+            </div>
+
+            <Button
+              onClick={handleBookingWithoutPayment}
+              disabled={loading}
+              size="lg"
+              className="w-full"
+            >
+              {loading ? 'Creating booking...' : `Submit Booking Request ($${bookingData.service.price.toFixed(2)})`}
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

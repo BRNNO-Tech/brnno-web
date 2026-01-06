@@ -317,16 +317,7 @@ export default function BookingForm({
         })
       }
 
-      // Check if business has Stripe connected (or if mock mode is enabled)
-      const mockMode = process.env.NEXT_PUBLIC_MOCK_PAYMENTS === 'true'
-
-      if (!mockMode && !business.stripe_account_id) {
-        // No payment setup - create booking request without payment
-        alert(`Booking request submitted!\n\nService: ${service.name}\nDate: ${new Date(`${formData.date}T${formData.time}`).toLocaleString()}\n\nWe'll contact you soon to confirm.`)
-        router.push(`/${business.subdomain}`)
-        return
-      }
-
+      // Always redirect to checkout - let checkout page handle payment/no-payment
       // Save booking data to sessionStorage and redirect to checkout
       const bookingData = {
         businessId: business.id,
