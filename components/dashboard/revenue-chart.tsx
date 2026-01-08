@@ -43,13 +43,15 @@ export function RevenueChart({ data }: { data: RevenueData[] }) {
               <BarChart data={data}>
               <XAxis
                 dataKey="name"
-                stroke="#888888"
+                stroke="currentColor"
+                className="text-zinc-600 dark:text-zinc-400"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                stroke="#888888"
+                stroke="currentColor"
+                className="text-zinc-600 dark:text-zinc-400"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
@@ -63,7 +65,7 @@ export function RevenueChart({ data }: { data: RevenueData[] }) {
                 dataKey="total"
                 fill="currentColor"
                 radius={[4, 4, 0, 0]}
-                className="fill-zinc-900 dark:fill-zinc-50"
+                className="fill-blue-600 dark:fill-blue-400"
               />
               </BarChart>
             </ResponsiveContainer>

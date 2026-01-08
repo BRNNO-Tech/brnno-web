@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function LandingNav() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -61,6 +62,7 @@ export default function LandingNav() {
 
           {/* Desktop CTA Buttons */}
           <div className="hidden md:flex items-center gap-4">
+            <ThemeToggle />
             <Link href="/login">
               <Button variant="ghost">Sign In</Button>
             </Link>
@@ -113,6 +115,9 @@ export default function LandingNav() {
               Contact
             </Link>
             <div className="pt-2 space-y-2">
+              <div className="flex justify-center px-4 pb-2">
+                <ThemeToggle />
+              </div>
               <Link href="/login" className="block">
                 <Button variant="ghost" className="w-full justify-center min-h-[44px]">
                   Sign In

@@ -99,18 +99,18 @@ function Sidebar({
   }
 
   return (
-    <div className={`flex h-full flex-col border-r border-zinc-800/50 bg-zinc-900/95 backdrop-blur-sm transition-all duration-300 ${isCollapsed && !isMobile ? 'w-16' : 'w-64'}`}>
+    <div className={`flex h-full flex-col border-r border-zinc-200 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/95 backdrop-blur-sm transition-all duration-300 ${isCollapsed && !isMobile ? 'w-16' : 'w-64'}`}>
       {/* Logo / Business Name */}
-      <div className="flex h-16 items-center justify-between border-b border-zinc-800/50 px-6">
+      <div className="flex h-16 items-center justify-between border-b border-zinc-200 dark:border-zinc-800/50 px-6">
         {(!isCollapsed || isMobile) && (
-          <h1 className="text-xl font-bold text-white">
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-white">
             BRNNO
           </h1>
         )}
         {isMobile ? (
           <button
             onClick={onMobileClose}
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-white transition-colors"
+            className="rounded-lg p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white transition-colors"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
@@ -118,7 +118,7 @@ function Sidebar({
         ) : (
           <button
             onClick={toggleSidebar}
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800/50 hover:text-white transition-colors"
+            className="rounded-lg p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white transition-colors"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? "→" : "←"}
@@ -143,8 +143,8 @@ function Sidebar({
                 onClick={handleLinkClick}
                 className={`group relative flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all min-h-[44px] ${
                   isActive 
-                    ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border-l-2 border-blue-500' 
-                    : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
+                    ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-700 dark:text-white border-l-2 border-blue-500' 
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white'
                 }`}
                 title={isCollapsed && !isMobile ? item.name : undefined}
               >
@@ -160,8 +160,8 @@ function Sidebar({
             const FirstIcon = item.items?.[0]?.icon as React.ComponentType<{ className?: string }> | undefined
             return FirstIcon ? (
               <div key={item.name} className="py-2">
-                <div className="h-8 w-8 mx-auto rounded-lg bg-zinc-800/50 flex items-center justify-center">
-                  <FirstIcon className="h-4 w-4 text-zinc-400" />
+                <div className="h-8 w-8 mx-auto rounded-lg bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center">
+                  <FirstIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
                 </div>
               </div>
             ) : null
@@ -174,7 +174,7 @@ function Sidebar({
               {/* Group Header */}
               <button
                 onClick={() => toggleGroup(item.name)}
-                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-zinc-500 dark:text-zinc-500 uppercase tracking-wider hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
               >
                 {item.name}
                 {!isMobile && (
@@ -200,8 +200,8 @@ function Sidebar({
                         onClick={handleLinkClick}
                         className={`group relative flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all min-h-[44px] ${
                           isActive 
-                            ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white border-l-2 border-blue-500' 
-                            : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
+                            ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-700 dark:text-white border-l-2 border-blue-500' 
+                            : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white'
                         }`}
                       >
                         <Icon className="h-5 w-5 mr-3" />
@@ -222,14 +222,14 @@ function Sidebar({
       </nav>
 
       {/* Divider */}
-      <div className="border-t border-zinc-800/50"></div>
+      <div className="border-t border-zinc-200 dark:border-zinc-800/50"></div>
 
       {/* Settings and Logout */}
       <div className="space-y-1 px-3 py-4">
         <Link
           href="/dashboard/settings"
           onClick={handleLinkClick}
-          className="group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium text-zinc-400 transition-all hover:bg-zinc-800/50 hover:text-white min-h-[44px]"
+          className="group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white min-h-[44px]"
           title={isCollapsed && !isMobile ? "Settings" : undefined}
         >
           <Settings className={`h-5 w-5 ${isCollapsed && !isMobile ? '' : 'mr-3'}`} />
@@ -237,7 +237,7 @@ function Sidebar({
         </Link>
         <button
           onClick={handleLogout}
-          className="group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-zinc-400 transition-all hover:bg-zinc-800/50 hover:text-white min-h-[44px]"
+          className="group flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white min-h-[44px]"
           title={isCollapsed && !isMobile ? "Logout" : undefined}
         >
           <LogOut className={`h-5 w-5 ${isCollapsed && !isMobile ? '' : 'mr-3'}`} />
@@ -272,24 +272,25 @@ function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle: () => void }) {
   const initial = businessName.charAt(0).toUpperCase()
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-zinc-800/30 bg-zinc-900/50 backdrop-blur-sm px-4 sm:px-6">
+    <header className="flex h-16 items-center justify-between border-b border-zinc-200 dark:border-zinc-800/30 bg-white/80 dark:bg-zinc-900/50 backdrop-blur-sm px-4 sm:px-6">
       <div className="flex items-center gap-3">
         {/* Mobile menu button */}
         <button
           onClick={onMobileMenuToggle}
-          className="md:hidden p-2 rounded-lg text-zinc-400 hover:bg-zinc-800/50 hover:text-white transition-colors"
+          className="md:hidden p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white transition-colors"
           aria-label="Open menu"
         >
           <Menu className="h-6 w-6" />
         </button>
-        <h2 className="text-base sm:text-lg font-semibold text-white truncate">
+        <h2 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-white truncate">
           {businessName}
         </h2>
       </div>
       <div className="flex items-center gap-2 sm:gap-4">
+        <ThemeToggle />
         <Link
           href="/dashboard/settings"
-          className="hidden sm:flex rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800/50 hover:text-white transition-colors"
+          className="hidden sm:flex rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white transition-colors"
         >
           Settings
         </Link>
@@ -302,6 +303,7 @@ function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle: () => void }) {
 }
 
 import { CommandMenu } from "@/components/dashboard/command-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DashboardLayout({
   children,
@@ -312,7 +314,7 @@ export default function DashboardLayout({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-zinc-900 via-zinc-950 to-black dark:from-zinc-950 dark:via-black dark:to-zinc-900">
+    <div className="flex h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-100 dark:from-zinc-950 dark:via-black dark:to-zinc-900">
       <CommandMenu />
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
@@ -324,7 +326,7 @@ export default function DashboardLayout({
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/50 dark:bg-black/50 backdrop-blur-sm"
             onClick={() => setIsMobileMenuOpen(false)}
           />
           {/* Sidebar */}

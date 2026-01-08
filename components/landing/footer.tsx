@@ -97,7 +97,7 @@ export default function Footer() {
                 <Instagram className="h-5 w-5" />
               </a>
               <a
-                href="https://twitter.com/brnno"
+                href="https://x.com/JohnJake228812"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
