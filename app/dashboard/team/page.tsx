@@ -32,8 +32,8 @@ export default async function TeamPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Team Management</h1>
-                    <p className="text-zinc-400">
+                    <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Team Management</h1>
+                    <p className="text-zinc-600 dark:text-zinc-400">
                         Manage your team members and assignments
                     </p>
                 </div>
@@ -42,9 +42,9 @@ export default async function TeamPage() {
 
             {/* Stats Overview */}
             <div className="grid gap-4 md:grid-cols-4">
-                <Card className="bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-cyan-500/20 border-blue-500/30">
+                <Card className="bg-gradient-to-br from-blue-600/10 dark:from-blue-600/20 via-blue-500/5 dark:via-blue-500/10 to-cyan-500/10 dark:to-cyan-500/20 border-blue-500/20 dark:border-blue-500/30">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-zinc-300">
+                        <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                             Team Members
                         </CardTitle>
                         <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
@@ -52,16 +52,16 @@ export default async function TeamPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-white">{activeMembers.length}</div>
-                        <p className="text-xs text-zinc-400 mt-1">
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-white">{activeMembers.length}</div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
                             {members.length - activeMembers.length} inactive
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-green-600/20 via-green-500/10 to-emerald-500/20 border-green-500/30">
+                <Card className="bg-gradient-to-br from-green-600/10 dark:from-green-600/20 via-green-500/5 dark:via-green-500/10 to-emerald-500/10 dark:to-emerald-500/20 border-green-500/20 dark:border-green-500/30">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-zinc-300">
+                        <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                             Jobs Completed
                         </CardTitle>
                         <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
@@ -69,16 +69,16 @@ export default async function TeamPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-white">{totalJobsCompleted}</div>
-                        <p className="text-xs text-zinc-400 mt-1">
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-white">{totalJobsCompleted}</div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
                             All time
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-emerald-600/20 via-emerald-500/10 to-teal-500/20 border-emerald-500/30">
+                <Card className="bg-gradient-to-br from-emerald-600/10 dark:from-emerald-600/20 via-emerald-500/5 dark:via-emerald-500/10 to-teal-500/10 dark:to-teal-500/20 border-emerald-500/20 dark:border-emerald-500/30">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-zinc-300">
+                        <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                             Total Earnings
                         </CardTitle>
                         <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
@@ -86,18 +86,18 @@ export default async function TeamPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-white">
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-white">
                             ${totalEarnings.toFixed(2)}
                         </div>
-                        <p className="text-xs text-zinc-400 mt-1">
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
                             Team total
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-yellow-600/20 via-yellow-500/10 to-amber-500/20 border-yellow-500/30">
+                <Card className="bg-gradient-to-br from-yellow-600/10 dark:from-yellow-600/20 via-yellow-500/5 dark:via-yellow-500/10 to-amber-500/10 dark:to-amber-500/20 border-yellow-500/20 dark:border-yellow-500/30">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-zinc-300">
+                        <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                             Avg Rating
                         </CardTitle>
                         <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-yellow-500 to-amber-500 flex items-center justify-center">
@@ -105,8 +105,8 @@ export default async function TeamPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-white">{avgRating.toFixed(1)}</div>
-                        <p className="text-xs text-zinc-400 mt-1">
+                        <div className="text-3xl font-bold text-zinc-900 dark:text-white">{avgRating.toFixed(1)}</div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
                             ⭐ Team average
                         </p>
                     </CardContent>

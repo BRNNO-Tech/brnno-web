@@ -108,7 +108,7 @@ export default function LeadList({
             <div className="mb-4 flex items-start justify-between">
               <div className="flex-1">
                 <div className="mb-1 flex items-center gap-2">
-                  <h3 className="text-lg font-semibold">{lead.name}</h3>
+                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">{lead.name}</h3>
                   {urgency && (
                     <span className="rounded bg-red-500 px-2 py-0.5 text-xs text-white">
                       URGENT

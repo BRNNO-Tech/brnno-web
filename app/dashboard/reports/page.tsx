@@ -60,8 +60,8 @@ export default function ReportsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Reports & Analytics</h1>
-          <p className="text-zinc-400">
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Reports & Analytics</h1>
+          <p className="text-zinc-600 dark:text-zinc-400">
             Track your business performance
           </p>
         </div>
@@ -96,11 +96,11 @@ export default function ReportsPage() {
 
       {/* Revenue Overview */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-white">Revenue Overview</h2>
+        <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-white">Revenue Overview</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="bg-gradient-to-br from-green-600/20 via-green-500/10 to-emerald-500/20 border-green-500/30">
+          <Card className="bg-gradient-to-br from-green-600/10 dark:from-green-600/20 via-green-500/5 dark:via-green-500/10 to-emerald-500/10 dark:to-emerald-500/20 border-green-500/20 dark:border-green-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Total Revenue
               </CardTitle>
             </CardHeader>
@@ -109,16 +109,16 @@ export default function ReportsPage() {
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
                   <DollarSign className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white">
+                <span className="text-2xl font-bold text-zinc-900 dark:text-white">
                   ${data.revenue.total.toFixed(2)}
                 </span>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-orange-600/20 via-orange-500/10 to-red-500/20 border-orange-500/30">
+          <Card className="bg-gradient-to-br from-orange-600/10 dark:from-orange-600/20 via-orange-500/5 dark:via-orange-500/10 to-red-500/10 dark:to-red-500/20 border-orange-500/20 dark:border-orange-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Outstanding
               </CardTitle>
             </CardHeader>
@@ -127,16 +127,16 @@ export default function ReportsPage() {
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
                   <DollarSign className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white">
+                <span className="text-2xl font-bold text-zinc-900 dark:text-white">
                   ${data.revenue.outstanding.toFixed(2)}
                 </span>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-cyan-500/20 border-blue-500/30">
+          <Card className="bg-gradient-to-br from-blue-600/10 dark:from-blue-600/20 via-blue-500/5 dark:via-blue-500/10 to-cyan-500/10 dark:to-cyan-500/20 border-blue-500/20 dark:border-blue-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Collection Rate
               </CardTitle>
             </CardHeader>
@@ -145,7 +145,7 @@ export default function ReportsPage() {
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
                   <TrendingUp className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white">
+                <span className="text-2xl font-bold text-zinc-900 dark:text-white">
                   {data.revenue.collectionRate.toFixed(1)}%
                 </span>
               </div>
@@ -156,49 +156,49 @@ export default function ReportsPage() {
 
       {/* Job Performance */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-white">Job Performance</h2>
+        <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-white">Job Performance</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-gradient-to-br from-purple-600/20 via-purple-500/10 to-pink-500/20 border-purple-500/30">
+          <Card className="bg-gradient-to-br from-purple-600/10 dark:from-purple-600/20 via-purple-500/5 dark:via-purple-500/10 to-pink-500/10 dark:to-pink-500/20 border-purple-500/20 dark:border-purple-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Total Jobs
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{data.jobs.total}</div>
+              <div className="text-2xl font-bold text-zinc-900 dark:text-white">{data.jobs.total}</div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-green-600/20 via-green-500/10 to-emerald-500/20 border-green-500/30">
+          <Card className="bg-gradient-to-br from-green-600/10 dark:from-green-600/20 via-green-500/5 dark:via-green-500/10 to-emerald-500/10 dark:to-emerald-500/20 border-green-500/20 dark:border-green-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Completed
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{data.jobs.completed}</div>
+              <div className="text-2xl font-bold text-zinc-900 dark:text-white">{data.jobs.completed}</div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-cyan-500/20 border-blue-500/30">
+          <Card className="bg-gradient-to-br from-blue-600/10 dark:from-blue-600/20 via-blue-500/5 dark:via-blue-500/10 to-cyan-500/10 dark:to-cyan-500/20 border-blue-500/20 dark:border-blue-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Completion Rate
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">{data.jobs.completionRate.toFixed(1)}%</div>
+              <div className="text-2xl font-bold text-zinc-900 dark:text-white">{data.jobs.completionRate.toFixed(1)}%</div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-amber-600/20 via-amber-500/10 to-yellow-500/20 border-amber-500/30">
+          <Card className="bg-gradient-to-br from-amber-600/10 dark:from-amber-600/20 via-amber-500/5 dark:via-amber-500/10 to-yellow-500/10 dark:to-yellow-500/20 border-amber-500/20 dark:border-amber-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Avg Job Cost
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">${data.jobs.avgCost.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-zinc-900 dark:text-white">${data.jobs.avgCost.toFixed(2)}</div>
             </CardContent>
           </Card>
         </div>
@@ -266,7 +266,7 @@ export default function ReportsPage() {
 
       {/* Efficiency Metrics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Efficiency Metrics</h2>
+        <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-white">Efficiency Metrics</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader>
@@ -309,11 +309,11 @@ export default function ReportsPage() {
 
       {/* Client Analytics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-white">Client Analytics</h2>
+        <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-white">Client Analytics</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-cyan-500/20 border-blue-500/30">
+          <Card className="bg-gradient-to-br from-blue-600/10 dark:from-blue-600/20 via-blue-500/5 dark:via-blue-500/10 to-cyan-500/10 dark:to-cyan-500/20 border-blue-500/20 dark:border-blue-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 New Clients
               </CardTitle>
             </CardHeader>
@@ -322,14 +322,14 @@ export default function ReportsPage() {
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
                   <Users className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white">{data.clients.new}</span>
+                <span className="text-2xl font-bold text-zinc-900 dark:text-white">{data.clients.new}</span>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-green-600/20 via-green-500/10 to-emerald-500/20 border-green-500/30">
+          <Card className="bg-gradient-to-br from-green-600/10 dark:from-green-600/20 via-green-500/5 dark:via-green-500/10 to-emerald-500/10 dark:to-emerald-500/20 border-green-500/20 dark:border-green-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Repeat Clients
               </CardTitle>
             </CardHeader>
@@ -338,14 +338,14 @@ export default function ReportsPage() {
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
                   <Users className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white">{data.clients.repeat}</span>
+                <span className="text-2xl font-bold text-zinc-900 dark:text-white">{data.clients.repeat}</span>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-purple-600/20 via-purple-500/10 to-pink-500/20 border-purple-500/30">
+          <Card className="bg-gradient-to-br from-purple-600/10 dark:from-purple-600/20 via-purple-500/5 dark:via-purple-500/10 to-pink-500/10 dark:to-pink-500/20 border-purple-500/20 dark:border-purple-500/30">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-zinc-300">
+              <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Total Clients
               </CardTitle>
             </CardHeader>
@@ -354,7 +354,7 @@ export default function ReportsPage() {
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                   <Users className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white">{data.clients.total}</span>
+                <span className="text-2xl font-bold text-zinc-900 dark:text-white">{data.clients.total}</span>
               </div>
             </CardContent>
           </Card>
@@ -363,7 +363,7 @@ export default function ReportsPage() {
 
       {/* Key Insights */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Key Insights</h2>
+        <h2 className="text-xl font-semibold mb-4 text-zinc-900 dark:text-white">Key Insights</h2>
         <Card>
           <CardContent className="pt-6 space-y-3">
             {data.insights.map((insight: any, i: number) => (
@@ -371,7 +371,7 @@ export default function ReportsPage() {
                 {insight.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />}
                 {insight.type === 'warning' && <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />}
                 {insight.type === 'info' && <Info className="h-5 w-5 text-blue-600 mt-0.5" />}
-                <p className="text-sm">{insight.message}</p>
+                <p className="text-sm text-zinc-900 dark:text-zinc-100">{insight.message}</p>
               </div>
             ))}
           </CardContent>

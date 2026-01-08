@@ -132,54 +132,54 @@ export default async function LeadsPage() {
       )}
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <Card className="bg-gradient-to-br from-red-600/20 via-red-500/10 to-rose-500/20 border-red-500/30">
+        <Card className="bg-gradient-to-br from-red-600/10 dark:from-red-600/20 via-red-500/5 dark:via-red-500/10 to-rose-500/10 dark:to-rose-500/20 border-red-500/20 dark:border-red-500/30">
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-red-500" />
-            <p className="text-sm font-medium text-zinc-300">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Hot Leads
             </p>
           </div>
-          <p className="text-3xl font-bold text-white">{hotLeads.length}</p>
-          <p className="text-xs text-zinc-400">
+          <p className="text-3xl font-bold text-zinc-900 dark:text-white">{hotLeads.length}</p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
             Need immediate follow-up
           </p>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-600/20 via-orange-500/10 to-amber-500/20 border-orange-500/30">
+        <Card className="bg-gradient-to-br from-orange-600/10 dark:from-orange-600/20 via-orange-500/5 dark:via-orange-500/10 to-amber-500/10 dark:to-amber-500/20 border-orange-500/20 dark:border-orange-500/30">
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-orange-500" />
-            <p className="text-sm font-medium text-zinc-300">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Warm Leads
             </p>
           </div>
-          <p className="text-3xl font-bold text-white">{warmLeads.length}</p>
-          <p className="text-xs text-zinc-400">
+          <p className="text-3xl font-bold text-zinc-900 dark:text-white">{warmLeads.length}</p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
             Active opportunities
           </p>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-cyan-500/20 border-blue-500/30">
+        <Card className="bg-gradient-to-br from-blue-600/10 dark:from-blue-600/20 via-blue-500/5 dark:via-blue-500/10 to-cyan-500/10 dark:to-cyan-500/20 border-blue-500/20 dark:border-blue-500/30">
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-blue-500" />
-            <p className="text-sm font-medium text-zinc-300">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Cold Leads
             </p>
           </div>
-          <p className="text-3xl font-bold text-white">{coldLeads.length}</p>
-          <p className="text-xs text-zinc-400">
+          <p className="text-3xl font-bold text-zinc-900 dark:text-white">{coldLeads.length}</p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
             Need re-engagement
           </p>
         </Card>
 
-        <Card className="bg-gradient-to-br from-green-600/20 via-green-500/10 to-emerald-500/20 border-green-500/30">
+        <Card className="bg-gradient-to-br from-green-600/10 dark:from-green-600/20 via-green-500/5 dark:via-green-500/10 to-emerald-500/10 dark:to-emerald-500/20 border-green-500/20 dark:border-green-500/30">
           <div className="mb-2 flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-green-500" />
-            <p className="text-sm font-medium text-zinc-300">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Converted
             </p>
           </div>
-          <p className="text-3xl font-bold text-white">{convertedLeads.length}</p>
-          <p className="text-xs text-zinc-400">
+          <p className="text-3xl font-bold text-zinc-900 dark:text-white">{convertedLeads.length}</p>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
             This month
           </p>
         </Card>
