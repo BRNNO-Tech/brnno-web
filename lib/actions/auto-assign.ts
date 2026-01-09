@@ -81,10 +81,11 @@ export async function findBestWorkerForJob(jobId: string): Promise<{ workerId: s
     }
 
     // 2. Load balancing - prefer workers with fewer assignments
-    const workerAssignments = currentAssignments?.filter(a => 
-      a.team_member_id === worker.id && 
-      a.job?.status !== 'completed'
-    ) || []
+    const workerAssignments = currentAssignments?.filter(a => {
+      if (a.team_member_id !== worker.id) return false
+      const job = Array.isArray(a.job) ? a.job[0] : a.job
+      return job && job.status !== 'completed'
+    }) || []
     
     const assignmentCount = workerAssignments.length
     const maxJobs = worker.max_jobs_per_day || 5
