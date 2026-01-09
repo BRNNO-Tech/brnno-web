@@ -45,6 +45,7 @@ export default function UnassignedJobsList({
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set())
   const [assigning, setAssigning] = useState(false)
   const [autoAssigningAll, setAutoAssigningAll] = useState(false)
+  const { can } = useFeatureGate()
 
   const activeMembers = teamMembers.filter(m => m.role !== 'inactive')
 
