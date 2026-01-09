@@ -132,8 +132,9 @@ export async function findBestWorkerForJob(jobId: string): Promise<{ workerId: s
 
     // 5. Round-robin bonus (slight preference for workers with fewer recent assignments)
     const recentAssignments = workerAssignments.filter(a => {
-      if (!a.job?.scheduled_date) return false
-      const assignmentDate = new Date(a.job.scheduled_date)
+      const assignmentJob = Array.isArray(a.job) ? a.job[0] : a.job
+      if (!assignmentJob?.scheduled_date) return false
+      const assignmentDate = new Date(assignmentJob.scheduled_date)
       const now = new Date()
       const daysDiff = (assignmentDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
       return daysDiff >= 0 && daysDiff <= 7 // Next 7 days
