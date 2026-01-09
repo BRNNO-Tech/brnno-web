@@ -117,6 +117,8 @@ export default async function TeamPage() {
             <TeamMemberList members={members.map(m => ({
                 ...m,
                 user_id: m.user_id || null,
+                hourly_rate: (m as any).hourly_rate || null,
+                commission_rate: (m as any).commission_rate || null,
                 total_jobs_completed: (m as any).total_jobs_completed || 0,
                 average_rating: (m as any).average_rating || 0,
                 total_earnings: (m as any).total_earnings || 0,

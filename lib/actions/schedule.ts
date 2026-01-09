@@ -109,6 +109,13 @@ function expandRecurringBlocks(blocks: any[], startDate: Date, endDate: Date): a
  * Expands recurring blocks into individual instances
  */
 export async function getTimeBlocks(startDate?: string, endDate?: string) {
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  
+  if (await isDemoMode()) {
+    // Return empty array for demo mode (time blocks are optional)
+    return []
+  }
+
   const supabase = await createClient()
   const businessId = await getBusinessId()
 
@@ -205,6 +212,28 @@ export async function deleteTimeBlock(id: string) {
  * Gets jobs for the schedule (scheduled and in_progress)
  */
 export async function getScheduledJobs(startDate?: string, endDate?: string) {
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  const { getMockJobs } = await import('@/lib/demo/mock-data')
+  
+  if (await isDemoMode()) {
+    const mockJobs = getMockJobs()
+    // Filter to scheduled and in_progress jobs
+    let filtered = mockJobs.filter(j => j.status === 'scheduled' || j.status === 'in_progress')
+    
+    // Filter by date range if provided
+    if (startDate && endDate) {
+      filtered = filtered.filter(job => {
+        if (!job.scheduled_date) return false
+        const jobDate = new Date(job.scheduled_date)
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        return jobDate >= start && jobDate <= end
+      })
+    }
+    
+    return filtered
+  }
+
   const supabase = await createClient()
   const businessId = await getBusinessId()
 

@@ -56,6 +56,38 @@ export async function createReviewRequest(jobId: string) {
 }
 
 export async function getReviewRequests() {
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  
+  if (await isDemoMode()) {
+    // Return mock review requests for demo
+    const { MOCK_JOBS, MOCK_CLIENTS } = await import('@/lib/demo/mock-data')
+    const completedJobs = MOCK_JOBS.filter(j => j.status === 'completed').slice(0, 3)
+    
+    return completedJobs.map((job, index) => {
+      const client = MOCK_CLIENTS.find(c => c.id === job.client_id) || MOCK_CLIENTS[0]
+      const sendAt = new Date(job.completed_at || job.created_at)
+      sendAt.setHours(sendAt.getHours() + 24)
+      
+      return {
+        id: `demo-review-${index + 1}`,
+        business_id: 'demo-business-id',
+        job_id: job.id,
+        client_id: client.id,
+        send_at: sendAt.toISOString(),
+        sent_at: index === 0 ? sendAt.toISOString() : null, // First one is sent
+        customer_name: client.name,
+        customer_email: client.email,
+        customer_phone: client.phone,
+        review_link: 'https://g.page/r/example-review-link',
+        status: index === 0 ? 'sent' : index === 1 ? 'completed' : 'pending',
+        created_at: job.completed_at || job.created_at,
+        job: {
+          title: job.title,
+        },
+      }
+    })
+  }
+
   const supabase = await createClient()
   const businessId = await getBusinessId()
 
