@@ -128,7 +128,7 @@ export async function getClient(id: string) {
               model: job.asset_details.model,
               year: job.asset_details.year || null,
               color: job.asset_details.color || null,
-              licensePlate: job.asset_details.licensePlate || job.asset_details.license_plate || null,
+              licensePlate: job.asset_details.licensePlate || (job.asset_details as any).license_plate || null,
               vin: job.asset_details.vin || null,
               jobCount: 0,
               lastServiceDate: job.scheduled_date
