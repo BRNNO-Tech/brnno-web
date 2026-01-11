@@ -1,8 +1,9 @@
 export const dynamic = 'force-dynamic'
 
 import { getDashboardStats, getMonthlyRevenue } from '@/lib/actions/dashboard'
+import { getLowStockItems } from '@/lib/actions/inventory'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, Briefcase, FileText, DollarSign } from 'lucide-react'
+import { Users, Briefcase, FileText, DollarSign, AlertTriangle, Package } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import FollowUpReminders from '@/components/dashboard/follow-up-reminders'
@@ -11,12 +12,18 @@ import { RevenueChart } from '@/components/dashboard/revenue-chart'
 export default async function DashboardPage() {
   let stats
   let monthlyRevenue: Array<{ name: string; total: number }> = []
+  let lowStockItems: any[] = []
   try {
     stats = await getDashboardStats()
     try {
       monthlyRevenue = await getMonthlyRevenue()
     } catch (revenueError) {
       // Continue without revenue chart if it fails
+    }
+    try {
+      lowStockItems = await getLowStockItems()
+    } catch (inventoryError) {
+      // Continue without inventory alerts if it fails
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An error occurred while loading dashboard data.'
@@ -129,6 +136,31 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Low Stock Alert */}
+      {lowStockItems.length > 0 && (
+        <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+              <CardTitle className="text-yellow-800 dark:text-yellow-200">
+                Low Stock Alert
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
+              {lowStockItems.length} item{lowStockItems.length !== 1 ? 's' : ''} need restocking
+            </p>
+            <Link href="/dashboard/inventory?filter=low_stock">
+              <Button variant="outline" size="sm" className="border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-100 dark:hover:bg-yellow-900">
+                <Package className="h-4 w-4 mr-2" />
+                View Items
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts & Main Content */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

@@ -25,6 +25,7 @@ import {
   Briefcase,
   UsersRound,
   ChevronDown,
+  Package,
 } from "lucide-react";
 
 type NavigationItem = {
@@ -81,6 +82,7 @@ const navigation: NavigationEntry[] = [
     items: [
       { name: "Services", href: "/dashboard/services", icon: Wrench },
       { name: "Team", href: "/dashboard/team", icon: UsersRound, requiredFeature: "team_management", requiredTier: "pro" },
+      { name: "Inventory", href: "/dashboard/inventory", icon: Package },
       { name: "Schedule", href: "/dashboard/schedule", icon: CalendarDays },
       { name: "Reviews", href: "/dashboard/reviews", icon: Star, requiredFeature: "full_automation", requiredTier: "pro" },
     ],
