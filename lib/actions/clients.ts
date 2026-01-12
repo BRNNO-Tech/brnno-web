@@ -236,6 +236,9 @@ export async function getClient(id: string) {
     
     // Check if error has meaningful content (not just an empty object)
     if (invoicesError) {
+      // Check type first to avoid TypeScript narrowing issues
+      const errorType = typeof invoicesError
+      
       if (invoicesError instanceof Error) {
         hasRealError = !!invoicesError.message
         if (hasRealError) {
@@ -246,16 +249,17 @@ export async function getClient(id: string) {
             businessId: businessId
           })
         }
-      } else if (typeof invoicesError === 'string') {
-        if (invoicesError.length > 0) {
+      } else if (errorType === 'string') {
+        const errorStr = invoicesError as string
+        if (errorStr.length > 0) {
           hasRealError = true
           console.error('Invoice query error:', {
-            message: invoicesError,
+            message: errorStr,
             clientId: id,
             businessId: businessId
           })
         }
-      } else if (typeof invoicesError === 'object' && invoicesError !== null && !Array.isArray(invoicesError)) {
+      } else if (errorType === 'object' && invoicesError !== null && !Array.isArray(invoicesError)) {
         // Get all enumerable properties
         const errorKeys = Object.keys(invoicesError)
         
