@@ -7,16 +7,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { createInventoryItem, updateInventoryItem, type InventoryItem, type InventoryCategory } from '@/lib/actions/inventory'
+import CreateCategoryButton from './create-category-button'
 
 export default function InventoryItemForm({ 
   item, 
-  categories 
+  categories: initialCategories 
 }: { 
   item?: InventoryItem
   categories: InventoryCategory[]
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [categories, setCategories] = useState(initialCategories)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -72,7 +74,15 @@ export default function InventoryItemForm({
           </div>
 
           <div>
-            <Label htmlFor="category_id">Category</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label htmlFor="category_id">Category</Label>
+              <CreateCategoryButton 
+                onCategoryCreated={async () => {
+                  // Refresh the page to get updated categories
+                  router.refresh()
+                }}
+              />
+            </div>
             <select
               id="category_id"
               name="category_id"
@@ -86,6 +96,11 @@ export default function InventoryItemForm({
                 </option>
               ))}
             </select>
+            {categories.length === 0 && (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                No categories yet. Create one to organize your inventory.
+              </p>
+            )}
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, unstable_noStore as noStore } from 'next/cache'
 import { getBusinessId } from './utils'
 import { isDemoMode } from '@/lib/demo/utils'
 import {
@@ -92,22 +92,41 @@ export async function getInventoryCategories() {
         return MOCK_INVENTORY_CATEGORIES
     }
 
-    const supabase = await createClient()
-    const businessId = await getBusinessId()
+    // Prevent caching to ensure fresh category data
+    noStore()
 
-    const { data: categories, error } = await supabase
-        .from('inventory_categories')
-        .select('*')
-        .eq('business_id', businessId)
-        .order('name', { ascending: true })
+    try {
+        const supabase = await createClient()
+        const businessId = await getBusinessId()
 
-    if (error) {
-        console.error('Error fetching inventory categories:', error)
-        throw error
+        // Use cache: 'no-store' to ensure fresh data, especially after category creation
+        const { data: categories, error } = await supabase
+            .from('inventory_categories')
+            .select('*')
+            .eq('business_id', businessId)
+            .order('name', { ascending: true })
+
+        if (error) {
+            console.error('Error fetching inventory categories:', {
+                error,
+                businessId,
+                message: error.message,
+                code: error.code,
+                details: error.details
+            })
+            // Return empty array instead of throwing to prevent UI crashes
+            return []
+        }
+
+        return categories || []
+    } catch (err) {
+        console.error('Exception fetching inventory categories:', err)
+        return []
     }
-
-    return categories || []
 }
+
+// Alias for compatibility
+export const getCategories = getInventoryCategories
 
 export async function createInventoryCategory(formData: FormData) {
     if (await isDemoMode()) {
@@ -132,7 +151,12 @@ export async function createInventoryCategory(formData: FormData) {
         throw error
     }
 
-    revalidatePath('/dashboard/inventory')
+    // Revalidate all inventory routes to update category dropdowns
+    // Using 'layout' type to clear all nested routes including /new and /[id]/edit
+    revalidatePath('/dashboard/inventory', 'layout')
+    // Also explicitly revalidate the specific pages that use categories
+    revalidatePath('/dashboard/inventory/new', 'page')
+    revalidatePath('/dashboard/inventory', 'page')
 }
 
 export async function updateInventoryCategory(id: string, formData: FormData) {
