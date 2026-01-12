@@ -4,6 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getBusinessId } from './utils'
 import { isDemoMode } from '@/lib/demo/utils'
+import {
+    MOCK_INVENTORY_CATEGORIES,
+    MOCK_INVENTORY_ITEMS,
+    MOCK_INVENTORY_ADJUSTMENTS,
+    MOCK_INVENTORY_USAGE_LOGS,
+    MOCK_INVENTORY_LOCATIONS
+} from '@/lib/demo/mock-data'
 
 // Types
 export interface InventoryItem {
@@ -82,7 +89,7 @@ export interface InventoryUsageLog {
 
 export async function getInventoryCategories() {
     if (await isDemoMode()) {
-        return []
+        return MOCK_INVENTORY_CATEGORIES
     }
 
     const supabase = await createClient()
@@ -103,6 +110,10 @@ export async function getInventoryCategories() {
 }
 
 export async function createInventoryCategory(formData: FormData) {
+    if (await isDemoMode()) {
+        return
+    }
+
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
@@ -125,6 +136,10 @@ export async function createInventoryCategory(formData: FormData) {
 }
 
 export async function updateInventoryCategory(id: string, formData: FormData) {
+    if (await isDemoMode()) {
+        return
+    }
+
     const supabase = await createClient()
 
     const categoryData = {
@@ -146,6 +161,10 @@ export async function updateInventoryCategory(id: string, formData: FormData) {
 }
 
 export async function deleteInventoryCategory(id: string) {
+    if (await isDemoMode()) {
+        return
+    }
+
     const supabase = await createClient()
 
     const { error } = await supabase
@@ -167,11 +186,21 @@ export async function deleteInventoryCategory(id: string) {
 
 export async function getInventoryStats() {
     if (await isDemoMode()) {
+        const items = MOCK_INVENTORY_ITEMS
+        const totalItems = items.length
+        const lowStockItems = items.filter(
+            item => item.current_quantity > 0 && item.current_quantity <= item.low_stock_threshold
+        ).length
+        const outOfStockItems = items.filter(item => item.current_quantity === 0).length
+        const totalValue = items.reduce((sum, item) => {
+            return sum + (item.current_quantity * (item.cost_per_unit || 0))
+        }, 0)
+
         return {
-            totalItems: 0,
-            lowStockItems: 0,
-            outOfStockItems: 0,
-            totalValue: 0,
+            totalItems,
+            lowStockItems,
+            outOfStockItems,
+            totalValue,
         }
     }
 
@@ -207,7 +236,7 @@ export async function getInventoryStats() {
 
 export async function getInventoryItems() {
     if (await isDemoMode()) {
-        return []
+        return MOCK_INVENTORY_ITEMS
     }
 
     const supabase = await createClient()
@@ -232,7 +261,24 @@ export async function getInventoryItems() {
 
 export async function getInventoryItem(id: string) {
     if (await isDemoMode()) {
-        return null
+        const item = MOCK_INVENTORY_ITEMS.find(i => i.id === id)
+        if (!item) {
+            return null
+        }
+
+        // Get adjustments and usage logs for this item
+        const adjustments = MOCK_INVENTORY_ADJUSTMENTS
+            .filter(adj => adj.item_id === id)
+            .slice(0, 10)
+        const usageLogs = MOCK_INVENTORY_USAGE_LOGS
+            .filter(log => log.item_id === id)
+            .slice(0, 10)
+
+        return {
+            ...item,
+            adjustments,
+            usage_logs: usageLogs,
+        }
     }
 
     const supabase = await createClient()
@@ -288,6 +334,25 @@ export async function getInventoryItem(id: string) {
 }
 
 export async function createInventoryItem(formData: FormData) {
+    if (await isDemoMode()) {
+        // Return a mock item for demo mode
+        return {
+            id: `demo-item-${Date.now()}`,
+            business_id: 'demo-business-id',
+            category_id: formData.get('category_id') as string || null,
+            name: formData.get('name') as string,
+            sku: formData.get('sku') as string || null,
+            unit_of_measure: formData.get('unit_of_measure') as string,
+            cost_per_unit: formData.get('cost_per_unit') ? parseFloat(formData.get('cost_per_unit') as string) : null,
+            vendor: formData.get('vendor') as string || null,
+            current_quantity: formData.get('current_quantity') ? parseFloat(formData.get('current_quantity') as string) : 0,
+            low_stock_threshold: formData.get('low_stock_threshold') ? parseFloat(formData.get('low_stock_threshold') as string) : 0,
+            notes: formData.get('notes') as string || null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        }
+    }
+
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
@@ -334,6 +399,10 @@ export async function createInventoryItem(formData: FormData) {
 }
 
 export async function updateInventoryItem(id: string, formData: FormData) {
+    if (await isDemoMode()) {
+        return
+    }
+
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
@@ -372,6 +441,10 @@ export async function updateInventoryItem(id: string, formData: FormData) {
 }
 
 export async function deleteInventoryItem(id: string) {
+    if (await isDemoMode()) {
+        return
+    }
+
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
@@ -395,7 +468,9 @@ export async function deleteInventoryItem(id: string) {
 
 export async function getLowStockItems() {
     if (await isDemoMode()) {
-        return []
+        return MOCK_INVENTORY_ITEMS.filter(
+            item => item.current_quantity > 0 && item.current_quantity <= item.low_stock_threshold
+        )
     }
 
     const supabase = await createClient()
@@ -426,6 +501,10 @@ export async function adjustInventory(
     notes: string | null = null,
     locationId: string | null = null
 ) {
+    if (await isDemoMode()) {
+        return
+    }
+
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
@@ -585,7 +664,10 @@ export async function duplicateInventoryItem(itemId: string) {
 
 export async function getInventoryAdjustments(itemId?: string) {
     if (await isDemoMode()) {
-        return []
+        if (itemId) {
+            return MOCK_INVENTORY_ADJUSTMENTS.filter(adj => adj.item_id === itemId)
+        }
+        return MOCK_INVENTORY_ADJUSTMENTS
     }
 
     const supabase = await createClient()
@@ -626,6 +708,10 @@ export async function logInventoryUsage(
     teamMemberId: string | null = null,
     notes: string | null = null
 ) {
+    if (await isDemoMode()) {
+        return
+    }
+
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
@@ -673,7 +759,14 @@ export async function logInventoryUsage(
 
 export async function getInventoryUsageLogs(itemId?: string, jobId?: string) {
     if (await isDemoMode()) {
-        return []
+        let logs = MOCK_INVENTORY_USAGE_LOGS
+        if (itemId) {
+            logs = logs.filter(log => log.item_id === itemId)
+        }
+        if (jobId) {
+            logs = logs.filter(log => log.job_id === jobId)
+        }
+        return logs
     }
 
     const supabase = await createClient()
@@ -714,7 +807,7 @@ export async function getInventoryUsageLogs(itemId?: string, jobId?: string) {
 
 export async function getInventoryLocations() {
     if (await isDemoMode()) {
-        return []
+        return MOCK_INVENTORY_LOCATIONS
     }
 
     const supabase = await createClient()
@@ -736,6 +829,10 @@ export async function getInventoryLocations() {
 }
 
 export async function createInventoryLocation(formData: FormData) {
+    if (await isDemoMode()) {
+        return
+    }
+
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
