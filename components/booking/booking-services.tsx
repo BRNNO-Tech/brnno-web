@@ -40,7 +40,7 @@ export function BookingServices({
   // Calculate total price
   const basePrice = selectedService?.base_price || 0;
   const addonsPrice = activeAddons
-    .filter(addon => selectedAddonIds.includes(addon.id))
+    .filter(addon => addon.id && selectedAddonIds.includes(addon.id))
     .reduce((sum, addon) => sum + addon.price, 0);
   const totalPrice = basePrice + addonsPrice;
 
@@ -177,12 +177,12 @@ export function BookingServices({
 
           <div className="grid gap-3 md:grid-cols-2">
             {activeAddons.map((addon) => {
-              const isSelected = selectedAddonIds.includes(addon.id);
+              const isSelected = addon.id ? selectedAddonIds.includes(addon.id) : false;
               
               return (
                 <button
                   key={addon.id}
-                  onClick={() => onToggleAddon?.(addon.id)}
+                  onClick={() => addon.id && onToggleAddon?.(addon.id)}
                   className={cn(
                     "p-4 rounded-lg border-2 text-left transition-all",
                     isSelected
@@ -225,7 +225,7 @@ export function BookingServices({
             {selectedAddonIds.length > 0 && (
               <>
                 {activeAddons
-                  .filter(addon => selectedAddonIds.includes(addon.id))
+                  .filter(addon => addon.id && selectedAddonIds.includes(addon.id))
                   .map((addon) => (
                     <div key={addon.id} className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>+ {addon.name}</span>

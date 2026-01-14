@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-import { getDashboardStats, getMonthlyRevenue, getUpcomingJobs, getUnpaidInvoices } from '@/lib/actions/dashboard'
+import { getDashboardStats, getMonthlyRevenue, getUpcomingJobs } from '@/lib/actions/dashboard'
 import { getBusiness } from '@/lib/actions/business'
 import ModernDashboard from '@/components/dashboard/modern-dashboard'
 import Link from 'next/link'
@@ -10,7 +11,6 @@ export default async function DashboardPage() {
   let stats
   let monthlyRevenue: Array<{ name: string; total: number }> = []
   let upcomingJobs: any[] = []
-  let unpaidInvoices: any[] = []
   let businessName = 'Your Business'
 
   try {
@@ -24,11 +24,6 @@ export default async function DashboardPage() {
       upcomingJobs = await getUpcomingJobs()
     } catch (jobsError) {
       // Continue without upcoming jobs if it fails
-    }
-    try {
-      unpaidInvoices = await getUnpaidInvoices()
-    } catch (invoicesError) {
-      // Continue without unpaid invoices if it fails
     }
     try {
       const business = await getBusiness()
@@ -83,7 +78,6 @@ export default async function DashboardPage() {
       stats={stats}
       monthlyRevenue={monthlyRevenue}
       upcomingJobs={upcomingJobs}
-      unpaidInvoices={unpaidInvoices}
       businessName={businessName}
     />
   )

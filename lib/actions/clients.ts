@@ -313,8 +313,8 @@ export async function getClient(id: string) {
           errorCode = (invoicesError as any).code || null
           
           // Check if we have meaningful error content
-          const hasMessage = errorMessage && String(errorMessage).trim().length > 0
-          const hasCode = errorCode && String(errorCode).trim().length > 0
+          const hasMessage = Boolean(errorMessage && String(errorMessage).trim().length > 0)
+          const hasCode = Boolean(errorCode && String(errorCode).trim().length > 0)
           hasRealError = hasMessage || hasCode
         }
       }

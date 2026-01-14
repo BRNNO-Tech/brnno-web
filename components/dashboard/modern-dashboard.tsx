@@ -9,9 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import {
   LayoutGrid,
@@ -25,13 +22,13 @@ import {
   LogOut,
   MessageSquare,
   Wrench,
-  Receipt,
   BarChart3,
   ChevronDown,
   ChevronRight,
   Sparkles,
   ArrowUpRight,
   ArrowDownRight,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -135,7 +132,7 @@ function TopBar({
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 dark:text-white/45" />
             <input
-              placeholder="Search clients, jobs, invoices..."
+              placeholder="Search clients, jobs..."
               className="w-[340px] rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 py-2 pl-10 pr-3 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-white/35 outline-none transition focus:border-violet-500/30 dark:focus:border-violet-500/30 focus:ring-2 focus:ring-violet-500/15 dark:focus:ring-violet-500/15"
             />
           </div>
@@ -270,7 +267,6 @@ function StatusPill({ status }: { status: string }) {
 
 function ActivityIcon({ kind }: { kind: string }) {
   const common = "h-4 w-4";
-  if (kind === "invoice") return <Receipt className={common} />;
   if (kind === "job") return <Briefcase className={common} />;
   if (kind === "client") return <Users className={common} />;
   return <DollarSign className={common} />;
@@ -307,32 +303,16 @@ function formatJobDate(date: string | Date): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-function formatInvoiceDue(date: string | Date | null): string {
-  if (!date) return "No due date";
-  const d = new Date(date);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const dueDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  
-  const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / 86400000);
-  
-  if (diffDays < 0) return "Overdue";
-  if (diffDays === 0) return "Due today";
-  if (diffDays === 1) return "Due tomorrow";
-  return `Due in ${diffDays} days`;
-}
 
 type DashboardData = {
   stats: {
     totalClients: number;
     activeJobs: number;
-    pendingInvoices: number;
     revenueMTD: number;
     recentActivity: any[];
   };
   monthlyRevenue: Array<{ name: string; total: number }>;
   upcomingJobs: any[];
-  unpaidInvoices: any[];
   businessName: string;
 };
 
@@ -340,15 +320,9 @@ export default function ModernDashboard({
   stats,
   monthlyRevenue,
   upcomingJobs,
-  unpaidInvoices,
   businessName,
 }: DashboardData) {
   const router = useRouter();
-
-  const unpaidTotal = useMemo(
-    () => unpaidInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0),
-    [unpaidInvoices]
-  );
 
   // Get last 12 months of revenue data
   const revenueData = useMemo(() => {
@@ -369,18 +343,6 @@ export default function ModernDashboard({
     return data;
   }, [monthlyRevenue]);
 
-  const pieData = useMemo(() => {
-    const paid = unpaidInvoices.filter(i => i.status === 'paid').length;
-    const unpaid = unpaidInvoices.filter(i => i.status === 'unpaid').length;
-    const overdue = unpaidInvoices.filter(i => i.status === 'overdue').length;
-    
-    return [
-      { name: "Paid", value: paid || 0 },
-      { name: "Unpaid", value: unpaid || 0 },
-      { name: "Overdue", value: overdue || 0 },
-    ].filter(p => p.value > 0);
-  }, [unpaidInvoices]);
-
   const recentActivity = useMemo(() => {
     return stats.recentActivity.slice(0, 4).map((activity: any) => {
       let icon = "payment";
@@ -391,10 +353,6 @@ export default function ModernDashboard({
         icon = "job";
         title = "Job completed";
         meta = activity.title || "Job";
-      } else if (activity.type === "invoice") {
-        icon = "invoice";
-        title = "Payment received";
-        meta = `${currency(activity.total || 0)}${activity.client?.name ? ` · ${activity.client.name}` : ""}`;
       } else if (activity.type === "client") {
         icon = "client";
         title = "New client added";
@@ -407,19 +365,18 @@ export default function ModernDashboard({
         meta,
         time: formatTimeAgo(activity.date),
       };
-    });
+    }).filter((a: any) => a.title); // Filter out any empty activities
   }, [stats.recentActivity]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-100 dark:from-[#07070A] dark:via-[#07070A] dark:to-[#0a0a0d] text-zinc-900 dark:text-white -m-4 sm:-m-6">
-      <div className="relative">
-        <div className="hidden dark:block">
-          <GlowBG />
-        </div>
+    <div className="relative w-full">
+      <div className="hidden dark:block absolute inset-0 pointer-events-none">
+        <GlowBG />
+      </div>
 
-        <div className="relative flex min-h-screen">
-          {/* Sidebar - Hidden since layout provides its own */}
-          <aside className="hidden">
+      <div className="relative">
+        {/* Sidebar - Hidden since layout provides its own */}
+        <aside className="hidden">
             <div className="px-5 py-5">
               <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -479,7 +436,7 @@ export default function ModernDashboard({
 
           {/* Main */}
           <main className="flex-1 w-full">
-            <div className="mx-auto max-w-[1280px] px-6 py-8">
+            <div className="mx-auto max-w-[1280px]">
               {/* Header */}
               <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div>
@@ -524,20 +481,18 @@ export default function ModernDashboard({
                   tone="amber"
                 />
                 <KpiCard
-                  title="Pending Invoices"
-                  value={String(stats.pendingInvoices)}
-                  sub={currency(unpaidTotal) + " outstanding"}
-                  trend={stats.pendingInvoices > 0 ? undefined : "-5%"}
-                  trendDir="down"
-                  icon={Receipt}
-                  tone="cyan"
-                />
-                <KpiCard
                   title="Total Clients"
                   value={String(stats.totalClients)}
                   sub="All-time"
                   icon={Users}
                   tone="violet"
+                />
+                <KpiCard
+                  title="Upcoming Jobs"
+                  value={String(upcomingJobs.length)}
+                  sub="Scheduled this week"
+                  icon={Calendar}
+                  tone="cyan"
                 />
               </div>
 
@@ -561,19 +516,15 @@ export default function ModernDashboard({
                         <XAxis
                           dataKey="month"
                           tick={{ fill: "rgb(63,63,70)", fontSize: 12 }}
-                          className="dark:[&_text]:fill-white/55"
+                          className="dark:[&_text]:fill-white/55 dark:[&_line]:stroke-white/10"
                           axisLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                          className="dark:[&_line]:stroke-white/10"
                           tickLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                          className="dark:[&_line]:stroke-white/10"
                         />
                         <YAxis
                           tick={{ fill: "rgb(63,63,70)", fontSize: 12 }}
-                          className="dark:[&_text]:fill-white/55"
+                          className="dark:[&_text]:fill-white/55 dark:[&_line]:stroke-white/10"
                           axisLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                          className="dark:[&_line]:stroke-white/10"
                           tickLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                          className="dark:[&_line]:stroke-white/10"
                         />
                         <Tooltip
                           contentStyle={{
@@ -582,10 +533,8 @@ export default function ModernDashboard({
                             borderRadius: 16,
                             color: "rgb(24,24,27)",
                           }}
-                          className="dark:[&_*]:!bg-[rgba(10,10,14,0.9)] dark:[&_*]:!border-white/12 dark:[&_*]:!text-white"
                           formatter={(v: any) => currency(Number(v))}
                           labelStyle={{ color: "rgb(24,24,27)" }}
-                          className="dark:[&_*]:!text-white/75"
                         />
                         <Bar
                           dataKey="revenue"
@@ -645,7 +594,7 @@ export default function ModernDashboard({
                         <div>
                           <p className="text-sm font-medium text-zinc-900 dark:text-white">Today's focus</p>
                           <p className="mt-1 text-xs text-zinc-600 dark:text-white/50">
-                            {stats.pendingInvoices} invoice{stats.pendingInvoices !== 1 ? 's' : ''} {stats.pendingInvoices > 0 ? 'overdue' : 'pending'} · {stats.activeJobs} job{stats.activeJobs !== 1 ? 's' : ''} scheduled
+                            {stats.activeJobs} active job{stats.activeJobs !== 1 ? 's' : ''} · {upcomingJobs.length} upcoming this week
                           </p>
                         </div>
                         <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/15 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300">
@@ -657,8 +606,8 @@ export default function ModernDashboard({
                 </div>
               </div>
 
-              {/* Bottom grid: Activity + Invoices + Mini insights */}
-              <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              {/* Bottom grid: Activity + Jobs + Insights */}
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
                 <CardShell
                   title="Recent Activity"
                   subtitle="Latest changes across your workspace"
@@ -698,132 +647,51 @@ export default function ModernDashboard({
                 </CardShell>
 
                 <CardShell
-                  title="Unpaid Invoices"
-                  subtitle="Auto-generated from completed jobs"
-                >
-                  <div className="space-y-3">
-                    {unpaidInvoices.length === 0 ? (
-                      <p className="text-sm text-zinc-600 dark:text-white/50 text-center py-4">No unpaid invoices</p>
-                    ) : (
-                      unpaidInvoices.map((inv) => (
-                        <div key={inv.id} className="flex items-start justify-between gap-3 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-medium text-zinc-900 dark:text-white">{inv.invoice_number || inv.id}</p>
-                              <StatusPill status={inv.status} />
-                            </div>
-                            <p className="mt-1 text-xs text-zinc-600 dark:text-white/50">
-                              {inv.client?.name || "Client"} · {currency(inv.total || 0)}
-                            </p>
-                            <p className="mt-3 text-xs text-zinc-600 dark:text-white/60">{formatInvoiceDue(inv.due_date)}</p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  {unpaidTotal > 0 && (
-                    <div className="mt-4 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm p-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-zinc-700 dark:text-white/70">Outstanding</p>
-                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">
-                          {currency(unpaidTotal)}
-                        </p>
-                      </div>
-                      <p className="mt-1 text-xs text-zinc-600 dark:text-white/45">
-                        Tip: send a reminder + offer card-on-file.
-                      </p>
-                    </div>
-                  )}
-                </CardShell>
-
-                <CardShell
-                  title="Business Health"
-                  subtitle="Cashflow & operations snapshot"
+                  title="Business Insights"
+                  subtitle="Performance & growth metrics"
                   action={
                     <Link href="/dashboard/reports">
                       <button className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-xs text-zinc-700 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors">
-                        Details
+                        View Reports
                       </button>
                     </Link>
                   }
                 >
-                  {pieData.length > 0 ? (
-                    <>
-                      <div className="h-[180px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={pieData}
-                              dataKey="value"
-                              nameKey="name"
-                              innerRadius={55}
-                              outerRadius={80}
-                              paddingAngle={3}
-                            >
-                              {pieData.map((_, i) => (
-                                <Cell
-                                  key={i}
-                                  fill={
-                                    [
-                                      "rgba(16,185,129,0.60)",
-                                      "rgba(99,102,241,0.55)",
-                                      "rgba(244,63,94,0.55)",
-                                    ][i % 3]
-                                  }
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              contentStyle={{
-                                background: "rgba(255,255,255,0.95)",
-                                border: "1px solid rgba(0,0,0,0.1)",
-                                borderRadius: 16,
-                                color: "rgb(24,24,27)",
-                              }}
-                              className="dark:[&_*]:!bg-[rgba(10,10,14,0.9)] dark:[&_*]:!border-white/12 dark:[&_*]:!text-white"
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-zinc-700 dark:text-white/80">Monthly Revenue</p>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                          {currency(stats.revenueMTD)}
+                        </p>
                       </div>
-
-                      <div className="grid gap-2">
-                        {pieData.map((p, i) => (
-                          <div
-                            key={p.name}
-                            className="flex items-center justify-between rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 px-4 py-3"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{
-                                  background:
-                                    [
-                                      "rgba(16,185,129,0.75)",
-                                      "rgba(99,102,241,0.70)",
-                                      "rgba(244,63,94,0.70)",
-                                    ][i % 3],
-                                }}
-                              />
-                              <p className="text-sm text-zinc-700 dark:text-white/80">{p.name}</p>
-                            </div>
-                            <p className="text-sm font-semibold text-zinc-900 dark:text-white">{p.value}</p>
-                          </div>
-                        ))}
+                    </div>
+                    <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-zinc-700 dark:text-white/80">Active Jobs</p>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                          {stats.activeJobs}
+                        </p>
                       </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-zinc-600 dark:text-white/50 text-center py-8">No invoice data available</p>
-                  )}
+                    </div>
+                    <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-zinc-700 dark:text-white/80">Total Clients</p>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                          {stats.totalClients}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="mt-4 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-gradient-to-br from-emerald-500/10 dark:from-emerald-500/10 to-transparent p-4">
                     <p className="text-sm font-medium text-zinc-900 dark:text-white">BRNNO Insight</p>
                     <p className="mt-1 text-xs text-zinc-600 dark:text-white/55">
-                      Turn on auto-reminders for invoices to reduce overdue payments.
+                      Keep your schedule updated to maximize revenue and customer satisfaction.
                     </p>
-                    <Link href="/dashboard/settings">
+                    <Link href="/dashboard/schedule">
                       <button className="mt-3 w-full rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors">
-                        Enable reminders
+                        View Calendar
                       </button>
                     </Link>
                   </div>
@@ -831,12 +699,11 @@ export default function ModernDashboard({
               </div>
 
               <footer className="mt-10 pb-6 text-center text-xs text-zinc-500 dark:text-white/35">
-                BRNNO · {businessName} — Dashboard UI v1
+                BRNNO · {businessName} — Dashboard UI v2
               </footer>
             </div>
           </main>
         </div>
-      </div>
     </div>
   );
 }

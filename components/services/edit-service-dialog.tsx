@@ -39,7 +39,12 @@ export default function EditServiceDialog({
     const formData = new FormData(e.currentTarget)
     
     try {
-      await updateService(service.id, formData)
+      await updateService(service.id, {
+        name: formData.get('name') as string,
+        description: formData.get('description') as string || undefined,
+        base_price: parseFloat(formData.get('price') as string) || 0,
+        estimated_duration: parseFloat(formData.get('duration_minutes') as string) ? parseFloat(formData.get('duration_minutes') as string) * 60 : undefined,
+      })
       onOpenChange(false)
     } catch (error) {
       console.error('Error updating service:', error)

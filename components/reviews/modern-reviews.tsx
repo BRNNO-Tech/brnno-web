@@ -72,7 +72,7 @@ function Pill({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StatusPill({ status }: { status: "Pending" | "Sent" | "Failed" | "pending" | "sent" | "failed" | "completed" }) {
+function StatusPill({ status }: { status: "Pending" | "Sent" | "Failed" | "pending" | "sent" | "failed" | "completed" | string }) {
   const normalizedStatus = status.toLowerCase();
   const cls =
     normalizedStatus === "sent" || normalizedStatus === "completed"
@@ -357,7 +357,7 @@ export default function ModernReviews({ requests, stats, recentReviews = [] }: M
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold text-zinc-900 dark:text-white">{r.customer_name}</p>
-                        <StatusPill status={r.status} />
+                        <StatusPill status={r.status as any} />
                         <Pill>{channelDisplay}</Pill>
                       </div>
                       <p className="mt-1 text-xs text-zinc-600 dark:text-white/55">{r.job?.title || "Job"}</p>

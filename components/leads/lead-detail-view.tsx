@@ -23,6 +23,7 @@ import {
   Briefcase,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import {
   deleteLead,
   updateLeadStatus,
@@ -545,8 +546,8 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
                   </CardHeader>
                   <CardContent className="flex flex-wrap gap-2">
                     {lead.status === 'quoted' && (
-                      <Button onClick={() => handleStatusChange('viewed')}>
-                        Mark as Viewed
+                      <Button onClick={() => handleStatusChange('in_progress')}>
+                        Mark as Engaged
                       </Button>
                     )}
                     {lead.status === 'viewed' && lead.job_id && (

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { addService } from '@/lib/actions/services'
+import { createService } from '@/lib/actions/services'
 import { Plus } from 'lucide-react'
 
 export default function AddServiceButton() {
@@ -27,7 +27,12 @@ export default function AddServiceButton() {
     const formData = new FormData(e.currentTarget)
     
     try {
-      await addService(formData)
+      await createService({
+        name: formData.get('name') as string,
+        description: formData.get('description') as string || undefined,
+        base_price: parseFloat(formData.get('price') as string) || 0,
+        estimated_duration: parseFloat(formData.get('duration_minutes') as string) || undefined,
+      })
       formRef.current?.reset()
       setOpen(false)
     } catch (error) {

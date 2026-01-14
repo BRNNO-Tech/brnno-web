@@ -263,8 +263,8 @@ export async function updateLeadStatus(
 
   const updates: Record<string, unknown> = { status }
 
-  // Update last_contacted_at for both 'contacted' (old) and 'in_progress' (new)
-  if (status === 'in_progress' || status === 'contacted') {
+  // Update last_contacted_at for 'in_progress' status
+  if (status === 'in_progress') {
     updates.last_contacted_at = new Date().toISOString()
   }
 
@@ -272,12 +272,12 @@ export async function updateLeadStatus(
   const updatedLeadData = {
     ...currentLead,
     status,
-    last_contacted_at: (status === 'in_progress' || status === 'contacted') ? new Date().toISOString() : currentLead.last_contacted_at,
+    last_contacted_at: status === 'in_progress' ? new Date().toISOString() : currentLead.last_contacted_at,
   }
   const newScore = calculateLeadScore(updatedLeadData)
   updates.score = newScore
 
-  if (status === 'in_progress' || status === 'contacted') {
+  if (status === 'in_progress') {
     // Get current follow_up_count and increment
     const { data: lead } = await supabase
       .from('leads')

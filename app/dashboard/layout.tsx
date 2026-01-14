@@ -62,15 +62,15 @@ type NavigationEntry = NavigationItem | NavigationGroup
 
 const navigation: NavigationEntry[] = [
   {
-    name: "Overview",
-    href: "/dashboard/leads",
+    name: "Dashboard",
+    href: "/dashboard",
     icon: LayoutDashboard,
-    requiredFeature: "limited_lead_recovery",
   } as NavigationItem,
   {
     name: "LEAD RECOVERY",
     type: "group",
     items: [
+      { name: "Recovery Command Center", href: "/dashboard/leads", icon: Target, requiredFeature: "limited_lead_recovery" },
       { name: "Leads Inbox", href: "/dashboard/leads/inbox", icon: Inbox, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
       { name: "Sequences", href: "/dashboard/leads/sequences", icon: PlayCircle, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
       { name: "Scripts", href: "/dashboard/leads/scripts", icon: FileCode, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },

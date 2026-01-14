@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 
 interface TimelineEvent {
   id: string
-  type: 'created' | 'sms' | 'email' | 'call' | 'note' | 'status_change' | 'booked'
+  type: 'created' | 'sms' | 'email' | 'call' | 'note' | 'status_change' | 'booked' | string
   direction?: 'inbound' | 'outbound'
   content?: string
   status?: 'sent' | 'delivered' | 'read' | 'failed'
@@ -97,8 +97,8 @@ export function LeadTimeline({ leadId, leadCreatedAt, interactions = [], status,
     },
     ...interactions.map(interaction => ({
       id: interaction.id,
-      type: interaction.type as any,
-      direction: interaction.direction as 'inbound' | 'outbound',
+      type: interaction.type as TimelineEvent['type'],
+      direction: interaction.direction as 'inbound' | 'outbound' | undefined,
       content: interaction.content,
       timestamp: interaction.created_at,
     })),
@@ -106,7 +106,7 @@ export function LeadTimeline({ leadId, leadCreatedAt, interactions = [], status,
       id: 'booked',
       type: 'booked' as const,
       timestamp: lastContactedAt || new Date().toISOString(),
-    }] : []),
+    } as TimelineEvent] : []),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   if (events.length === 0) {
