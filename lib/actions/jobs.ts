@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createReviewRequest } from './reviews'
+import { createInvoiceFromJob } from './invoices'
 import { getBusinessId } from './utils'
 import { isDemoMode } from '@/lib/demo/utils'
 import { getMockJobs } from '@/lib/demo/mock-data'
@@ -93,13 +94,24 @@ export async function updateJobStatus(id: string, status: 'scheduled' | 'in_prog
 
   const { error } = await supabase
     .from('jobs')
-    .update({ status })
+    .update({ 
+      status,
+      completed_at: status === 'completed' ? new Date().toISOString() : undefined
+    })
     .eq('id', id)
 
   if (error) throw error
 
-  // Trigger review request when job is completed
+  // Auto-generate invoice and trigger review request when job is completed
   if (status === 'completed') {
+    try {
+      // Auto-generate invoice from completed job
+      await createInvoiceFromJob(id)
+    } catch (error) {
+      console.error('Failed to create invoice from job:', error)
+      // Don't fail the job update if invoice creation fails
+    }
+    
     try {
       await createReviewRequest(id)
     } catch (error) {

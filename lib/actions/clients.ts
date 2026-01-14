@@ -24,6 +24,64 @@ export async function getClients() {
   return clients || []
 }
 
+export async function getCustomersWithStats() {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('id')
+    .eq('owner_id', user.id)
+    .single()
+  
+  if (!business) throw new Error('No business found')
+  
+  // Get clients with their jobs
+  const { data: clients, error } = await supabase
+    .from('clients')
+    .select(`
+      *,
+      jobs (
+        id,
+        status,
+        estimated_cost,
+        scheduled_date,
+        created_at
+      )
+    `)
+    .eq('business_id', business.id)
+    .order('created_at', { ascending: false })
+  
+  if (error) throw error
+  
+  // Calculate stats for each client
+  const clientsWithStats = (clients || []).map((client: any) => {
+    const jobs = client.jobs || []
+    const completedJobs = jobs.filter((j: any) => j.status === 'completed')
+    const totalRevenue = completedJobs.reduce((sum: number, j: any) => sum + (j.estimated_cost || 0), 0)
+    
+    // Find most recent job
+    const sortedJobs = jobs.sort((a: any, b: any) => 
+      new Date(b.scheduled_date || b.created_at).getTime() - new Date(a.scheduled_date || a.created_at).getTime()
+    )
+    const lastJob = sortedJobs[0]
+    
+    return {
+      ...client,
+      stats: {
+        totalJobs: jobs.length,
+        completedJobs: completedJobs.length,
+        totalRevenue,
+        lastJobDate: lastJob ? (lastJob.scheduled_date || lastJob.created_at) : null
+      }
+    }
+  })
+  
+  return clientsWithStats
+}
+
 export async function addClient(formData: FormData) {
   const supabase = await createClient()
   const businessId = await getBusinessId()
@@ -42,7 +100,7 @@ export async function addClient(formData: FormData) {
   
   if (error) throw error
   
-  revalidatePath('/dashboard/clients')
+  revalidatePath('/dashboard/customers')
 }
 
 export async function updateClient(id: string, formData: FormData) {
@@ -62,8 +120,8 @@ export async function updateClient(id: string, formData: FormData) {
   
   if (error) throw error
   
-  revalidatePath('/dashboard/clients')
-  revalidatePath(`/dashboard/clients/${id}`)
+  revalidatePath('/dashboard/customers')
+  revalidatePath(`/dashboard/customers/${id}`)
 }
 
 export async function deleteClient(id: string) {
@@ -76,7 +134,7 @@ export async function deleteClient(id: string) {
   
   if (error) throw error
   
-  revalidatePath('/dashboard/clients')
+  revalidatePath('/dashboard/customers')
 }
 
 export async function getClient(id: string) {
@@ -221,7 +279,6 @@ export async function getClient(id: string) {
   // Get all invoices for this client
   let invoices = null
   let invoicesError = null
-  let hasRealError = false
   
   try {
     const result = await supabase
@@ -234,92 +291,65 @@ export async function getClient(id: string) {
     invoices = result.data
     invoicesError = result.error
     
-    // Check if error has meaningful content (not just an empty object)
+    // Only log if there's a real error with meaningful content
+    // Ignore empty error objects (false positives from Supabase)
     if (invoicesError) {
-      // Check type first to avoid TypeScript narrowing issues
-      const errorType = typeof invoicesError
+      // Check if error object has any meaningful properties
+      let hasRealError = false
+      let errorMessage: string | null = null
+      let errorCode: string | null = null
       
       if (invoicesError instanceof Error) {
-        hasRealError = !!invoicesError.message
-        if (hasRealError) {
-          console.error('Invoice query error:', {
-            message: invoicesError.message,
-            stack: invoicesError.stack,
-            clientId: id,
-            businessId: businessId
-          })
-        }
-      } else if (errorType === 'string') {
-        const errorStr = invoicesError as string
-        if (errorStr.length > 0) {
-          hasRealError = true
-          console.error('Invoice query error:', {
-            message: errorStr,
-            clientId: id,
-            businessId: businessId
-          })
-        }
-      } else if (errorType === 'object' && invoicesError !== null && !Array.isArray(invoicesError)) {
-        // Get all enumerable properties
-        const errorKeys = Object.keys(invoicesError)
-        
-        // If object has no properties, it's empty - don't log
-        if (errorKeys.length === 0) {
+        errorMessage = invoicesError.message || null
+        hasRealError = !!errorMessage && errorMessage.trim().length > 0
+      } else if (typeof invoicesError === 'object' && invoicesError !== null) {
+        // Check if object has any enumerable properties
+        const keys = Object.keys(invoicesError)
+        if (keys.length === 0) {
+          // Empty object - definitely a false positive
           hasRealError = false
         } else {
-          // Check for meaningful error properties
-          const errorCode = (invoicesError as any).code
-          const errorMessage = (invoicesError as any).message
-          const errorDetails = (invoicesError as any).details
-          const errorHint = (invoicesError as any).hint
+          errorMessage = (invoicesError as any).message || null
+          errorCode = (invoicesError as any).code || null
           
-          // Only consider it a real error if at least one meaningful property exists AND has a non-empty value
-          try {
-            const hasCode = errorCode !== undefined && errorCode !== null && String(errorCode).trim() !== ''
-            const hasMessage = errorMessage !== undefined && errorMessage !== null && String(errorMessage).trim() !== ''
-            const hasDetails = errorDetails !== undefined && errorDetails !== null && String(errorDetails).trim() !== ''
-            const hasHint = errorHint !== undefined && errorHint !== null && String(errorHint).trim() !== ''
-            
-            hasRealError = hasCode || hasMessage || hasDetails || hasHint
-            
-            // Only log if there's a real error with actual content
-            if (hasRealError) {
-              console.error('Invoice query error:', {
-                code: hasCode ? errorCode : undefined,
-                message: hasMessage ? errorMessage : undefined,
-                details: hasDetails ? errorDetails : undefined,
-                hint: hasHint ? errorHint : undefined,
-                clientId: id,
-                businessId: businessId
-              })
-            }
-          } catch (stringError) {
-            // If string conversion fails, it's not a real error
-            hasRealError = false
-          }
+          // Check if we have meaningful error content
+          const hasMessage = errorMessage && String(errorMessage).trim().length > 0
+          const hasCode = errorCode && String(errorCode).trim().length > 0
+          hasRealError = hasMessage || hasCode
         }
       }
-    }
-    
-    // If we have data, ignore empty error objects (likely false positive)
-    if (invoices && !hasRealError) {
-      invoicesError = null // Clear the false positive error
+      
+      // Only log if we have a real error with meaningful content
+      if (hasRealError) {
+        const errorInfo: any = {
+          clientId: id,
+          businessId: businessId
+        }
+        if (errorCode && String(errorCode).trim().length > 0) {
+          errorInfo.code = errorCode
+        }
+        if (errorMessage && String(errorMessage).trim().length > 0) {
+          errorInfo.message = errorMessage
+        }
+        
+        console.error('Invoice query error:', errorInfo)
+      } else {
+        // If no meaningful error, treat as no error (likely false positive)
+        invoicesError = null
+      }
     }
   } catch (catchError) {
-    hasRealError = true
     console.error('Exception during invoice query:', {
-      error: catchError,
-      errorType: typeof catchError,
-      errorMessage: catchError instanceof Error ? catchError.message : String(catchError),
+      error: catchError instanceof Error ? catchError.message : String(catchError),
       clientId: id,
       businessId: businessId
     })
     invoicesError = catchError as any
   }
   
-  // Only warn if we have a real error and no data
-  if (hasRealError && invoices === null) {
-    console.warn('Invoice fetch failed, using empty array.')
+  // If we have data, clear any error (likely false positive)
+  if (invoices) {
+    invoicesError = null
   }
   
   // Calculate stats

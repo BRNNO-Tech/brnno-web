@@ -92,7 +92,7 @@ export default function ClientDetailView({ client }: { client: Client }) {
 
     try {
       await deleteClient(client.id)
-      router.push('/dashboard/clients')
+      router.push('/dashboard/customers')
     } catch (error) {
       console.error('Error deleting client:', error)
       alert('Failed to delete client')
@@ -311,12 +311,6 @@ export default function ClientDetailView({ client }: { client: Client }) {
                   New Job
                 </Link>
               </Button>
-              <Button variant="outline" asChild>
-                <Link href={`/dashboard/invoices?client=${client.id}`}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  New Invoice
-                </Link>
-              </Button>
             </CardContent>
           </Card>
 
@@ -460,10 +454,9 @@ export default function ClientDetailView({ client }: { client: Client }) {
               {client.invoices.length > 0 ? (
                 <div className="space-y-4">
                   {client.invoices.map((invoice) => (
-                    <Link
+                    <div
                       key={invoice.id}
-                      href={`/dashboard/invoices/${invoice.id}`}
-                      className="block rounded-lg border p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                      className="block rounded-lg border p-4"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -507,7 +500,7 @@ export default function ClientDetailView({ client }: { client: Client }) {
                           <XCircle className="h-5 w-5 text-yellow-600" />
                         )}
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               ) : (

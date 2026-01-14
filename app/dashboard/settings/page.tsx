@@ -19,7 +19,7 @@ import { getBusiness, saveBusiness } from '@/lib/actions/business'
 import { getBusinessHours, updateBusinessHours } from '@/lib/actions/schedule'
 import { createStripeConnectAccount } from '@/lib/actions/stripe-connect'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import AutoAssignmentSettings from '@/components/settings/auto-assignment-settings'
+// import AutoAssignmentSettings from '@/components/settings/auto-assignment-settings' // Hidden - on back burner
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -356,7 +356,7 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="business">Business Profile</TabsTrigger>
           <TabsTrigger value="schedule">Schedule Settings</TabsTrigger>
-          <TabsTrigger value="auto-assignment">Auto-Assignment</TabsTrigger>
+          {/* <TabsTrigger value="auto-assignment">Auto-Assignment</TabsTrigger> */} {/* Hidden - on back burner */}
           <TabsTrigger value="reviews">Review Automation</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
@@ -636,10 +636,10 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Auto-Assignment Tab */}
-        <TabsContent value="auto-assignment">
+        {/* Auto-Assignment Tab - Hidden - on back burner */}
+        {/* <TabsContent value="auto-assignment">
           <AutoAssignmentSettings />
-        </TabsContent>
+        </TabsContent> */}
 
         {/* Review Automation Tab */}
         <TabsContent value="reviews">

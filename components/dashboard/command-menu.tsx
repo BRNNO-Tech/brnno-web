@@ -60,13 +60,9 @@ export function CommandMenu() {
             <Calendar className="mr-2 h-4 w-4" />
             <span>New Job</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/clients'))}>
+          <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/customers'))}>
             <User className="mr-2 h-4 w-4" />
-            <span>Search Clients</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/invoices'))}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            <span>Create Invoice</span>
+            <span>Search Customers</span>
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />
@@ -79,17 +75,13 @@ export function CommandMenu() {
             <Calendar className="mr-2 h-4 w-4" />
             <span>Jobs</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/clients'))}>
+          <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/customers'))}>
             <Users className="mr-2 h-4 w-4" />
-            <span>Clients</span>
+            <span>Customers</span>
           </CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/leads'))}>
             <Target className="mr-2 h-4 w-4" />
             <span>Leads</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/invoices'))}>
-            <Receipt className="mr-2 h-4 w-4" />
-            <span>Invoices</span>
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />

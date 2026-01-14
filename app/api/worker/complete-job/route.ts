@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createInvoiceFromJob } from '@/lib/actions/invoices'
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,14 @@ export async function POST(request: NextRequest) {
         .from('job_assignments')
         .update({ notes })
         .eq('id', assignmentId)
+    }
+
+    // Auto-generate invoice when job is completed
+    try {
+      await createInvoiceFromJob(jobId)
+    } catch (error) {
+      console.error('Failed to create invoice from job:', error)
+      // Don't fail the job completion if invoice creation fails
     }
 
     return NextResponse.json({ success: true })

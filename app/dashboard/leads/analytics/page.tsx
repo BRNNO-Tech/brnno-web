@@ -135,7 +135,7 @@ export default function LeadAnalyticsPage() {
               {overview.conversionRate.toFixed(1)}%
             </div>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              {overview.convertedLeads} converted
+              {overview.convertedLeads} booked
             </p>
           </CardContent>
         </Card>
@@ -152,7 +152,7 @@ export default function LeadAnalyticsPage() {
               ${overview.revenueRecovered.toFixed(2)}
             </div>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              From converted leads
+              From booked leads
             </p>
           </CardContent>
         </Card>
@@ -244,7 +244,7 @@ export default function LeadAnalyticsPage() {
                       <div>
                         <p className="font-medium capitalize">{source.source}</p>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                          {source.converted}/{source.total} converted • $
+                          {source.converted}/{source.total} booked • $
                           {source.revenue.toFixed(2)} revenue
                         </p>
                       </div>
@@ -294,7 +294,7 @@ export default function LeadAnalyticsPage() {
                     <div>
                       <p className="font-medium">{service.name}</p>
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {service.converted}/{service.total} converted (
+                        {service.converted}/{service.total} booked (
                         {service.rate.toFixed(1)}%)
                       </p>
                     </div>
@@ -326,9 +326,9 @@ export default function LeadAnalyticsPage() {
           </div>
           <div className="space-y-2">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Contacted
+              In Progress
             </p>
-            <p className="text-2xl font-bold">{statusBreakdown.contacted}</p>
+            <p className="text-2xl font-bold">{statusBreakdown.in_progress}</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Quoted</p>
@@ -336,16 +336,10 @@ export default function LeadAnalyticsPage() {
           </div>
           <div className="space-y-2">
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Nurturing
-            </p>
-            <p className="text-2xl font-bold">{statusBreakdown.nurturing}</p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Converted
+              Booked
             </p>
             <p className="text-2xl font-bold text-green-600">
-              {statusBreakdown.converted}
+              {statusBreakdown.booked}
             </p>
           </div>
           <div className="space-y-2">

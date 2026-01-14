@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getBusinessId } from './utils'
+import { getBusiness } from './business'
 
 export async function createReviewRequest(jobId: string) {
   const supabase = await createClient()
@@ -156,5 +157,83 @@ export async function updateReviewSettings(formData: FormData) {
 
   revalidatePath('/dashboard/settings')
   revalidatePath('/dashboard/reviews')
+}
+
+export async function getReviewStats() {
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  
+  if (await isDemoMode()) {
+    return {
+      avgRating: 4.8,
+      totalReviews: 126,
+      requestsSent: 184,
+      pendingRequests: 3,
+      channels: "SMS + Email",
+      delay: "2 hours after job completion",
+      platform: "Google",
+    }
+  }
+
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  // Get all review requests
+  const { data: allRequests } = await supabase
+    .from('review_requests')
+    .select('status')
+    .eq('business_id', businessId)
+
+  const requestsSent = allRequests?.filter(r => r.status === 'sent' || r.status === 'completed').length || 0
+  const pendingRequests = allRequests?.filter(r => r.status === 'pending').length || 0
+
+  // Get business settings
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('review_automation_enabled, review_delay_hours, google_review_link')
+    .eq('id', businessId)
+    .single()
+
+  const delayHours = business?.review_delay_hours || 24
+  const delayText = delayHours === 1 ? '1 hour' : `${delayHours} hours`
+  const delay = `${delayText} after job completion`
+
+  // For now, we don't have actual reviews stored, so use mock stats
+  // In the future, you could integrate with Google Reviews API or store reviews
+  return {
+    avgRating: 4.8, // Would come from actual reviews
+    totalReviews: 126, // Would come from actual reviews
+    requestsSent,
+    pendingRequests,
+    channels: "SMS + Email", // Could be configurable
+    delay,
+    platform: business?.google_review_link ? "Google" : "Not configured",
+  }
+}
+
+export async function getBusinessReviewSettings() {
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  
+  if (await isDemoMode()) {
+    return {
+      review_automation_enabled: true,
+      review_delay_hours: 2,
+      google_review_link: 'https://g.page/r/example-review-link',
+    }
+  }
+
+  try {
+    const business = await getBusiness()
+    return {
+      review_automation_enabled: business?.review_automation_enabled || false,
+      review_delay_hours: business?.review_delay_hours || 24,
+      google_review_link: business?.google_review_link || null,
+    }
+  } catch (error) {
+    return {
+      review_automation_enabled: false,
+      review_delay_hours: 24,
+      google_review_link: null,
+    }
+  }
 }
 

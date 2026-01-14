@@ -53,18 +53,18 @@ export async function getLeadAnalytics(
   // Total leads
   const totalLeads = allLeads.length
 
-  // Converted leads
-  const convertedLeads = allLeads.filter((l) => l.status === 'converted')
+  // Booked leads (was 'converted')
+  const bookedLeads = allLeads.filter((l) => l.status === 'booked' || l.status === 'converted') // Support both for migration
   const conversionRate =
-    totalLeads > 0 ? (convertedLeads.length / totalLeads) * 100 : 0
+    totalLeads > 0 ? (bookedLeads.length / totalLeads) * 100 : 0
 
-  // Revenue recovered (sum of estimated_value for converted leads)
-  const revenueRecovered = convertedLeads.reduce((sum, lead) => {
+  // Revenue recovered (sum of estimated_value for booked leads)
+  const revenueRecovered = bookedLeads.reduce((sum, lead) => {
     return sum + (lead.estimated_value || 0)
   }, 0)
 
   // Average time to convert (in days)
-  const conversionTimes = convertedLeads
+  const conversionTimes = bookedLeads
     .filter((l) => l.converted_at && l.created_at)
     .map((l) => {
       const created = new Date(l.created_at).getTime()
@@ -89,7 +89,7 @@ export async function getLeadAnalytics(
       sourceStats[source] = { total: 0, converted: 0, rate: 0, revenue: 0 }
     }
     sourceStats[source].total++
-    if (lead.status === 'converted') {
+    if (lead.status === 'booked' || lead.status === 'converted') { // Support both for migration
       sourceStats[source].converted++
       sourceStats[source].revenue += lead.estimated_value || 0
     }
@@ -134,7 +134,7 @@ export async function getLeadAnalytics(
         }
       }
       serviceStats[serviceName].total++
-      if (lead.status === 'converted') {
+      if (lead.status === 'booked' || lead.status === 'converted') { // Support both for migration
         serviceStats[serviceName].converted++
         serviceStats[serviceName].revenue += lead.estimated_value || 0
       }
@@ -154,25 +154,25 @@ export async function getLeadAnalytics(
   const scoreDistribution = {
     hot: allLeads.filter(
       (l) =>
-        l.score === 'hot' && l.status !== 'converted' && l.status !== 'lost'
+        l.score === 'hot' && l.status !== 'booked' && l.status !== 'converted' && l.status !== 'lost'
     ).length,
     warm: allLeads.filter(
       (l) =>
-        l.score === 'warm' && l.status !== 'converted' && l.status !== 'lost'
+        l.score === 'warm' && l.status !== 'booked' && l.status !== 'converted' && l.status !== 'lost'
     ).length,
     cold: allLeads.filter(
       (l) =>
-        l.score === 'cold' && l.status !== 'converted' && l.status !== 'lost'
+        l.score === 'cold' && l.status !== 'booked' && l.status !== 'converted' && l.status !== 'lost'
     ).length,
   }
 
   // Status breakdown
   const statusBreakdown = {
     new: allLeads.filter((l) => l.status === 'new').length,
-    contacted: allLeads.filter((l) => l.status === 'contacted').length,
+    in_progress: allLeads.filter((l) => l.status === 'in_progress' || l.status === 'contacted').length,
     quoted: allLeads.filter((l) => l.status === 'quoted').length,
     nurturing: allLeads.filter((l) => l.status === 'nurturing').length,
-    converted: allLeads.filter((l) => l.status === 'converted').length,
+    booked: allLeads.filter((l) => l.status === 'booked' || l.status === 'converted').length,
     lost: allLeads.filter((l) => l.status === 'lost').length,
   }
 
@@ -209,7 +209,7 @@ export async function getLeadAnalytics(
     timeframe,
     overview: {
       totalLeads,
-      convertedLeads: convertedLeads.length,
+      convertedLeads: bookedLeads.length, // Keep field name for compatibility
       conversionRate,
       revenueRecovered,
       avgTimeToConvert,

@@ -113,6 +113,8 @@ export async function getLeads(filter?: 'hot' | 'warm' | 'cold' | 'all') {
     )
     .eq('business_id', business.id)
     .order('created_at', { ascending: false })
+  
+  // Include job_id for booking leads
 
   if (filter && filter !== 'all') {
     query = query.eq('score', filter)
@@ -144,6 +146,8 @@ export async function getLead(id: string) {
     )
     .eq('id', id)
     .single()
+  
+  // job_id is included in the select
 
   if (error) throw error
   return lead
@@ -244,7 +248,7 @@ export async function createLead(formData: FormData) {
 
 export async function updateLeadStatus(
   id: string,
-  status: 'new' | 'contacted' | 'quoted' | 'nurturing' | 'converted' | 'lost'
+  status: 'new' | 'in_progress' | 'quoted' | 'nurturing' | 'booked' | 'lost'
 ) {
   const supabase = await createClient()
 
@@ -259,7 +263,8 @@ export async function updateLeadStatus(
 
   const updates: Record<string, unknown> = { status }
 
-  if (status === 'contacted') {
+  // Update last_contacted_at for both 'contacted' (old) and 'in_progress' (new)
+  if (status === 'in_progress' || status === 'contacted') {
     updates.last_contacted_at = new Date().toISOString()
   }
 
@@ -267,12 +272,12 @@ export async function updateLeadStatus(
   const updatedLeadData = {
     ...currentLead,
     status,
-    last_contacted_at: status === 'contacted' ? new Date().toISOString() : currentLead.last_contacted_at,
+    last_contacted_at: (status === 'in_progress' || status === 'contacted') ? new Date().toISOString() : currentLead.last_contacted_at,
   }
   const newScore = calculateLeadScore(updatedLeadData)
   updates.score = newScore
 
-  if (status === 'contacted') {
+  if (status === 'in_progress' || status === 'contacted') {
     // Get current follow_up_count and increment
     const { data: lead } = await supabase
       .from('leads')
@@ -421,7 +426,7 @@ export async function convertLeadToClient(leadId: string) {
   const { error: updateLeadError } = await supabase
     .from('leads')
     .update({
-      status: 'converted',
+      status: 'booked',
       converted_to_client_id: client.id,
       converted_at: new Date().toISOString(),
     })
@@ -430,7 +435,7 @@ export async function convertLeadToClient(leadId: string) {
   if (updateLeadError) throw updateLeadError
 
   revalidatePath('/dashboard/leads')
-  revalidatePath('/dashboard/clients')
+  revalidatePath('/dashboard/customers')
 
   return client
 }

@@ -179,50 +179,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Update lead if provided, otherwise create new one
-    let leadIdFinal = leadId
-    if (leadId) {
-      // Update existing lead to converted status
-      const { error: leadUpdateError } = await supabase
-        .from('leads')
-        .update({
-          status: 'converted',
-          converted_at: new Date().toISOString(),
-          booking_progress: 100,
-          phone: customer.phone || null,
-          notes: notes || null,
-        })
-        .eq('id', leadId)
-
-      if (leadUpdateError) {
-        console.error('Error updating lead:', leadUpdateError)
-        // Don't fail the booking if lead update fails
-      }
-    } else {
-      // Create new lead if not provided (fallback for old flow)
-      const { data: lead, error: leadError } = await supabase
+    // 4. ALWAYS create a lead from booking (silently, no user interaction)
+    // This is the new rule: Every booking auto-creates a lead
+    let leadIdFinal: string | null = null
+    
+    try {
+      const { data: bookingLead, error: leadError } = await supabase
         .from('leads')
         .insert({
           business_id: businessId,
           name: customer.name,
           email: customer.email,
           phone: customer.phone || null,
-          status: 'converted',
-          converted_at: new Date().toISOString(),
+          status: 'booked', // New status: booked (was 'converted')
+          source: 'booking', // New source: booking (was 'online_booking')
+          job_id: job.id, // Link to the job
           estimated_value: service.price,
           interested_in_service_name: service.name,
-          source: 'online_booking',
-          booking_progress: 100,
+          notes: notes || null,
+          // Don't set converted_at - this is a booking, not a conversion
         })
         .select()
         .single()
 
       if (leadError) {
-        console.error('Error creating lead:', leadError)
-        // Don't fail the booking if lead creation fails
+        console.error('Error creating booking lead:', leadError)
+        // Don't fail the booking if lead creation fails - this is silent
       } else {
-        leadIdFinal = lead?.id
+        leadIdFinal = bookingLead?.id || null
       }
+    } catch (error) {
+      console.error('Error in booking lead creation:', error)
+      // Silent failure - booking still succeeds
     }
 
     // 5. Send confirmation emails

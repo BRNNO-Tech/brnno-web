@@ -1,18 +1,18 @@
 export const dynamic = 'force-dynamic'
 
-import { getDashboardStats, getMonthlyRevenue } from '@/lib/actions/dashboard'
-import { getLowStockItems } from '@/lib/actions/inventory'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, Briefcase, FileText, DollarSign, AlertTriangle, Package } from 'lucide-react'
+import { getDashboardStats, getMonthlyRevenue, getUpcomingJobs, getUnpaidInvoices } from '@/lib/actions/dashboard'
+import { getBusiness } from '@/lib/actions/business'
+import ModernDashboard from '@/components/dashboard/modern-dashboard'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import FollowUpReminders from '@/components/dashboard/follow-up-reminders'
-import { RevenueChart } from '@/components/dashboard/revenue-chart'
 
 export default async function DashboardPage() {
   let stats
   let monthlyRevenue: Array<{ name: string; total: number }> = []
-  let lowStockItems: any[] = []
+  let upcomingJobs: any[] = []
+  let unpaidInvoices: any[] = []
+  let businessName = 'Your Business'
+
   try {
     stats = await getDashboardStats()
     try {
@@ -21,9 +21,22 @@ export default async function DashboardPage() {
       // Continue without revenue chart if it fails
     }
     try {
-      lowStockItems = await getLowStockItems()
-    } catch (inventoryError) {
-      // Continue without inventory alerts if it fails
+      upcomingJobs = await getUpcomingJobs()
+    } catch (jobsError) {
+      // Continue without upcoming jobs if it fails
+    }
+    try {
+      unpaidInvoices = await getUnpaidInvoices()
+    } catch (invoicesError) {
+      // Continue without unpaid invoices if it fails
+    }
+    try {
+      const business = await getBusiness()
+      if (business?.name) {
+        businessName = business.name
+      }
+    } catch (businessError) {
+      // Continue with default name if it fails
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An error occurred while loading dashboard data.'
@@ -66,175 +79,13 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
-          Dashboard
-        </h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          Welcome to your dashboard. Here's an overview of your business.
-        </p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-gradient-to-br from-purple-600/10 dark:from-purple-600/20 via-purple-500/5 dark:via-purple-500/10 to-pink-500/10 dark:to-pink-500/20 border-purple-500/20 dark:border-purple-500/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Total Clients
-            </CardTitle>
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <Users className="h-5 w-5 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-zinc-900 dark:text-white">{stats.totalClients}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-orange-600/10 dark:from-orange-600/20 via-orange-500/5 dark:via-orange-500/10 to-red-500/10 dark:to-red-500/20 border-orange-500/20 dark:border-orange-500/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Active Jobs
-            </CardTitle>
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
-              <Briefcase className="h-5 w-5 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-zinc-900 dark:text-white">{stats.activeJobs}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-blue-600/10 dark:from-blue-600/20 via-blue-500/5 dark:via-blue-500/10 to-cyan-500/10 dark:to-cyan-500/20 border-blue-500/20 dark:border-blue-500/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Pending Invoices
-            </CardTitle>
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-              <FileText className="h-5 w-5 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-zinc-900 dark:text-white">{stats.pendingInvoices}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-600/10 dark:from-green-600/20 via-green-500/5 dark:via-green-500/10 to-emerald-500/10 dark:to-emerald-500/20 border-green-500/20 dark:border-green-500/30">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Revenue (MTD)
-            </CardTitle>
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-white" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-zinc-900 dark:text-white">
-              ${typeof stats.revenueMTD === 'number' ? stats.revenueMTD.toFixed(2) : '0.00'}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Low Stock Alert */}
-      {lowStockItems.length > 0 && (
-        <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-              <CardTitle className="text-yellow-800 dark:text-yellow-200">
-                Low Stock Alert
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
-              {lowStockItems.length} item{lowStockItems.length !== 1 ? 's' : ''} need restocking
-            </p>
-            <Link href="/dashboard/inventory?filter=low_stock">
-              <Button variant="outline" size="sm" className="border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-100 dark:hover:bg-yellow-900">
-                <Package className="h-4 w-4 mr-2" />
-                View Items
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Charts & Main Content */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <RevenueChart data={monthlyRevenue} />
-        <div className="col-span-3">
-           <FollowUpReminders />
-        </div>
-      </div>
-
-      {/* Recent Activity & Quick Actions */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-zinc-900 dark:text-white">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stats.recentActivity.length === 0 ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                No recent activity
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {stats.recentActivity.map((activity: any, i: number) => (
-                  <div key={i} className="flex items-start gap-3 text-sm text-zinc-700 dark:text-zinc-300">
-                    <div className="mt-0.5">
-                      {activity.type === 'job' && <Briefcase className="h-4 w-4 text-orange-500 dark:text-orange-400" />}
-                      {activity.type === 'invoice' && <FileText className="h-4 w-4 text-blue-500 dark:text-blue-400" />}
-                      {activity.type === 'client' && <Users className="h-4 w-4 text-purple-500 dark:text-purple-400" />}
-                    </div>
-                    <div className="flex-1">
-                      {activity.type === 'job' && (
-                        <p><span className="font-medium">Completed job:</span> {activity.title}</p>
-                      )}
-                      {activity.type === 'invoice' && (
-                        <p><span className="font-medium">Payment received:</span> ${activity.total.toFixed(2)} {activity.client && `from ${activity.client.name}`}</p>
-                      )}
-                      {activity.type === 'client' && (
-                        <p><span className="font-medium">New client:</span> {activity.name}</p>
-                      )}
-                      <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                        {new Date(activity.date).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-zinc-900 dark:text-white">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Link href="/dashboard/clients">
-              <Button className="w-full justify-start bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 text-zinc-900 dark:text-white border-zinc-300 dark:border-white/20" variant="outline">
-                + New Client
-              </Button>
-            </Link>
-            <Link href="/dashboard/jobs">
-              <Button className="w-full justify-start bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 text-zinc-900 dark:text-white border-zinc-300 dark:border-white/20" variant="outline">
-                + New Job
-              </Button>
-            </Link>
-            <Link href="/dashboard/invoices">
-              <Button className="w-full justify-start bg-zinc-100 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 text-zinc-900 dark:text-white border-zinc-300 dark:border-white/20" variant="outline">
-                + New Invoice
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <ModernDashboard
+      stats={stats}
+      monthlyRevenue={monthlyRevenue}
+      upcomingJobs={upcomingJobs}
+      unpaidInvoices={unpaidInvoices}
+      businessName={businessName}
+    />
   )
 }
 

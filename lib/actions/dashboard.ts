@@ -167,3 +167,102 @@ export async function getMonthlyRevenue() {
   }))
 }
 
+export async function getUpcomingJobs() {
+  if (await isDemoMode()) {
+    return [
+      {
+        id: 'demo-1',
+        title: 'Interior Detail',
+        client: { name: 'Mia T.' },
+        scheduled_date: new Date().toISOString(),
+        status: 'scheduled',
+        service_type: 'Interior',
+      },
+      {
+        id: 'demo-2',
+        title: 'Full Detail',
+        client: { name: 'Ken S.' },
+        scheduled_date: new Date(Date.now() + 86400000).toISOString(),
+        status: 'confirmed',
+        service_type: 'Full Detail',
+      },
+    ]
+  }
+
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+  
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const { data: jobs, error } = await supabase
+    .from('jobs')
+    .select(`
+      id,
+      title,
+      scheduled_date,
+      status,
+      service_type,
+      client:clients(name)
+    `)
+    .eq('business_id', businessId)
+    .in('status', ['scheduled', 'in_progress', 'confirmed'])
+    .gte('scheduled_date', today.toISOString())
+    .order('scheduled_date', { ascending: true })
+    .limit(5)
+  
+  if (error) throw error
+  return jobs || []
+}
+
+export async function getUnpaidInvoices() {
+  if (await isDemoMode()) {
+    return [
+      {
+        id: 'INV-2200',
+        invoice_number: 'INV-2200',
+        total: 120,
+        status: 'unpaid',
+        due_date: new Date(Date.now() + 3 * 86400000).toISOString(),
+        client: { name: 'Ava R.' },
+      },
+      {
+        id: 'INV-2199',
+        invoice_number: 'INV-2199',
+        total: 180,
+        status: 'overdue',
+        due_date: new Date(Date.now() - 86400000).toISOString(),
+        client: { name: 'Mia T.' },
+      },
+    ]
+  }
+
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+  
+  const { data: invoices, error } = await supabase
+    .from('invoices')
+    .select(`
+      id,
+      invoice_number,
+      total,
+      status,
+      due_date,
+      created_at,
+      client:clients(name)
+    `)
+    .eq('business_id', businessId)
+    .in('status', ['unpaid', 'overdue'])
+    .order('due_date', { ascending: true })
+    .limit(5)
+  
+  if (error) throw error
+  
+  // Mark invoices as overdue if due_date has passed
+  const now = new Date()
+  return (invoices || []).map(inv => ({
+    ...inv,
+    status: inv.due_date && new Date(inv.due_date) < now ? 'overdue' : inv.status,
+  }))
+}
+

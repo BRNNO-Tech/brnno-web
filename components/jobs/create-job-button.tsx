@@ -62,10 +62,10 @@ export default function CreateJobButton() {
       if (!isOpen) formRef.current?.reset()
     }}>
       <SheetTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
+        <button className="rounded-2xl border border-violet-500/30 dark:border-violet-500/30 bg-violet-500/10 dark:bg-violet-500/15 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-200 hover:bg-violet-500/20 dark:hover:bg-violet-500/20 transition-colors flex items-center gap-2">
+          <Plus className="h-4 w-4" />
           New Job
-        </Button>
+        </button>
       </SheetTrigger>
       <SheetContent className="overflow-y-auto sm:max-w-xl w-full">
         <SheetHeader className="mb-6">

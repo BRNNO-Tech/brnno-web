@@ -20,6 +20,7 @@ import {
   Calendar,
   DollarSign,
   TrendingUp,
+  Briefcase,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
@@ -58,6 +59,7 @@ type Lead = {
   follow_up_count: number
   notes: string | null
   created_at: string
+  job_id: string | null
   interested_service?: {
     name: string
     price: number
@@ -91,7 +93,7 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
   }
 
   async function handleStatusChange(
-    status: 'new' | 'contacted' | 'quoted' | 'nurturing' | 'converted' | 'lost'
+    status: 'new' | 'in_progress' | 'quoted' | 'nurturing' | 'booked' | 'lost'
   ) {
     try {
       await updateLeadStatus(lead.id, status)
@@ -102,16 +104,16 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
     }
   }
 
-  async function handleConvert() {
-    if (!confirm('Convert this lead to a client?')) return
+  async function handleScheduleJob() {
+    if (!confirm('Schedule a job for this lead?')) return
 
     try {
       await convertLeadToClient(lead.id)
-      alert('Lead converted! Redirecting to clients...')
-      router.push('/dashboard/clients')
+      alert('Lead scheduled! Redirecting to clients...')
+      router.push('/dashboard/customers')
     } catch (error) {
-      console.error('Error converting lead:', error)
-      alert('Failed to convert lead')
+      console.error('Error scheduling job:', error)
+      alert('Failed to schedule job')
     }
   }
 
@@ -131,15 +133,18 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold">{lead.name}</h1>
-              {isUrgent && (
-                <Badge variant="destructive" className="animate-pulse">
-                  URGENT - Follow up now!
+              {/* Step 7: Source chip */}
+              {lead.source && (
+                <Badge variant="outline">
+                  {lead.source === 'booking' ? 'Booking' : 
+                   lead.source === 'quote' ? 'Quick Quote' : 
+                   'Manual'}
                 </Badge>
               )}
               {lead.estimated_value != null && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <DollarSign className="h-3 w-3" />
-                  {lead.estimated_value.toFixed(2)}
+                  ${lead.estimated_value.toFixed(2)}
                 </Badge>
               )}
             </div>
@@ -152,11 +157,21 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
           </div>
         </div>
         <div className="flex gap-2">
-          {lead.status !== 'converted' && lead.status !== 'lost' && (
-            <Button onClick={handleConvert}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Convert to Client
-            </Button>
+          {/* Show "View Job" for booking leads, "Schedule Job" for manual leads */}
+          {lead.status !== 'booked' && lead.status !== 'lost' && (
+            lead.source === 'booking' && lead.job_id ? (
+              <Link href={`/dashboard/jobs/${lead.job_id}`}>
+                <Button>
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  View Job
+                </Button>
+              </Link>
+            ) : lead.source !== 'booking' ? (
+              <Button onClick={handleScheduleJob}>
+                <Calendar className="mr-2 h-4 w-4" />
+                Schedule Job
+              </Button>
+            ) : null
           )}
           <Button variant="destructive" onClick={handleDelete}>
             <Trash2 className="mr-2 h-4 w-4" />
@@ -208,6 +223,7 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
                 </div>
               )}
 
+              {/* Step 7: Source chip */}
               {lead.source && (
                 <div className="flex items-center gap-3">
                   <TrendingUp className="h-5 w-5 text-zinc-600" />
@@ -215,64 +231,86 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">
                       Source
                     </p>
-                    <p className="font-medium capitalize">{lead.source}</p>
+                    <Badge variant="outline" className="mt-1">
+                      {lead.source === 'booking' ? 'Booking' : 
+                       lead.source === 'quote' ? 'Quick Quote' : 
+                       'Manual'}
+                    </Badge>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Lead Score */}
+          {/* Step 6: Lead Info - Highlight source, value, time, status (removed score/temperature/nurturing) */}
           <Card>
             <CardHeader>
-              <CardTitle>Lead Score</CardTitle>
+              <CardTitle>Lead Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Source - Step 7 */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Temperature
+                  Source
                 </span>
-                <Badge
-                  variant={
-                    lead.score === 'hot'
-                      ? 'destructive'
-                      : lead.score === 'warm'
-                        ? 'default'
-                        : 'outline'
-                  }
-                >
-                  {lead.score === 'hot'
-                    ? '🔥 Hot'
-                    : lead.score === 'warm'
-                      ? '🌡️ Warm'
-                      : '❄️ Cold'}
+                <Badge variant="outline" className="capitalize">
+                  {lead.source === 'booking' ? 'Booking' : 
+                   lead.source === 'quote' ? 'Quick Quote' : 
+                   lead.source || 'Manual'}
                 </Badge>
               </div>
 
+              {/* Status */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">
                   Status
                 </span>
                 <Badge variant="secondary" className="capitalize">
-                  {lead.status.replace('_', ' ')}
+                  {lead.status === 'booked' ? 'Booked' :
+                   lead.status === 'in_progress' ? 'In Progress' :
+                   lead.status === 'quoted' ? 'Quoted' :
+                   lead.status === 'viewed' ? 'Viewed' :
+                   lead.status === 'abandoned' ? 'Abandoned' :
+                   lead.status.replace('_', ' ')}
                 </Badge>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Follow-up Count
-                </span>
-                <span className="font-semibold">{lead.follow_up_count}</span>
-              </div>
+              {/* Quote Value */}
+              {lead.estimated_value && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Quote Value
+                  </span>
+                  <span className="font-semibold text-green-600">
+                    ${lead.estimated_value.toFixed(2)}
+                  </span>
+                </div>
+              )}
 
+              {/* Time since last activity */}
               {lead.last_contacted_at && (
                 <div>
                   <p className="mb-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    Last Contact
+                    Last Activity
                   </p>
                   <p className="text-sm font-medium">
                     {new Date(lead.last_contacted_at).toLocaleString()}
                   </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
+                    {Math.floor((Date.now() - new Date(lead.last_contacted_at).getTime()) / (1000 * 60 * 60))} hours ago
+                  </p>
+                </div>
+              )}
+
+              {/* Conversion Status */}
+              {lead.status === 'booked' && lead.job_id && (
+                <div className="pt-2 border-t">
+                  <Link href={`/dashboard/jobs/${lead.job_id}`}>
+                    <Button variant="outline" className="w-full">
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      View Job
+                    </Button>
+                  </Link>
                 </div>
               )}
             </CardContent>
@@ -317,7 +355,7 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
                   <div>
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        Booking Progress
+                        Conversion Progress
                       </p>
                       <span className="text-sm font-medium">
                         {lead.booking_progress}%
@@ -463,46 +501,75 @@ export default function LeadDetailView({ lead }: { lead: Lead }) {
             </CardContent>
           </Card>
 
-          {/* Status Actions */}
-          {lead.status !== 'converted' && lead.status !== 'lost' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Update Status</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                {lead.status === 'new' && (
-                  <Button onClick={() => handleStatusChange('contacted')}>
-                    Mark as Contacted
-                  </Button>
-                )}
-                {lead.status === 'contacted' && (
-                  <>
-                    <Button onClick={() => handleStatusChange('quoted')}>
-                      Mark as Quoted
-                    </Button>
+          {/* Step 4: Status Actions - Simplified based on lead type */}
+          {(() => {
+            const isManual = lead.source !== 'booking' && lead.source !== 'quote'
+            const isBooking = lead.source === 'booking'
+            const isQuote = lead.source === 'quote'
+            
+            // Manual leads: New → In Progress → Quoted → Lost
+            if (isManual && lead.status !== 'booked' && lead.status !== 'lost') {
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Update Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    {lead.status === 'new' && (
+                      <Button onClick={() => handleStatusChange('in_progress')}>
+                        Mark as In Progress
+                      </Button>
+                    )}
+                    {lead.status === 'in_progress' && (
+                      <Button onClick={() => handleStatusChange('quoted')}>
+                        Mark as Quoted
+                      </Button>
+                    )}
                     <Button
-                      variant="outline"
-                      onClick={() => handleStatusChange('nurturing')}
+                      variant="destructive"
+                      onClick={() => handleStatusChange('lost')}
                     >
-                      Move to Nurturing
+                      Mark as Lost
                     </Button>
-                  </>
-                )}
-                {(lead.status === 'quoted' ||
-                  lead.status === 'nurturing') && (
-                    <Button onClick={() => handleStatusChange('contacted')}>
-                      Back to Contacted
+                  </CardContent>
+                </Card>
+              )
+            }
+            
+            // Auto leads (booking/quote): Quoted → Viewed → Booked → Abandoned
+            if ((isBooking || isQuote) && lead.status !== 'booked' && lead.status !== 'lost') {
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Update Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
+                    {lead.status === 'quoted' && (
+                      <Button onClick={() => handleStatusChange('viewed')}>
+                        Mark as Viewed
+                      </Button>
+                    )}
+                    {lead.status === 'viewed' && lead.job_id && (
+                      <Link href={`/dashboard/jobs/${lead.job_id}`}>
+                        <Button>
+                          <Briefcase className="mr-2 h-4 w-4" />
+                          View Job
+                        </Button>
+                      </Link>
+                    )}
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleStatusChange('lost')}
+                    >
+                      Mark as Abandoned
                     </Button>
-                  )}
-                <Button
-                  variant="destructive"
-                  onClick={() => handleStatusChange('lost')}
-                >
-                  Mark as Lost
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                  </CardContent>
+                </Card>
+              )
+            }
+            
+            return null
+          })()}
 
           {/* Timeline */}
           <Card>

@@ -36,23 +36,26 @@ type BookingStep = 1 | 2 | 3 | 4 | 5
 
 export default function BookingForm({
   business,
-  service
+  service,
+  quote
 }: {
   business: Business
   service: Service
+  quote?: any
 }) {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState<BookingStep>(1)
+  // If quote provided, skip to step 2 (Date/Time), otherwise start at step 1
+  const [currentStep, setCurrentStep] = useState<BookingStep>(quote ? 2 : 1)
   const [leadId, setLeadId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Form data
+  // Form data - pre-fill from quote if available
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: quote?.customer_name || '',
+    email: quote?.customer_email || '',
     smsConsent: false,
-    phone: '',
+    phone: quote?.customer_phone || '',
     date: '',
     time: '',
     notes: '',
@@ -154,6 +157,39 @@ export default function BookingForm({
       }
     }
   }, [leadId, currentStep])
+
+  // If quote provided, auto-create lead on mount to skip step 1
+  useEffect(() => {
+    async function createLeadFromQuote() {
+      if (quote && !leadId && formData.name && formData.email) {
+        try {
+          const response = await fetch('/api/booking/create-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              businessId: business.id,
+              name: formData.name,
+              email: formData.email,
+              phone: formData.phone || null,
+              source: 'quote',
+              interested_in_service_id: service.id,
+              interested_in_service_name: service.name,
+              estimated_value: quote.total_price || quote.total,
+              notes: `Quote Code: ${quote.quote_code}`,
+            }),
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            setLeadId(data.leadId)
+          }
+        } catch (error) {
+          console.error('Error creating lead from quote:', error)
+        }
+      }
+    }
+    createLeadFromQuote()
+  }, [quote, business.id, service.id, service.name, formData.name, formData.email, formData.phone, leadId])
 
   // Step 1: Create Lead (Email + Name)
   async function handleStep1(e: React.FormEvent) {
@@ -456,18 +492,29 @@ export default function BookingForm({
           <CardContent>
             {/* Enhanced Service Details Card */}
             <div className="mb-6 p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 rounded-xl border-2 border-blue-200 dark:border-blue-800">
+              {quote && (
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <p className="text-sm text-green-800 dark:text-green-200">
+                    <span className="font-semibold">Quote Code:</span> {quote.quote_code}
+                  </p>
+                </div>
+              )}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
-                    {service.name}
+                    {quote ? 'Your Custom Quote' : service.name}
                   </h3>
-                  {service.description && (
+                  {quote ? (
+                    <p className="text-zinc-600 dark:text-zinc-400 mb-3">
+                      Vehicle: {quote.vehicle_type} • Condition: {quote.vehicle_condition}
+                    </p>
+                  ) : service.description && (
                     <p className="text-zinc-600 dark:text-zinc-400 mb-3">
                       {service.description}
                     </p>
                   )}
                 </div>
-                {service.is_popular && (
+                {!quote && service.is_popular && (
                   <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full">
                     POPULAR
                   </span>
@@ -475,13 +522,13 @@ export default function BookingForm({
               </div>
 
               <div className="flex flex-wrap gap-4 mb-4">
-                {service.price && (
+                {(quote ? (quote.total_price || quote.total) : service.price) && (
                   <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700">
                     <DollarSign className="h-5 w-5 text-green-600" />
                     <div>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400">Price</p>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400">{quote ? 'Quote Price' : 'Price'}</p>
                       <p className="text-lg font-bold text-green-600">
-                        ${service.price.toFixed(2)}
+                        ${(quote ? (quote.total_price || quote.total || 0) : (service.price || 0)).toFixed(2)}
                       </p>
                     </div>
                   </div>

@@ -83,11 +83,15 @@ export async function updateSession(request: NextRequest) {
   const demoModeCookie = request.cookies.get('demo-mode')
   const isDemoMode = demoModeCookie?.value === 'true'
 
+  // Allow public quote viewing route
+  const isQuoteRoute = pathname.startsWith('/q/')
+
   // Public routes that don't require authentication
   const isPublicRoute =
     isAuthRoute ||
     isBookingRoute ||
     isDemoRoute ||
+    isQuoteRoute ||
     pathname === '/' ||
     pathname === '/landing' ||
     pathname === '/contact' ||

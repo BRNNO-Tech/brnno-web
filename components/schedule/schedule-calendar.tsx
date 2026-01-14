@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { CardShell } from '@/components/ui/card-shell'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, X, Globe } from 'lucide-react'
 import { getScheduledJobs, getTimeBlocks, createTimeBlock, deleteTimeBlock, updateJobDate } from '@/lib/actions/schedule'
 import AddTimeBlockDialog from './add-time-block-dialog'
@@ -12,6 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
 
 type Job = {
   id: string
@@ -330,9 +333,9 @@ export default function ScheduleCalendar({
   return (
     <div className="space-y-4">
       {/* Header Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4 flex-wrap">
+          <h2 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">
             {view === 'day' 
               ? currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
               : view === 'week'
@@ -343,57 +346,84 @@ export default function ScheduleCalendar({
           <div className="flex items-center gap-2">
             {view === 'day' ? (
               <>
-                <Button variant="outline" size="sm" onClick={goToPreviousDay}>
+                <button 
+                  onClick={goToPreviousDay}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
                   <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={goToToday}>
+                </button>
+                <button 
+                  onClick={goToToday}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
                   Today
-                </Button>
-                <Button variant="outline" size="sm" onClick={goToNextDay}>
+                </button>
+                <button 
+                  onClick={goToNextDay}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
                   <ChevronRight className="h-4 w-4" />
-                </Button>
+                </button>
               </>
             ) : view === 'week' ? (
               <>
-                <Button variant="outline" size="sm" onClick={() => {
-                  const newDate = new Date(currentDate)
-                  newDate.setDate(newDate.getDate() - 7)
-                  setCurrentDate(newDate)
-                }}>
+                <button 
+                  onClick={() => {
+                    const newDate = new Date(currentDate)
+                    newDate.setDate(newDate.getDate() - 7)
+                    setCurrentDate(newDate)
+                  }}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
                   <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={goToToday}>
+                </button>
+                <button 
+                  onClick={goToToday}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
                   Today
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => {
-                  const newDate = new Date(currentDate)
-                  newDate.setDate(newDate.getDate() + 7)
-                  setCurrentDate(newDate)
-                }}>
+                </button>
+                <button 
+                  onClick={() => {
+                    const newDate = new Date(currentDate)
+                    newDate.setDate(newDate.getDate() + 7)
+                    setCurrentDate(newDate)
+                  }}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
                   <ChevronRight className="h-4 w-4" />
-                </Button>
+                </button>
               </>
             ) : (
               <>
-            <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={goToToday}>
-              Today
-            </Button>
-            <Button variant="outline" size="sm" onClick={goToNextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+                <button 
+                  onClick={goToPreviousMonth}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={goToToday}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
+                  Today
+                </button>
+                <button 
+                  onClick={goToNextMonth}
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Timezone Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
+              <button className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors flex items-center gap-2">
                 <Globe className="h-4 w-4" />
                 <span className="hidden sm:inline">
                   {(() => {
@@ -410,7 +440,7 @@ export default function ScheduleCalendar({
                     return tzNames[timezone] || timezone.split('/').pop()?.replace('_', ' ') || timezone
                   })()}
                 </span>
-              </Button>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {[
@@ -434,48 +464,63 @@ export default function ScheduleCalendar({
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <div className="flex items-center gap-1 rounded-lg border bg-white dark:bg-zinc-900 p-1">
-            <Button
-              variant={view === 'day' ? 'default' : 'ghost'}
-              size="sm"
+          <div className="flex items-center gap-1 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm p-1">
+            <button
               onClick={() => setView('day')}
+              className={cn(
+                "rounded-xl px-3 py-1.5 text-sm transition-colors",
+                view === 'day'
+                  ? "bg-violet-500/10 dark:bg-violet-500/15 text-violet-700 dark:text-violet-200"
+                  : "text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10"
+              )}
             >
               Daily
-            </Button>
-            <Button
-              variant={view === 'week' ? 'default' : 'ghost'}
-              size="sm"
+            </button>
+            <button
               onClick={() => setView('week')}
+              className={cn(
+                "rounded-xl px-3 py-1.5 text-sm transition-colors",
+                view === 'week'
+                  ? "bg-violet-500/10 dark:bg-violet-500/15 text-violet-700 dark:text-violet-200"
+                  : "text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10"
+              )}
             >
               Weekly
-            </Button>
-            <Button
-              variant={view === 'month' ? 'default' : 'ghost'}
-              size="sm"
+            </button>
+            <button
               onClick={() => setView('month')}
+              className={cn(
+                "rounded-xl px-3 py-1.5 text-sm transition-colors",
+                view === 'month'
+                  ? "bg-violet-500/10 dark:bg-violet-500/15 text-violet-700 dark:text-violet-200"
+                  : "text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10"
+              )}
             >
               Monthly
-            </Button>
+            </button>
           </div>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <button 
+            onClick={() => setShowAddDialog(true)}
+            className="rounded-2xl border border-violet-500/30 dark:border-violet-500/30 bg-violet-500/10 dark:bg-violet-500/15 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-200 hover:bg-violet-500/20 dark:hover:bg-violet-500/20 transition-colors flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
             Block Time
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Daily View */}
       {view === 'day' && (
-        <Card>
-          <CardContent className="p-0">
+        <div className="rounded-3xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm shadow-lg dark:shadow-[0_12px_40px_rgba(0,0,0,0.35)] overflow-hidden">
+          <div className="p-0">
             <div className="flex">
               {/* Time Column */}
-              <div className="w-20 border-r p-2">
-                <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Time</div>
+              <div className="w-20 border-r border-zinc-200/50 dark:border-white/10 p-2 bg-zinc-50/50 dark:bg-black/20">
+                <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-2 font-medium">Time</div>
               </div>
               {/* Timeline Column */}
               <div className="flex-1">
-                <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 p-2 border-b">
+                <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-2 p-2 border-b border-zinc-200/50 dark:border-white/10 font-medium">
                   {currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                 </div>
               </div>
@@ -592,7 +637,7 @@ export default function ScheduleCalendar({
                             key={job.id}
                             draggable
                             onDragStart={(e) => handleDragStart(e, job)}
-                            className="absolute left-0 right-0 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-800 px-2 py-1 text-xs cursor-move hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors z-10"
+                                className="absolute left-0 right-0 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 border border-cyan-300 dark:border-cyan-800 px-2 py-1 text-xs cursor-move hover:bg-cyan-200 dark:hover:bg-cyan-900/50 transition-colors z-10"
                             style={{
                               top: `${topOffset}%`,
                               height: `${height}%`,
@@ -602,21 +647,21 @@ export default function ScheduleCalendar({
                             {jobHour === hour && (
                               <>
                                 <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                                  <span className="text-blue-800 dark:text-blue-200 font-medium">
+                                  <Clock className="h-3 w-3 text-cyan-600 dark:text-cyan-400" />
+                                  <span className="text-cyan-800 dark:text-cyan-200 font-medium">
                                     {formatTime(job.scheduled_date)}
                                   </span>
                                   {job.estimated_cost && (
-                                    <span className="ml-auto font-semibold text-blue-800 dark:text-blue-200">
+                                    <span className="ml-auto font-semibold text-cyan-800 dark:text-cyan-200">
                                       ${job.estimated_cost.toFixed(2)}
                                     </span>
                                   )}
                                 </div>
-                                <div className="truncate font-medium text-blue-900 dark:text-blue-100">
+                                <div className="truncate font-medium text-cyan-900 dark:text-cyan-100">
                                   {job.title}
                                 </div>
                                 {job.client && (
-                                  <div className="text-xs text-blue-700 dark:text-blue-300">
+                                  <div className="text-xs text-cyan-700 dark:text-cyan-300">
                                     {job.client.name}
                                   </div>
                                 )}
@@ -645,18 +690,18 @@ export default function ScheduleCalendar({
                 )
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Weekly View */}
       {view === 'week' && (
-        <Card>
-          <CardContent className="p-0">
+        <div className="rounded-3xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm shadow-lg dark:shadow-[0_12px_40px_rgba(0,0,0,0.35)] overflow-hidden">
+          <div className="p-0">
             {/* Week Header */}
-            <div className="flex border-b">
-              <div className="w-20 border-r p-2 flex-shrink-0">
-                <div className="text-xs text-zinc-500 dark:text-zinc-400">Time</div>
+            <div className="flex border-b border-zinc-200/50 dark:border-white/10">
+              <div className="w-20 border-r border-zinc-200/50 dark:border-white/10 p-2 flex-shrink-0 bg-zinc-50/50 dark:bg-black/20">
+                <div className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">Time</div>
               </div>
               {(() => {
                 const weekStart = new Date(currentDate)
@@ -674,15 +719,18 @@ export default function ScheduleCalendar({
                   return (
                     <div
                       key={index}
-                      className="flex-1 border-r last:border-r-0 p-2 text-center"
+                      className="flex-1 border-r border-zinc-200/50 dark:border-white/10 last:border-r-0 p-2 text-center bg-zinc-50/50 dark:bg-black/20"
                     >
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                      <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1 font-medium">
                         {dayNames[day.getDay()]}
                       </div>
-                      <div className={`text-sm font-semibold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-zinc-50'}`}>
+                      <div className={cn(
+                        "text-sm font-semibold",
+                        isToday ? 'text-cyan-600 dark:text-cyan-400' : 'text-zinc-900 dark:text-zinc-50'
+                      )}>
                         {day.getDate()}
                       </div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                      <div className="text-xs text-zinc-600 dark:text-zinc-400">
                         {monthNames[day.getMonth()].slice(0, 3)}
                       </div>
                     </div>
@@ -750,7 +798,7 @@ export default function ScheduleCalendar({
                       return (
                         <div
                           key={dayIndex}
-                          className="flex-1 border-r last:border-r-0 relative p-1"
+                          className="flex-1 border-r border-zinc-200/50 dark:border-white/10 last:border-r-0 relative p-1"
                           onDragOver={handleDragOver}
                           onDrop={(e) => handleDrop(e, day)}
                         >
@@ -835,7 +883,7 @@ export default function ScheduleCalendar({
                                 key={job.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, job)}
-                                className="absolute left-0 right-0 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-800 px-1 py-0.5 text-xs cursor-move hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors z-10"
+                                className="absolute left-0 right-0 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 border border-cyan-300 dark:border-cyan-800 px-1 py-0.5 text-xs cursor-move hover:bg-cyan-200 dark:hover:bg-cyan-900/50 transition-colors z-10"
                                 style={{
                                   top: `${topOffset}%`,
                                   height: `${height}%`,
@@ -844,14 +892,14 @@ export default function ScheduleCalendar({
                               >
                                 {jobHour === hour && (
                                   <>
-                                    <div className="text-[10px] font-medium text-blue-900 dark:text-blue-100 truncate">
+                                    <div className="text-[10px] font-medium text-cyan-900 dark:text-cyan-100 truncate">
                                       {formatTime(job.scheduled_date)}
                                     </div>
-                                    <div className="text-[10px] text-blue-800 dark:text-blue-200 truncate">
+                                    <div className="text-[10px] text-cyan-800 dark:text-cyan-200 truncate">
                                       {job.title}
                                     </div>
                                     {job.estimated_cost && (
-                                      <div className="text-[9px] text-blue-700 dark:text-blue-300">
+                                      <div className="text-[9px] text-cyan-700 dark:text-cyan-300">
                                         ${job.estimated_cost.toFixed(0)}
                                       </div>
                                     )}
@@ -867,19 +915,19 @@ export default function ScheduleCalendar({
                 )
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Calendar Grid */}
       {view === 'month' && (
-        <Card>
-          <CardContent className="p-0">
-            <div className="grid border-b" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', display: 'grid' }}>
+        <div className="rounded-3xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm shadow-lg dark:shadow-[0_12px_40px_rgba(0,0,0,0.35)] overflow-hidden">
+          <div className="p-0">
+            <div className="grid border-b border-zinc-200/50 dark:border-white/10" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', display: 'grid' }}>
               {dayNames.map((day, idx) => (
                 <div
                   key={`header-${day}-${idx}`}
-                  className="border-r p-3 text-center text-sm font-semibold text-zinc-600 dark:text-zinc-400 last:border-r-0"
+                  className="border-r border-zinc-200/50 dark:border-white/10 p-3 text-center text-sm font-semibold text-zinc-600 dark:text-zinc-400 last:border-r-0 bg-zinc-50/50 dark:bg-black/20"
                   style={{ minWidth: 0, width: '100%' }}
                 >
                   {day}
@@ -901,8 +949,12 @@ export default function ScheduleCalendar({
                 return (
                   <div
                     key={`cell-${index}-${dayName || 'empty'}`}
-                    className={`min-h-[120px] border-r border-b p-2 last:border-r-0 ${!isCurrentMonth ? 'bg-zinc-50 dark:bg-zinc-950' : ''
-                      } ${draggedJob ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}
+                    className={cn(
+                      "min-h-[120px] border-r border-b border-zinc-200/50 dark:border-white/10 p-2 last:border-r-0 transition-colors",
+                      !isCurrentMonth ? 'bg-zinc-50/30 dark:bg-zinc-950/30' : 'bg-white/50 dark:bg-black/10',
+                      draggedJob ? 'bg-cyan-50/50 dark:bg-cyan-950/20' : '',
+                      isCurrentDay && 'bg-cyan-50/50 dark:bg-cyan-950/20'
+                    )}
                     style={{ minWidth: 0 }}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, date)}
@@ -911,10 +963,12 @@ export default function ScheduleCalendar({
                       <>
                         <div className="mb-1 flex items-center justify-between">
                           <span
-                            className={`text-sm font-medium ${isCurrentDay
-                              ? 'flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white'
-                              : 'text-zinc-900 dark:text-zinc-50'
-                              }`}
+                            className={cn(
+                              "text-sm font-medium",
+                              isCurrentDay
+                                ? 'flex h-7 w-7 items-center justify-center rounded-full bg-cyan-600 text-white font-semibold'
+                                : 'text-zinc-900 dark:text-zinc-50'
+                            )}
                           >
                             {date.getDate()}
                           </span>
@@ -959,24 +1013,24 @@ export default function ScheduleCalendar({
                               key={job.id}
                               draggable
                               onDragStart={(e) => handleDragStart(e, job)}
-                              className="cursor-move rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-800 px-2 py-1 text-xs hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                              className="cursor-move rounded-lg bg-cyan-100 dark:bg-cyan-900/30 border border-cyan-300 dark:border-cyan-800 px-2 py-1 text-xs hover:bg-cyan-200 dark:hover:bg-cyan-900/50 transition-colors"
                             >
                               <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                                <span className="text-blue-800 dark:text-blue-200">
+                                <Clock className="h-3 w-3 text-cyan-600 dark:text-cyan-400" />
+                                <span className="text-cyan-800 dark:text-cyan-200">
                                   {job.scheduled_date ? formatTime(job.scheduled_date) : ''}
                                 </span>
                                 {job.estimated_cost && (
-                                  <span className="ml-auto font-semibold text-blue-800 dark:text-blue-200">
+                                  <span className="ml-auto font-semibold text-cyan-800 dark:text-cyan-200">
                                     ${job.estimated_cost.toFixed(2)}
                                   </span>
                                 )}
                               </div>
-                              <div className="truncate font-medium text-blue-900 dark:text-blue-100">
+                              <div className="truncate font-medium text-cyan-900 dark:text-cyan-100">
                                 {job.title}
                               </div>
                               {job.client && (
-                                <div className="text-xs text-blue-700 dark:text-blue-300">
+                                <div className="text-xs text-cyan-700 dark:text-cyan-300">
                                   {job.client.name}
                                 </div>
                               )}
@@ -989,8 +1043,8 @@ export default function ScheduleCalendar({
                 )
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Add Time Block Dialog */}

@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import BookingForm from '@/components/booking/booking-form'
 import { createClient } from '@supabase/supabase-js'
+import { getQuoteByCode } from '@/lib/actions/quotes'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,10 +68,10 @@ export default async function BookPage({
   searchParams
 }: {
   params: Promise<{ subdomain: string }>
-  searchParams: Promise<{ service?: string }>
+  searchParams: Promise<{ service?: string, quote?: string }>
 }) {
   const { subdomain } = await params
-  const { service: serviceId } = await searchParams
+  const { service: serviceId, quote: quoteCode } = await searchParams
 
   const business = await getBusiness(subdomain)
 
@@ -78,17 +79,67 @@ export default async function BookPage({
     notFound()
   }
 
-  // If no service ID provided, redirect back to landing page
-  if (!serviceId) {
+  // If quote code provided, get quote details
+  let quoteData = null
+  if (quoteCode) {
+    try {
+      quoteData = await getQuoteByCode(quoteCode.toUpperCase())
+      // Verify quote belongs to this business
+      if (quoteData && quoteData.business_id !== business.id) {
+        quoteData = null // Quote doesn't belong to this business
+      }
+    } catch (error) {
+      // Quote not found, continue without it
+      console.error('Error fetching quote:', error)
+    }
+  }
+
+  // If quote provided but no service ID, get first service from quote or create a placeholder
+  let service = null
+  if (quoteData && !serviceId) {
+    // If quote has services array, get the first service
+    if (quoteData.services && Array.isArray(quoteData.services) && quoteData.services.length > 0) {
+      const firstServiceId = quoteData.services[0]
+      service = await getService(firstServiceId, business.id)
+    }
+    
+    // If still no service, create a placeholder service for the quote
+    if (!service) {
+      service = {
+        id: 'quote-service',
+        name: 'Custom Quote Service',
+        description: `Quote ${quoteData.quote_code}`,
+        price: quoteData.total_price || quoteData.total || 0,
+        duration_minutes: 60, // Default duration
+        is_popular: false,
+      }
+    }
+  } else if (serviceId) {
+    // Normal flow: get service by ID
+    service = await getService(serviceId, business.id)
+  }
+
+  // If no service and no quote, redirect back to landing page
+  if (!service && !quoteData) {
     redirect(`/${subdomain}`)
   }
 
-  const service = await getService(serviceId, business.id)
+  // If service doesn't exist and we have a quote, create placeholder
+  if (!service && quoteData) {
+    service = {
+      id: 'quote-service',
+      name: 'Custom Quote Service',
+      description: `Quote ${quoteData.quote_code}`,
+      price: quoteData.total_price || quoteData.total || 0,
+      duration_minutes: 60,
+      is_popular: false,
+    }
+  }
 
-  // If service doesn't exist or doesn't belong to this business, redirect
-  if (!service) {
+  // If service doesn't exist or doesn't belong to this business (and not a quote), redirect
+  if (!service && !quoteData) {
     redirect(`/${subdomain}`)
   }
 
-  return <BookingForm business={business} service={service} />
+  return <BookingForm business={business} service={service!} quote={quoteData} />
 }
