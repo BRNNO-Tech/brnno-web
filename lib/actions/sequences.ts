@@ -68,43 +68,50 @@ export async function getSequences(): Promise<Sequence[]> {
     // Get step counts and enrollment stats for each sequence
     const sequencesWithStats = await Promise.all(
       (sequences || []).map(async (seq) => {
-        // Get step count
-        const { count: stepCount } = await supabase
-          .from('sequence_steps')
-          .select('*', { count: 'exact', head: true })
-          .eq('sequence_id', seq.id)
-
-        // Get active enrollments count
-        const { count: activeCount } = await supabase
-          .from('sequence_enrollments')
-          .select('*', { count: 'exact', head: true })
-          .eq('sequence_id', seq.id)
-          .eq('status', 'active')
-
-        // Get conversion stats (leads that completed sequence and booked)
-        const { data: completedEnrollments } = await supabase
-          .from('sequence_enrollments')
-          .select('lead_id')
-          .eq('sequence_id', seq.id)
-          .eq('status', 'completed')
-
+        let activeCount = 0
         let conversionRate = 0
-        if (completedEnrollments && completedEnrollments.length > 0) {
-          const leadIds = completedEnrollments.map(e => e.lead_id)
-          const { count: bookedCount } = await supabase
-            .from('leads')
-            .select('*', { count: 'exact', head: true })
-            .in('id', leadIds)
-            .eq('status', 'booked')
 
-          conversionRate = bookedCount && completedEnrollments.length > 0
-            ? (bookedCount / completedEnrollments.length) * 100
-            : 0
+        try {
+          // Get active enrollments count
+          const { count: activeCountResult, error: activeError } = await supabase
+            .from('sequence_enrollments')
+            .select('*', { count: 'exact', head: true })
+            .eq('sequence_id', seq.id)
+            .eq('status', 'active')
+
+          if (!activeError) {
+            activeCount = activeCountResult || 0
+          }
+
+          // Get conversion stats (leads that completed sequence and booked)
+          const { data: completedEnrollments, error: completedError } = await supabase
+            .from('sequence_enrollments')
+            .select('lead_id')
+            .eq('sequence_id', seq.id)
+            .eq('status', 'completed')
+
+          if (!completedError && completedEnrollments && completedEnrollments.length > 0) {
+            const leadIds = completedEnrollments.map(e => e.lead_id)
+            const { count: bookedCount, error: bookedError } = await supabase
+              .from('leads')
+              .select('*', { count: 'exact', head: true })
+              .in('id', leadIds)
+              .eq('status', 'booked')
+
+            if (!bookedError && bookedCount !== null) {
+              conversionRate = bookedCount > 0 && completedEnrollments.length > 0
+                ? (bookedCount / completedEnrollments.length) * 100
+                : 0
+            }
+          }
+        } catch (statsError) {
+          // Silently fail stats calculation - tables might not exist yet
+          console.warn('Error calculating sequence stats:', statsError)
         }
 
         return {
           ...seq,
-          active_enrollments: activeCount || 0,
+          active_enrollments: activeCount,
           conversion_rate: conversionRate,
         }
       })
@@ -391,5 +398,96 @@ export async function duplicateSequence(id: string): Promise<{ id: string } | nu
   } catch (error) {
     console.error('Error duplicating sequence:', error)
     return null
+  }
+}
+
+/**
+ * Enroll a lead into a sequence
+ */
+export async function enrollLeadInSequence(leadId: string, sequenceId: string): Promise<boolean> {
+  try {
+    const supabase = await createClient()
+    const businessId = await getBusinessId()
+
+    // Verify sequence exists and is enabled
+    const { data: sequence, error: seqError } = await supabase
+      .from('sequences')
+      .select('id, enabled')
+      .eq('id', sequenceId)
+      .eq('business_id', businessId)
+      .single()
+
+    if (seqError || !sequence || !sequence.enabled) {
+      console.log('Sequence not found or not enabled:', sequenceId)
+      return false
+    }
+
+    // Check if already enrolled
+    const { data: existing } = await supabase
+      .from('sequence_enrollments')
+      .select('id')
+      .eq('sequence_id', sequenceId)
+      .eq('lead_id', leadId)
+      .single()
+
+    if (existing) {
+      console.log('Lead already enrolled in sequence:', leadId, sequenceId)
+      return false
+    }
+
+    // Create enrollment
+    const { error: enrollError } = await supabase
+      .from('sequence_enrollments')
+      .insert({
+        sequence_id: sequenceId,
+        lead_id: leadId,
+        current_step_order: 0,
+        status: 'active',
+      })
+
+    if (enrollError) {
+      console.error('Error enrolling lead:', enrollError)
+      return false
+    }
+
+    console.log('Lead enrolled in sequence:', leadId, sequenceId)
+    return true
+  } catch (error) {
+    console.error('Error enrolling lead in sequence:', error)
+    return false
+  }
+}
+
+/**
+ * Check and enroll leads into sequences based on triggers
+ * Call this when events occur (booking abandoned, quote sent, etc.)
+ */
+export async function checkAndEnrollSequences(
+  leadId: string,
+  triggerType: Sequence['trigger_type'],
+  triggerData?: Record<string, any>
+): Promise<void> {
+  try {
+    const supabase = await createClient()
+    const businessId = await getBusinessId()
+
+    // Find enabled sequences that match this trigger
+    const { data: sequences, error } = await supabase
+      .from('sequences')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('enabled', true)
+      .eq('trigger_type', triggerType)
+
+    if (error || !sequences || sequences.length === 0) {
+      return
+    }
+
+    // Enroll lead in each matching sequence
+    for (const sequence of sequences) {
+      await enrollLeadInSequence(leadId, sequence.id)
+    }
+  } catch (error) {
+    console.error('Error checking and enrolling sequences:', error)
   }
 }

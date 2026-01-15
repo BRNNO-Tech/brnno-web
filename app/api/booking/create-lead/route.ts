@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { normalizePhoneNumber } from '@/lib/utils/phone'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { businessId, name, email, serviceId, serviceName, servicePrice, smsConsent, booking_progress } = body
+    const { businessId, name, email, phone, serviceId, serviceName, servicePrice, smsConsent, booking_progress } = body
 
     // Allow creating lead with just businessId and serviceId (for beginning of booking flow)
     // Name and email can be added later
@@ -101,13 +102,16 @@ export async function POST(request: NextRequest) {
 
     const calculatedScore = score >= 50 ? 'hot' : score >= 25 ? 'warm' : 'cold'
 
+    // Normalize phone number to E.164 format
+    const normalizedPhone = normalizePhoneNumber(phone)
+
     // Create lead with minimal info
     // Note: sms_consent column may not exist yet - handle gracefully
     const leadInsertData: any = {
       business_id: businessId,
       name: name ? name.trim() : 'Pending', // Will be updated when contact info is provided
       email: email ? email.trim() : `pending-${Date.now()}@temp.booking`, // Temporary, will be updated
-      phone: null,
+      phone: normalizedPhone,
       source: 'online_booking',
       interested_in_service_id: serviceId,
       interested_in_service_name: finalServiceName,
@@ -191,6 +195,18 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       )
+    }
+
+    // Check and enroll in sequences if applicable
+    try {
+      const { checkAndEnrollSequences } = await import('@/lib/actions/sequences')
+      // Check for "booking_abandoned" sequences if booking was abandoned
+      if (booking_progress < 100) {
+        await checkAndEnrollSequences(lead.id, 'booking_abandoned')
+      }
+    } catch (error) {
+      // Don't fail lead creation if sequence enrollment fails
+      console.error('Error enrolling lead in sequences:', error)
     }
 
     return NextResponse.json({ 
