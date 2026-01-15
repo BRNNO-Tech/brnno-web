@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getBusinessId } from './utils'
 
 // Quick Quote Functions
 type QuickQuoteData = {
@@ -125,6 +126,162 @@ export async function createQuickQuote(data: QuickQuoteData) {
   }
   
   revalidatePath('/dashboard/quick-quote')
+  return quote
+}
+
+export async function createQuoteForLead(
+  leadId: string,
+  data: QuickQuoteData & { leadId: string }
+) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  // Get lead info to populate quote
+  const { data: lead } = await supabase
+    .from('leads')
+    .select('name, email, phone, interested_in_service_id, estimated_value')
+    .eq('id', leadId)
+    .eq('business_id', businessId)
+    .single()
+
+  if (!lead) throw new Error('Lead not found')
+  
+  // Get services to calculate price
+  const { data: services } = await supabase
+    .from('services')
+    .select('id, name, base_price')
+    .in('id', data.services.length > 0 ? data.services : (lead.interested_in_service_id ? [lead.interested_in_service_id] : []))
+    .eq('business_id', businessId)
+  
+  if (!services || services.length === 0) {
+    throw new Error('No services selected')
+  }
+  
+  // Calculate total price
+  let totalPrice = services.reduce((sum, s) => sum + (s.base_price || 0), 0)
+  
+  // Apply vehicle type multiplier
+  const vehicleMultiplier = {
+    sedan: 1.0,
+    suv: 1.2,
+    truck: 1.3
+  }
+  totalPrice *= vehicleMultiplier[data.vehicleType]
+  
+  // Apply condition multiplier
+  const conditionMultiplier = {
+    normal: 1.0,
+    dirty: 1.15,
+    very_dirty: 1.3
+  }
+  totalPrice *= conditionMultiplier[data.vehicleCondition]
+  
+  // Generate unique quote code
+  let quoteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+  let attempts = 0
+  while (attempts < 10) {
+    const { data: existing } = await supabase
+      .from('quotes')
+      .select('id')
+      .eq('quote_code', quoteCode)
+      .single()
+    
+    if (!existing) break
+    quoteCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+    attempts++
+  }
+  
+  // Create quote (optionally linked to lead if column exists)
+  const insertData: any = {
+    business_id: businessId,
+    total_price: Math.round(totalPrice * 100) / 100,
+    quote_code: quoteCode,
+    status: 'draft',
+    vehicle_type: data.vehicleType,
+    vehicle_condition: data.vehicleCondition,
+    services: data.services.length > 0 ? data.services : (lead.interested_in_service_id ? [lead.interested_in_service_id] : []),
+    customer_name: data.customerName || lead.name || null,
+    customer_phone: data.customerPhone || lead.phone || null,
+    customer_email: data.customerEmail || lead.email || null,
+  }
+  
+  // Try to add lead_id - if column doesn't exist, Supabase will error but we'll handle it
+  // User can add migration: ALTER TABLE quotes ADD COLUMN IF NOT EXISTS lead_id UUID REFERENCES leads(id) ON DELETE SET NULL;
+  insertData.lead_id = leadId
+  
+  const { data: quote, error } = await supabase
+    .from('quotes')
+    .insert(insertData)
+    .select()
+    .single()
+  
+  if (error) {
+    // If error is about missing column, try without lead_id
+    if (error.message?.includes('column') && error.message?.includes('lead_id')) {
+      delete insertData.lead_id
+      const { data: retryQuote, error: retryError } = await supabase
+        .from('quotes')
+        .insert(insertData)
+        .select()
+        .single()
+      
+      if (retryError) {
+        console.error('Error creating quote for lead:', retryError)
+        throw new Error(`Failed to create quote: ${retryError.message}`)
+      }
+      
+      // Continue with quote creation (without lead_id link)
+      const quote = retryQuote
+      
+      // Update lead status to 'quoted'
+      await supabase
+        .from('leads')
+        .update({ status: 'quoted' })
+        .eq('id', leadId)
+
+      // Add interaction record
+      await supabase
+        .from('lead_interactions')
+        .insert({
+          lead_id: leadId,
+          type: 'email',
+          direction: 'outbound',
+          content: `Quote sent: ${quote.quote_code}`,
+          outcome: 'sent',
+        })
+      
+      revalidatePath('/dashboard/leads')
+      revalidatePath('/dashboard/leads/inbox')
+      revalidatePath('/dashboard/quick-quote')
+      
+      return quote
+    }
+    
+    console.error('Error creating quote for lead:', error)
+    throw new Error(`Failed to create quote: ${error.message}`)
+  }
+
+  // Update lead status to 'quoted'
+  await supabase
+    .from('leads')
+    .update({ status: 'quoted' })
+    .eq('id', leadId)
+
+  // Add interaction record
+  await supabase
+    .from('lead_interactions')
+    .insert({
+      lead_id: leadId,
+      type: 'email',
+      direction: 'outbound',
+      content: `Quote sent: ${quoteCode}`,
+      outcome: 'sent',
+    })
+  
+  revalidatePath('/dashboard/leads')
+  revalidatePath('/dashboard/leads/inbox')
+  revalidatePath('/dashboard/quick-quote')
+  
   return quote
 }
 

@@ -308,6 +308,102 @@ export async function updateLeadStatus(
   revalidatePath('/dashboard/leads')
 }
 
+/**
+ * Send SMS to a lead
+ */
+async function sendSMSToLead(leadId: string, message: string) {
+  const supabase = await createClient()
+  const { getBusiness } = await import('./business')
+  const { sendSMS, SMSProviderConfig } = await import('@/lib/sms/providers')
+
+  // Get lead with phone number and SMS consent
+  const { data: lead, error: leadError } = await supabase
+    .from('leads')
+    .select('id, name, phone, email, sms_consent, business_id')
+    .eq('id', leadId)
+    .single()
+
+  if (leadError || !lead) {
+    throw new Error('Lead not found')
+  }
+
+  // Validate phone number
+  if (!lead.phone) {
+    throw new Error('Lead does not have a phone number')
+  }
+
+  // Check for masking characters
+  if (lead.phone.includes('X') || lead.phone.includes('x') || lead.phone.includes('*')) {
+    throw new Error('Lead phone number appears to be masked or incomplete')
+  }
+
+  // Check SMS consent (if column exists)
+  if (lead.sms_consent === false) {
+    throw new Error('Lead has not consented to receive SMS messages')
+  }
+
+  // Get business for SMS provider config
+  const business = await getBusiness()
+  if (!business) {
+    throw new Error('Business not found')
+  }
+
+  // Determine SMS provider
+  let smsProvider: 'surge' | 'twilio' | null = null
+  
+  if (business.sms_provider === 'surge' || business.sms_provider === 'twilio') {
+    smsProvider = business.sms_provider as 'surge' | 'twilio'
+  } else {
+    // Fallback: check which credentials are available
+    if (business.surge_api_key && business.surge_account_id) {
+      smsProvider = 'surge'
+    } else if (business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID) {
+      smsProvider = 'twilio'
+    }
+  }
+
+  if (!smsProvider) {
+    throw new Error('No SMS provider configured. Please set up SMS in Settings → Channels.')
+  }
+
+  // Build provider config
+  const config: SMSProviderConfig = {
+    provider: smsProvider,
+  }
+
+  if (smsProvider === 'surge') {
+    config.surgeApiKey = business.surge_api_key || undefined
+    config.surgeAccountId = business.surge_account_id || undefined
+    
+    if (!config.surgeApiKey || !config.surgeAccountId) {
+      throw new Error('Surge credentials not configured. Please check your SMS settings.')
+    }
+  } else if (smsProvider === 'twilio') {
+    config.twilioAccountSid = business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || undefined
+    config.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined
+    config.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER || undefined
+    
+    if (!config.twilioAccountSid || !config.twilioAuthToken || !config.twilioPhoneNumber) {
+      throw new Error('Twilio credentials not configured. Please check your environment variables and SMS settings.')
+    }
+  }
+
+  // Send SMS
+  const result = await sendSMS(config, {
+    to: lead.phone,
+    body: message,
+    fromName: business.sender_name || business.name || 'BRNNO',
+    contactFirstName: lead.name?.split(' ')[0] || undefined,
+    contactLastName: lead.name?.split(' ').slice(1).join(' ') || undefined,
+  })
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to send SMS')
+  }
+
+  return result.messageId
+}
+
 export async function addLeadInteraction(
   leadId: string,
   type: 'call' | 'sms' | 'email' | 'note',
@@ -331,6 +427,18 @@ export async function addLeadInteraction(
     throw new Error('No business found. Please complete your business setup in Settings.')
   }
 
+  // If sending SMS, actually send it via Twilio/Surge
+  if (type === 'sms') {
+    try {
+      await sendSMSToLead(leadId, content)
+    } catch (error) {
+      // If SMS sending fails, don't log the interaction - throw the error
+      console.error('Error sending SMS to lead:', error)
+      throw error
+    }
+  }
+
+  // Log the interaction
   const { error } = await supabase.from('lead_interactions').insert({
     lead_id: leadId,
     business_id: business.id,
@@ -373,6 +481,25 @@ export async function addLeadInteraction(
     .eq('id', leadId)
 
   if (updateError) throw updateError
+
+  revalidatePath('/dashboard/leads')
+  revalidatePath('/dashboard/leads/inbox')
+}
+
+export async function updateLeadNotes(leadId: string, notes: string) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  const { error } = await supabase
+    .from('leads')
+    .update({ notes })
+    .eq('id', leadId)
+    .eq('business_id', businessId)
+
+  if (error) {
+    console.error('Error updating lead notes:', error)
+    throw error
+  }
 
   revalidatePath('/dashboard/leads')
   revalidatePath('/dashboard/leads/inbox')

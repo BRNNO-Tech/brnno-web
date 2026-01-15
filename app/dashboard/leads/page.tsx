@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { getLeads } from '@/lib/actions/leads'
 import { getLeadOverviewStats } from '@/lib/actions/lead-overview'
-import AddLeadButton from '@/components/leads/add-lead-button'
 import LeadList from '@/components/leads/lead-list'
 import { KpiCard } from '@/components/leads/kpi-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -118,7 +117,6 @@ export default async function LeadsPage() {
                   </button>
                 </div>
               )}
-              <AddLeadButton canAddMore={leadLimitInfo.canAdd} />
             </div>
           </div>
 

@@ -95,6 +95,115 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
   }
 }
 
+/**
+ * Send SMS booking confirmation to customer
+ * Note: SMS consent is checked in the booking form, so we assume consent is given
+ */
+export async function sendBookingConfirmationSMS(booking: BookingEmailData, smsConsent?: boolean) {
+  // Check if customer has phone number
+  if (!booking.customer.phone) {
+    console.log('Customer does not have a phone number. Skipping SMS.')
+    return
+  }
+
+  // Validate phone number doesn't contain masking characters
+  if (booking.customer.phone.includes('X') || booking.customer.phone.includes('x') || booking.customer.phone.includes('*')) {
+    console.log('Customer phone number appears to be masked. Skipping SMS.')
+    return
+  }
+
+  // Check SMS consent if explicitly provided (booking form requires consent, so this is usually true)
+  if (smsConsent === false) {
+    console.log('Customer has not consented to SMS. Skipping SMS.')
+    return
+  }
+
+  try {
+    // Dynamically import to avoid errors if SMS is not configured
+    const { getBusiness } = await import('@/lib/actions/business')
+    const { sendSMS, SMSProviderConfig } = await import('@/lib/sms/providers')
+
+    const business = await getBusiness()
+    if (!business) {
+      console.log('Business not found. Skipping SMS.')
+      return
+    }
+
+    // Determine SMS provider
+    let smsProvider: 'surge' | 'twilio' | null = null
+    
+    if (business.sms_provider === 'surge' || business.sms_provider === 'twilio') {
+      smsProvider = business.sms_provider as 'surge' | 'twilio'
+    } else {
+      // Fallback: check which credentials are available
+      if (business.surge_api_key && business.surge_account_id) {
+        smsProvider = 'surge'
+      } else if (business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID) {
+        smsProvider = 'twilio'
+      }
+    }
+
+    if (!smsProvider) {
+      console.log('No SMS provider configured. Skipping SMS confirmation.')
+      return
+    }
+
+    // Build provider config
+    const config: SMSProviderConfig = {
+      provider: smsProvider,
+    }
+
+    if (smsProvider === 'surge') {
+      config.surgeApiKey = business.surge_api_key || undefined
+      config.surgeAccountId = business.surge_account_id || undefined
+      
+      if (!config.surgeApiKey || !config.surgeAccountId) {
+        console.log('Surge credentials not configured. Skipping SMS.')
+        return
+      }
+    } else if (smsProvider === 'twilio') {
+      config.twilioAccountSid = business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || undefined
+      config.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined
+      config.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER || undefined
+      
+      if (!config.twilioAccountSid || !config.twilioAuthToken || !config.twilioPhoneNumber) {
+        console.log('Twilio credentials not configured. Skipping SMS.')
+        return
+      }
+    }
+
+    // Format date and time for SMS
+    const date = new Date(booking.scheduledDate)
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+
+    // Create SMS message (keep it short and friendly)
+    const senderName = business.sender_name || business.name || 'BRNNO'
+    const message = `Hi ${booking.customer.name.split(' ')[0]}! Your booking with ${senderName} is confirmed for ${formattedDate} at ${booking.scheduledTime}. Service: ${booking.service.name}. Reply STOP to opt out.`
+
+    // Send SMS
+    const result = await sendSMS(config, {
+      to: booking.customer.phone,
+      body: message,
+      fromName: senderName,
+      contactFirstName: booking.customer.name.split(' ')[0] || undefined,
+      contactLastName: booking.customer.name.split(' ').slice(1).join(' ') || undefined,
+    })
+
+    if (result.success) {
+      console.log('Booking confirmation SMS sent successfully to:', booking.customer.phone)
+    } else {
+      console.error('Failed to send booking confirmation SMS:', result.error)
+    }
+  } catch (error) {
+    console.error('Error sending booking confirmation SMS:', error)
+    // Don't throw error to avoid failing the booking process
+  }
+}
+
 export async function sendSignupRecoveryEmail(
   email: string,
   name?: string,

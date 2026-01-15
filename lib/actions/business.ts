@@ -188,3 +188,77 @@ export async function saveBusiness(businessData: {
 
   return result.data
 }
+
+/**
+ * Uploads business logo to Supabase Storage
+ */
+export async function uploadBusinessLogo(file: File) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  // Get business ID
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('id')
+    .eq('owner_id', user.id)
+    .single()
+
+  if (!business) throw new Error('No business found')
+
+  // Generate unique filename
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${business.id}/logo-${Date.now()}.${fileExt}`
+  const filePath = `business-logos/${fileName}`
+
+  // Upload to Supabase Storage
+  const { data, error } = await supabase.storage
+    .from('business-logos')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+  if (error) {
+    console.error('Logo upload error:', error)
+    throw new Error(`Failed to upload logo: ${error.message}`)
+  }
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('business-logos')
+    .getPublicUrl(filePath)
+
+  return publicUrl
+}
+
+/**
+ * Updates brand settings for a business
+ */
+export async function updateBrandSettings(brandData: {
+  logo_url?: string | null
+  accent_color?: string | null
+  sender_name?: string | null
+  default_tone?: 'friendly' | 'premium' | 'direct' | null
+}) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { error } = await supabase
+    .from('businesses')
+    .update(brandData)
+    .eq('owner_id', user.id)
+
+  if (error) {
+    console.error('Error updating brand settings:', error)
+    throw new Error(`Failed to update brand settings: ${error.message}`)
+  }
+
+  revalidatePath('/dashboard/settings')
+  revalidatePath('/dashboard')
+
+  return { success: true }
+}

@@ -17,13 +17,13 @@ export default function Hero() {
     <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 bg-gradient-to-br from-blue-50 to-white dark:from-zinc-900 dark:to-zinc-950">
       <div className="max-w-6xl mx-auto text-center">
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
-          Manage Your Business
+          Recover Lost Leads
           <br />
-          All in One Place
+          Recover Lost Revenue
         </h1>
         
         <p className="text-base sm:text-lg md:text-xl text-zinc-600 dark:text-zinc-400 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
-          Streamline operations, manage your team, track jobs, and grow your business with BRNNO's all-in-one platform.
+          Turn missed opportunities into booked jobs with our powerful lead recovery system. Track, automate, and convert leads with sequences, scripts, and real-time analytics—all while managing your entire business in one place.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">

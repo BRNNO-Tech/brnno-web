@@ -213,8 +213,8 @@ export async function POST(request: NextRequest) {
       // Silent failure - booking still succeeds
     }
 
-    // 5. Send confirmation emails
-    // We need to fetch business details for the email
+    // 5. Send confirmation emails and SMS
+    // We need to fetch business details for the notifications
     const { data: business } = await supabase
       .from('businesses')
       .select('name, email, phone')
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (business) {
-      await sendBookingConfirmation({
+      const bookingData = {
         business: {
           name: business.name,
           email: business.email,
@@ -238,7 +238,35 @@ export async function POST(request: NextRequest) {
         },
         scheduledDate,
         scheduledTime
-      })
+      }
+
+      // Send email confirmation (existing)
+      await sendBookingConfirmation(bookingData)
+
+      // Send SMS confirmation (new) - only if customer has phone
+      // Note: SMS consent is required in the booking form, so we can safely send
+      // The booking form requires SMS consent to proceed, so consent is implied
+      if (customer.phone) {
+        const { sendBookingConfirmationSMS } = await import('@/lib/email')
+        // Check if we can get SMS consent from the lead record (if it exists)
+        let smsConsent = true // Default to true since form requires consent
+        if (leadIdFinal) {
+          try {
+            const { data: lead } = await supabase
+              .from('leads')
+              .select('sms_consent')
+              .eq('id', leadIdFinal)
+              .single()
+            if (lead && lead.sms_consent !== undefined) {
+              smsConsent = lead.sms_consent
+            }
+          } catch (error) {
+            // If we can't check, default to true (form requires consent)
+            console.log('Could not verify SMS consent from lead, defaulting to true')
+          }
+        }
+        await sendBookingConfirmationSMS(bookingData, smsConsent)
+      }
     }
 
     return NextResponse.json({

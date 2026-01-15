@@ -25,6 +25,36 @@ export async function getClients() {
 }
 
 export async function getCustomersWithStats() {
+  if (await isDemoMode()) {
+    const { getMockClients } = await import('@/lib/demo/mock-data')
+    const mockClients = getMockClients()
+    
+    // Calculate stats for each mock client (same logic as real mode)
+    const clientsWithStats = mockClients.map((client: any) => {
+      const jobs = client.jobs || []
+      const completedJobs = jobs.filter((j: any) => j.status === 'completed')
+      const totalRevenue = completedJobs.reduce((sum: number, j: any) => sum + (j.estimated_cost || 0), 0)
+      
+      // Find most recent job
+      const sortedJobs = jobs.sort((a: any, b: any) => 
+        new Date(b.scheduled_date || b.created_at).getTime() - new Date(a.scheduled_date || a.created_at).getTime()
+      )
+      const lastJob = sortedJobs[0]
+      
+      return {
+        ...client,
+        stats: {
+          totalJobs: jobs.length,
+          completedJobs: completedJobs.length,
+          totalRevenue,
+          lastJobDate: lastJob ? (lastJob.scheduled_date || lastJob.created_at) : null
+        }
+      }
+    })
+    
+    return clientsWithStats
+  }
+
   const supabase = await createClient()
   
   const { data: { user } } = await supabase.auth.getUser()

@@ -200,3 +200,181 @@ export async function getJob(id: string) {
   return job
 }
 
+export async function createJobFromLead(leadId: string, jobData: {
+  title: string
+  service_type?: string
+  scheduled_date: string
+  estimated_duration?: number
+  estimated_cost?: number
+  description?: string
+  address?: string
+  city?: string
+  state?: string
+  zip?: string
+  client_notes?: string
+}) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  // Get lead info
+  const { data: lead } = await supabase
+    .from('leads')
+    .select('name, email, phone, interested_in_service_name, estimated_value')
+    .eq('id', leadId)
+    .eq('business_id', businessId)
+    .single()
+
+  if (!lead) throw new Error('Lead not found')
+
+  // Find or create client from lead
+  let clientId: string | null = null
+  
+  if (lead.email) {
+    const { data: existingClient } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('email', lead.email)
+      .single()
+
+    if (existingClient) {
+      clientId = existingClient.id
+      // Update client info
+      await supabase
+        .from('clients')
+        .update({
+          name: lead.name,
+          phone: lead.phone || null,
+        })
+        .eq('id', clientId)
+    } else {
+      // Create new client
+      const { data: newClient, error: clientError } = await supabase
+        .from('clients')
+        .insert({
+          business_id: businessId,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone || null,
+        })
+        .select()
+        .single()
+
+      if (clientError) throw clientError
+      if (newClient) clientId = newClient.id
+    }
+  }
+
+  // Convert scheduled_date to ISO string if it's not already
+  let scheduledDateISO: string
+  if (jobData.scheduled_date.includes('T')) {
+    scheduledDateISO = new Date(jobData.scheduled_date).toISOString()
+  } else {
+    // Assume it's a date string, add default time
+    scheduledDateISO = new Date(`${jobData.scheduled_date}T09:00:00`).toISOString()
+  }
+
+  // Create job (optionally linked to lead if column exists)
+  const jobInsertData: any = {
+    business_id: businessId,
+    client_id: clientId,
+    title: jobData.title,
+    description: jobData.description || null,
+    service_type: jobData.service_type || lead.interested_in_service_name || null,
+    scheduled_date: scheduledDateISO,
+    estimated_duration: jobData.estimated_duration || null,
+    estimated_cost: jobData.estimated_cost || lead.estimated_value || null,
+    status: 'scheduled',
+    priority: 'medium',
+    address: jobData.address || null,
+    city: jobData.city || null,
+    state: jobData.state || null,
+    zip: jobData.zip || null,
+    client_notes: jobData.client_notes || null,
+  }
+  
+  // Try to add lead_id - if column doesn't exist, handle gracefully
+  jobInsertData.lead_id = leadId
+
+  const { data: job, error: jobError } = await supabase
+    .from('jobs')
+    .insert(jobInsertData)
+    .select()
+    .single()
+
+  if (jobError) {
+    // If error is about missing column, try without lead_id
+    if (jobError.message?.includes('column') && jobError.message?.includes('lead_id')) {
+      delete jobInsertData.lead_id
+      const { data: retryJob, error: retryError } = await supabase
+        .from('jobs')
+        .insert(jobInsertData)
+        .select()
+        .single()
+      
+      if (retryError) {
+        console.error('Error creating job from lead:', retryError)
+        throw retryError
+      }
+      
+      // Continue with job creation (without lead_id link)
+      const job = retryJob
+      
+      // Update lead status to 'booked'
+      await supabase
+        .from('leads')
+        .update({ 
+          status: 'booked',
+          job_id: job.id,
+        })
+        .eq('id', leadId)
+
+      // Add interaction record
+      await supabase
+        .from('lead_interactions')
+        .insert({
+          lead_id: leadId,
+          type: 'note',
+          direction: 'outbound',
+          content: `Job created: ${jobData.title}`,
+          outcome: 'booked',
+        })
+
+      revalidatePath('/dashboard/leads')
+      revalidatePath('/dashboard/leads/inbox')
+      revalidatePath('/dashboard/jobs')
+      
+      return job
+    }
+    
+    console.error('Error creating job from lead:', jobError)
+    throw jobError
+  }
+
+  // Update lead status to 'booked'
+  await supabase
+    .from('leads')
+    .update({ 
+      status: 'booked',
+      job_id: job.id,
+    })
+    .eq('id', leadId)
+
+  // Add interaction record
+  await supabase
+    .from('lead_interactions')
+    .insert({
+      lead_id: leadId,
+      type: 'note',
+      direction: 'outbound',
+      content: `Job created: ${jobData.title}`,
+      outcome: 'booked',
+    })
+
+  revalidatePath('/dashboard/leads')
+  revalidatePath('/dashboard/leads/inbox')
+  revalidatePath('/dashboard/jobs')
+  
+  return job
+}
+

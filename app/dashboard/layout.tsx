@@ -42,6 +42,10 @@ import {
   Bell,
   Calendar as CalendarIcon,
 } from "lucide-react";
+import { SearchModal } from "@/components/leads/search-modal";
+import { DateRangePicker } from "@/components/leads/date-range-picker";
+import { NotificationsDropdown } from "@/components/leads/notifications-dropdown";
+import { AddLeadDialog } from "@/components/leads/add-lead-dialog";
 
 type NavigationItem = {
   name: string
@@ -365,6 +369,66 @@ function Sidebar({
   );
 }
 
+// Search Modal Wrapper Component
+function SearchModalWrapper() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="hidden md:flex items-center gap-2 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/50 dark:bg-white/5 px-4 py-2 text-sm text-zinc-600 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+      >
+        <Search className="h-4 w-4" />
+        <span className="hidden lg:inline">Search leads, phone, tags…</span>
+        <span className="lg:hidden">Search…</span>
+      </button>
+      <SearchModal open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
+
+// Date Range Selector Component
+function DateRangeSelector({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="hidden md:flex items-center gap-1 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/50 dark:bg-white/5 p-1">
+      {(['Today', '7d', '30d'] as const).map((range) => (
+        <button
+          key={range}
+          onClick={() => onChange(range.toLowerCase())}
+          className={cn(
+            "px-3 py-1.5 text-xs font-medium rounded-xl transition-colors",
+            value === range.toLowerCase()
+              ? "bg-violet-500/10 text-violet-700 dark:text-violet-300"
+              : "text-zinc-600 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10"
+          )}
+        >
+          {range}
+        </button>
+      ))}
+      <DateRangePicker value={value} onChange={onChange} />
+    </div>
+  )
+}
+
+// Add Lead Button for Topbar
+function AddLeadButtonTopbar() {
+  const [open, setOpen] = useState(false)
+  
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 rounded-2xl border border-violet-500/30 dark:border-violet-500/30 bg-violet-500/10 dark:bg-violet-500/15 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 dark:hover:bg-violet-500/20 transition-colors"
+      >
+        <Plus className="h-4 w-4" />
+        <span className="hidden lg:inline">Add Lead</span>
+      </button>
+      <AddLeadDialog open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
+
 function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle: () => void }) {
   const [businessName, setBusinessName] = useState<string>('Loading...')
   const [dateRange, setDateRange] = useState<string>('30d')
@@ -416,50 +480,24 @@ function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle: () => void }) {
         <div className="flex items-center gap-3">
           {/* Search - shown on leads pages */}
           {isLeadsPage && (
-            <div className="hidden md:flex items-center gap-2 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/50 dark:bg-white/5 px-4 py-2 text-sm text-zinc-600 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer">
-              <Search className="h-4 w-4" />
-              <span className="hidden lg:inline">Search leads, phone, tags…</span>
-              <span className="lg:hidden">Search…</span>
-            </div>
+            <SearchModalWrapper />
           )}
 
           {/* Date Range Selector - shown on leads pages */}
           {isLeadsPage && (
-            <div className="hidden md:flex items-center gap-1 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/50 dark:bg-white/5 p-1">
-              {(['Today', '7d', '30d', 'Custom'] as const).map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setDateRange(range.toLowerCase())}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-xl transition-colors",
-                    dateRange === range.toLowerCase()
-                      ? "bg-violet-500/10 text-violet-700 dark:text-violet-300"
-                      : "text-zinc-600 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10"
-                  )}
-                >
-                  {range}
-                </button>
-              ))}
-            </div>
+            <DateRangeSelector value={dateRange} onChange={setDateRange} />
           )}
 
           {/* Quick Action Button - shown on leads pages */}
           {isLeadsPage && (
-            <Link href="/dashboard/leads?action=add" className="hidden md:flex">
-              <button className="flex items-center gap-2 rounded-2xl border border-violet-500/30 dark:border-violet-500/30 bg-violet-500/10 dark:bg-violet-500/15 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 dark:hover:bg-violet-500/20 transition-colors">
-                <Plus className="h-4 w-4" />
-                <span className="hidden lg:inline">Add Lead</span>
-              </button>
-            </Link>
+            <div className="hidden md:flex">
+              <AddLeadButtonTopbar />
+            </div>
           )}
 
           {/* Notifications Icon - shown on leads pages */}
           {isLeadsPage && (
-            <button className="relative grid h-10 w-10 place-items-center rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/50 dark:bg-white/5 text-zinc-600 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors">
-              <Bell className="h-4 w-4" />
-              {/* Notification badge - can be added when notifications are implemented */}
-              {/* <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span> */}
-            </button>
+            <NotificationsDropdown />
           )}
 
           <ThemeToggle />

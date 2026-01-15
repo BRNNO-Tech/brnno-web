@@ -8,6 +8,9 @@ import { X, Phone, Mail, MessageSquare, Clock, FileText, Calendar, Sparkles, Sen
 import { cn } from '@/lib/utils'
 import { updateLeadStatus, addLeadInteraction } from '@/lib/actions/leads'
 import { LeadTimeline } from './lead-timeline'
+import { LeadNotesTab } from './lead-notes-tab'
+import { LeadQuoteTab } from './lead-quote-tab'
+import { LeadBookingTab } from './lead-booking-tab'
 import { getLead } from '@/lib/actions/leads'
 import { toast } from 'sonner'
 
@@ -17,8 +20,10 @@ interface Lead {
   email: string | null
   phone: string | null
   source: string | null
+  interested_in_service_id: string | null
   interested_in_service_name: string | null
   estimated_value: number | null
+  notes: string | null
   score: 'hot' | 'warm' | 'cold'
   status: string
   last_contacted_at: string | null
@@ -206,21 +211,31 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
           </TabsContent>
 
           <TabsContent value="notes" className="mt-0 p-4">
-            <div className="text-center text-sm text-zinc-500 dark:text-zinc-400 py-8">
-              Notes coming soon
-            </div>
+            <LeadNotesTab
+              leadId={lead.id}
+              initialNotes={fullLead?.notes || lead.notes || null}
+            />
           </TabsContent>
 
           <TabsContent value="quote" className="mt-0 p-4">
-            <div className="text-center text-sm text-zinc-500 dark:text-zinc-400 py-8">
-              Quote/Estimate coming soon
-            </div>
+            <LeadQuoteTab
+              leadId={lead.id}
+              leadName={lead.name}
+              leadEmail={lead.email}
+              leadPhone={lead.phone}
+              interestedInServiceId={fullLead?.interested_in_service_id || lead.interested_in_service_id || null}
+            />
           </TabsContent>
 
           <TabsContent value="booking" className="mt-0 p-4">
-            <div className="text-center text-sm text-zinc-500 dark:text-zinc-400 py-8">
-              Booking coming soon
-            </div>
+            <LeadBookingTab
+              leadId={lead.id}
+              leadName={lead.name}
+              leadEmail={lead.email}
+              leadPhone={lead.phone}
+              interestedInServiceName={lead.interested_in_service_name}
+              estimatedValue={lead.estimated_value}
+            />
           </TabsContent>
         </div>
       </Tabs>
@@ -257,16 +272,20 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={
-              interactionType === 'sms' ? 'Type your SMS message...' :
-              interactionType === 'email' ? 'Type your email...' :
-              interactionType === 'call' ? 'Add call notes...' :
-              'Add a note...'
+              interactionType === 'sms' 
+                ? (lead.phone ? 'Type your SMS message...' : 'No phone number available for this lead')
+                : interactionType === 'email' 
+                ? (lead.email ? 'Type your email...' : 'No email available for this lead')
+                : interactionType === 'call' 
+                ? 'Add call notes...' 
+                : 'Add a note...'
             }
-            className="w-full min-h-[80px] rounded-lg border border-zinc-200/50 dark:border-white/10 bg-white dark:bg-zinc-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all duration-200"
+            disabled={interactionType === 'sms' && !lead.phone}
+            className="w-full min-h-[80px] rounded-lg border border-zinc-200/50 dark:border-white/10 bg-white dark:bg-zinc-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault()
-                if (message.trim() && !sending) {
+                if (message.trim() && !sending && !(interactionType === 'sms' && !lead.phone)) {
                   // Trigger send
                   const sendButton = e.currentTarget.parentElement?.querySelector('button:has(svg[class*="Send"])')
                   if (sendButton) {
@@ -276,6 +295,16 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               }
             }}
           />
+          {interactionType === 'sms' && !lead.phone && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              ⚠️ This lead doesn't have a phone number. Add one in the lead details to send SMS.
+            </p>
+          )}
+          {interactionType === 'sms' && message.length > 160 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              ⚠️ SMS messages should be under 160 characters ({message.length}/160). This may be split into multiple messages.
+            </p>
+          )}
           
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -384,26 +413,72 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
             </div>
             <Button
               size="sm"
-              disabled={!message.trim() || sending}
+              disabled={!message.trim() || sending || (interactionType === 'sms' && !lead.phone)}
               onClick={async () => {
                 if (!message.trim()) return
+                
+                // Validate SMS-specific requirements
+                if (interactionType === 'sms') {
+                  if (!lead.phone) {
+                    toast.error('No phone number', {
+                      description: 'This lead does not have a phone number. Please add one first.',
+                    })
+                    return
+                  }
+                  
+                  // Check for masking characters
+                  if (lead.phone.includes('X') || lead.phone.includes('x') || lead.phone.includes('*')) {
+                    toast.error('Invalid phone number', {
+                      description: 'The lead\'s phone number appears to be masked or incomplete.',
+                    })
+                    return
+                  }
+                }
+                
                 setSending(true)
                 try {
                   await addLeadInteraction(lead.id, interactionType, message)
                   setMessage('')
                   setShowAiSuggestions(false)
-                  // Show success toast
+                  
+                  // Show success toast with appropriate message
                   const typeLabel = interactionType === 'sms' ? 'SMS' : interactionType === 'email' ? 'Email' : interactionType === 'call' ? 'Call' : 'Note'
-                  toast.success(`${typeLabel} sent!`, {
-                    description: 'The interaction has been added to the timeline',
+                  const successMessage = interactionType === 'sms' 
+                    ? 'SMS sent successfully!' 
+                    : interactionType === 'email'
+                    ? 'Email sent successfully!'
+                    : 'Interaction logged!'
+                  
+                  toast.success(successMessage, {
+                    description: interactionType === 'sms' || interactionType === 'email'
+                      ? 'The message has been sent and added to the timeline'
+                      : 'The interaction has been added to the timeline',
                   })
+                  
                   // Reload full lead data to update timeline
                   const { getLead } = await import('@/lib/actions/leads')
                   const updatedLead = await getLead(lead.id)
                   setFullLead(updatedLead as any)
                 } catch (error) {
                   console.error('Error sending message:', error)
-                  toast.error(`Failed to send ${interactionType}`)
+                  const errorMessage = error instanceof Error ? error.message : `Failed to send ${interactionType}`
+                  
+                  // Provide helpful error messages
+                  if (errorMessage.includes('consent')) {
+                    toast.error('SMS consent required', {
+                      description: 'This lead has not consented to receive SMS messages.',
+                    })
+                  } else if (errorMessage.includes('phone number')) {
+                    toast.error('Phone number issue', {
+                      description: errorMessage,
+                    })
+                  } else if (errorMessage.includes('SMS provider') || errorMessage.includes('Twilio') || errorMessage.includes('Surge')) {
+                    toast.error('SMS not configured', {
+                      description: 'Please set up SMS in Settings → Channels before sending messages.',
+                    })
+                  } else {
+                    toast.error(errorMessage)
+                  }
                 } finally {
                   setSending(false)
                 }
@@ -413,12 +488,12 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               {sending ? (
                 <>
                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Sending...
+                  {interactionType === 'sms' ? 'Sending SMS...' : interactionType === 'email' ? 'Sending Email...' : 'Sending...'}
                 </>
               ) : (
                 <>
                   <Send className="h-3 w-3 mr-1" />
-                  Send
+                  {interactionType === 'sms' ? 'Send SMS' : interactionType === 'email' ? 'Send Email' : 'Send'}
                 </>
               )}
             </Button>
