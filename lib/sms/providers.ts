@@ -265,9 +265,34 @@ async function sendViaTwilio(
     }
   } catch (error) {
     console.error('Error sending SMS via Twilio:', error)
+    
+    // Provide user-friendly error messages for common Twilio errors
+    if (error instanceof Error) {
+      // Trial account - unverified number error
+      if (error.message.includes('unverified') || error.message.includes('Trial accounts')) {
+        return {
+          success: false,
+          error: 'Twilio trial account limitation: This phone number needs to be verified in your Twilio account. Please verify the number at twilio.com/user/account/phone-numbers/verified or upgrade your Twilio account to send to unverified numbers.',
+        }
+      }
+      
+      // Invalid phone number format
+      if (error.message.includes('Invalid') && error.message.includes('phone number')) {
+        return {
+          success: false,
+          error: `Invalid phone number format. Please ensure the number is in E.164 format (e.g., +15551234567).`,
+        }
+      }
+      
+      return {
+        success: false,
+        error: error.message,
+      }
+    }
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: 'Unknown error occurred while sending SMS',
     }
   }
 }
