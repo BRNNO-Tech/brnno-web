@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +22,8 @@ import {
   Bell,
   Loader2,
 } from 'lucide-react'
-import { createSequence, updateSequence, type Sequence, type SequenceStep } from '@/lib/actions/sequences'
+import { createSequence, updateSequence, enrollLeadInSequence, type Sequence, type SequenceStep } from '@/lib/actions/sequences'
+import { getLeads } from '@/lib/actions/leads'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { StepEditor } from './step-editor'
@@ -46,6 +47,12 @@ export function SequenceEditor({ mode, sequence }: SequenceEditorProps) {
   const [respectBusinessHours, setRespectBusinessHours] = useState(sequence?.respect_business_hours ?? true)
   const [steps, setSteps] = useState<SequenceStep[]>(sequence?.steps || [])
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
+  
+  // Manual enrollment state
+  const [leads, setLeads] = useState<any[]>([])
+  const [selectedLeadId, setSelectedLeadId] = useState<string>('')
+  const [enrolling, setEnrolling] = useState(false)
+  const [loadingLeads, setLoadingLeads] = useState(false)
 
   const triggerOptions = [
     { value: 'booking_abandoned', label: 'Booking Abandoned' },
@@ -55,6 +62,51 @@ export function SequenceEditor({ mode, sequence }: SequenceEditorProps) {
     { value: 'post_service', label: 'Post-Service' },
     { value: 'custom', label: 'Custom Trigger' },
   ]
+
+  // Load leads for manual enrollment
+  useEffect(() => {
+    if (mode === 'edit' && sequence?.id) {
+      loadLeads()
+    }
+  }, [mode, sequence?.id])
+
+  async function loadLeads() {
+    setLoadingLeads(true)
+    try {
+      const allLeads = await getLeads('all')
+      setLeads(allLeads || [])
+    } catch (error) {
+      console.error('Error loading leads:', error)
+      toast.error('Failed to load leads')
+    } finally {
+      setLoadingLeads(false)
+    }
+  }
+
+  async function handleEnrollLead() {
+    if (!selectedLeadId || !sequence?.id) {
+      toast.error('Please select a lead')
+      return
+    }
+
+    setEnrolling(true)
+    try {
+      const success = await enrollLeadInSequence(selectedLeadId, sequence.id)
+      if (success) {
+        toast.success('Lead enrolled successfully!')
+        setSelectedLeadId('')
+        // Refresh the page to update enrollment count
+        router.refresh()
+      } else {
+        toast.error('Failed to enroll lead. Lead may already be enrolled.')
+      }
+    } catch (error) {
+      console.error('Error enrolling lead:', error)
+      toast.error('Failed to enroll lead')
+    } finally {
+      setEnrolling(false)
+    }
+  }
 
   const handleAddStep = (stepType: SequenceStep['step_type']) => {
     const newStep: SequenceStep = {
@@ -286,6 +338,47 @@ export function SequenceEditor({ mode, sequence }: SequenceEditorProps) {
                 </div>
               )}
             </div>
+
+            {/* Manual Enrollment Section */}
+            {mode === 'edit' && sequence?.id && (
+              <div className="border-t border-zinc-200/50 dark:border-white/10 pt-6 mt-6">
+                <div className="mb-4">
+                  <Label>Manually Enroll Lead</Label>
+                  <p className="text-xs text-zinc-600 dark:text-white/55 mt-0.5">
+                    Select a lead to enroll in this sequence
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedLeadId}
+                    onChange={(e) => setSelectedLeadId(e.target.value)}
+                    disabled={loadingLeads || enrolling}
+                    className="flex-1 rounded-md border border-zinc-200/50 dark:border-white/10 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:opacity-50"
+                  >
+                    <option value="">Select a lead...</option>
+                    {leads.map((lead) => (
+                      <option key={lead.id} value={lead.id}>
+                        {lead.name || 'Unnamed Lead'} {lead.phone ? `(${lead.phone})` : ''} {lead.email ? `- ${lead.email}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    onClick={handleEnrollLead}
+                    disabled={!selectedLeadId || enrolling || loadingLeads}
+                    className="bg-violet-600 hover:bg-violet-700 text-white"
+                  >
+                    {enrolling ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Enrolling...
+                      </>
+                    ) : (
+                      'Enroll Lead'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <Button
               onClick={handleSave}
