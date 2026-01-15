@@ -12,8 +12,10 @@ interface Lead {
   email: string | null
   phone: string | null
   source: string | null
+  interested_in_service_id: string | null
   interested_in_service_name: string | null
   estimated_value: number | null
+  notes: string | null
   score: 'hot' | 'warm' | 'cold'
   status: string
   last_contacted_at: string | null
