@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getTierFromBusiness, getMaxLeads } from '@/lib/permissions'
 import type { SMSProviderConfig } from '@/lib/sms/providers'
+import { getBusinessId } from './utils'
 
 /**
  * Calculates lead score (hot/warm/cold) based on multiple factors
