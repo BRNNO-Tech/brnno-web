@@ -82,7 +82,11 @@ export default async function ReportsPage() {
           </div>
 
           {/* Hero Card - Recovered Revenue */}
-          <CardShell className="mb-6 bg-gradient-to-br from-emerald-500/10 dark:from-emerald-500/10 to-violet-500/10 dark:to-violet-500/10 border-emerald-500/20 dark:border-emerald-500/20">
+          <CardShell 
+            title="" 
+            subtitle=""
+            className="mb-6 bg-gradient-to-br from-emerald-500/10 dark:from-emerald-500/10 to-violet-500/10 dark:to-violet-500/10 border-emerald-500/20 dark:border-emerald-500/20"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-zinc-600 dark:text-white/55 mb-1">Recovered Revenue (30d)</p>
