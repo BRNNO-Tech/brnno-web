@@ -178,66 +178,85 @@ async function sendViaTwilio(
     
     const client = twilio.default(config.twilioAccountSid, config.twilioAuthToken)
 
-    // Normalize phone numbers to E.164 format (ensure + prefix)
+    // Normalize phone numbers to E.164 format
+    function normalizePhoneNumber(phone: string): string {
+      // Remove all non-numeric characters
+      let cleaned = phone.replace(/\D/g, '')
+      
+      // If it's 10 digits (US number without country code), add country code
+      if (cleaned.length === 10) {
+        cleaned = '1' + cleaned
+      }
+      
+      // If it's 11 digits and starts with 1, keep as is
+      if (cleaned.length === 11 && cleaned.startsWith('1')) {
+        return '+' + cleaned
+      }
+      
+      // For other formats, just add + prefix
+      return '+' + cleaned
+    }
+
     // First, check for masking characters BEFORE normalization
     if (config.twilioPhoneNumber && (config.twilioPhoneNumber.includes('X') || config.twilioPhoneNumber.includes('x') || config.twilioPhoneNumber.includes('*'))) {
       return {
         success: false,
-        error: `Invalid Twilio phone number in environment variable: ${config.twilioPhoneNumber}. The phone number appears to be masked or incomplete. Please provide a complete phone number in E.164 format.`,
+        error: `Invalid Twilio phone number in environment variable: ${config.twilioPhoneNumber}. The phone number appears to be masked or incomplete.`,
       }
     }
 
     if (options.to && (options.to.includes('X') || options.to.includes('x') || options.to.includes('*'))) {
       return {
         success: false,
-        error: `Invalid phone number format: ${options.to}. The phone number appears to be masked or incomplete. Please provide a complete phone number in E.164 format (e.g., +15551234567).`,
+        error: `Invalid phone number format: ${options.to}. The phone number appears to be masked or incomplete.`,
       }
     }
 
-    let fromNumber = config.twilioPhoneNumber
-    if (!fromNumber.startsWith('+')) {
-      // Remove all non-digit characters (except +), then add +
-      const digits = fromNumber.replace(/[^\d+]/g, '').replace(/\+/g, '')
-      fromNumber = `+${digits}`
-    } else {
-      // Already has +, just remove non-digits after the +
-      const digits = fromNumber.replace(/[^\d+]/g, '').replace(/\+/g, '')
-      fromNumber = `+${digits}`
-    }
+    // Normalize both numbers
+    const fromNumber = normalizePhoneNumber(config.twilioPhoneNumber)
+    const toNumber = normalizePhoneNumber(options.to)
 
-    let toNumber = options.to
-    if (!toNumber.startsWith('+')) {
-      // Remove all non-digit characters (except +), then add +
-      const digits = toNumber.replace(/[^\d+]/g, '').replace(/\+/g, '')
-      toNumber = `+${digits}`
-    } else {
-      // Already has +, just remove non-digits after the +
-      const digits = toNumber.replace(/[^\d+]/g, '').replace(/\+/g, '')
-      toNumber = `+${digits}`
-    }
+    // Add detailed logging
+    console.log('[sendViaTwilio] Phone number normalization:', {
+      originalFrom: config.twilioPhoneNumber,
+      normalizedFrom: fromNumber,
+      originalTo: options.to,
+      normalizedTo: toNumber,
+    })
 
-    // Validate phone numbers are complete (at least 10 digits after country code)
+    // Validate phone numbers are complete (at least 11 digits for US numbers)
     const fromDigits = fromNumber.replace(/\D/g, '')
     const toDigits = toNumber.replace(/\D/g, '')
-    
-    if (toDigits.length < 10) {
+
+    if (toDigits.length < 11) {
       return {
         success: false,
-        error: `Invalid phone number format: ${options.to} (normalized: ${toNumber}). Phone number must have at least 10 digits. Please provide a complete phone number in E.164 format (e.g., +15551234567).`,
+        error: `Invalid phone number: ${options.to} → ${toNumber} (only ${toDigits.length} digits). Need at least 11 digits including country code.`,
       }
     }
 
-    if (fromDigits.length < 10) {
+    if (fromDigits.length < 11) {
       return {
         success: false,
-        error: `Invalid Twilio phone number in environment variable: ${config.twilioPhoneNumber} (normalized: ${fromNumber}). Phone number must have at least 10 digits. Please provide a complete phone number in E.164 format.`,
+        error: `Invalid Twilio phone number: ${config.twilioPhoneNumber} → ${fromNumber} (only ${fromDigits.length} digits).`,
       }
     }
+
+    console.log('[sendViaTwilio] Sending SMS:', {
+      from: fromNumber,
+      to: toNumber,
+      bodyLength: options.body.length,
+    })
 
     const result = await client.messages.create({
       body: options.body,
       from: fromNumber,
       to: toNumber,
+    })
+
+    console.log('[sendViaTwilio] SMS sent successfully:', {
+      sid: result.sid,
+      status: result.status,
     })
 
     return {
