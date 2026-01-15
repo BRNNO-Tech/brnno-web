@@ -69,9 +69,9 @@ async function sendViaSurge(
 
   try {
     // Dynamically import Surge SDK to avoid errors if not installed
-    let SurgeClass
+    let SurgeClass: any
     try {
-      const SurgeModule = await import('@surgeapi/node')
+      const SurgeModule = await import('@surgeapi/node') as any
       // Try different export patterns: SurgeClient (named), Surge (default), or default
       SurgeClass = SurgeModule.SurgeClient || SurgeModule.Surge || SurgeModule.default?.SurgeClient || SurgeModule.default
       
