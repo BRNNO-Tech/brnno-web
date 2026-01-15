@@ -37,21 +37,57 @@ export async function getServices() {
 
 export async function createService(data: ServiceFormData) {
   const supabase = await createClient();
+  const businessId = await getBusinessId();
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  // Ensure estimated_duration is an integer if provided
+  // Note: Database column is 'price', not 'base_price'
+  // Note: Services table doesn't have 'user_id', only 'business_id'
+  const serviceData: any = {
+    name: data.name.trim(),
+    price: Number(data.base_price), // Map base_price to price column
+    business_id: businessId,
+    is_active: data.is_active ?? true,
+    is_popular: data.is_popular ?? false,
+  };
+  
+  // Add optional fields only if they're provided and not empty
+  if (data.description !== undefined && data.description !== null && data.description.trim() !== '') {
+    serviceData.description = data.description.trim();
+  }
+  if (data.icon !== undefined && data.icon !== null && data.icon.trim() !== '') {
+    serviceData.icon = data.icon.trim();
+  }
+  if (data.image_url !== undefined && data.image_url !== null && data.image_url.trim() !== '') {
+    serviceData.image_url = data.image_url.trim();
+  }
+  if (data.whats_included !== undefined && data.whats_included !== null && Array.isArray(data.whats_included) && data.whats_included.length > 0) {
+    serviceData.whats_included = data.whats_included;
+  }
+  
+  // Convert estimated_duration to integer if provided (database expects int)
+  if (data.estimated_duration !== undefined && data.estimated_duration !== null && !isNaN(data.estimated_duration)) {
+    serviceData.estimated_duration = Math.round(data.estimated_duration);
+  }
+
   const { data: service, error } = await supabase
     .from('services')
-    .insert({
-      ...data,
-      user_id: user.id,
-      is_active: data.is_active ?? true,
-    })
+    .insert(serviceData)
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error creating service:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      data: serviceData
+    });
+    throw error;
+  }
 
   revalidatePath('/services');
   revalidatePath('/booking');
@@ -62,16 +98,37 @@ export async function updateService(id: string, data: ServiceFormData) {
   const supabase = await createClient();
   const businessId = await getBusinessId();
 
+  // Ensure estimated_duration is an integer if provided
+  // Note: Database column is 'price', not 'base_price'
+  const updateData: any = { ...data };
+  
+  // Map base_price to price column if provided
+  if (updateData.base_price !== undefined) {
+    updateData.price = Number(updateData.base_price);
+    delete updateData.base_price;
+  }
+  
+  // Convert estimated_duration to integer if provided (database expects int)
+  if (updateData.estimated_duration !== undefined && updateData.estimated_duration !== null) {
+    updateData.estimated_duration = Math.round(updateData.estimated_duration);
+  }
+
   const { data: service, error } = await supabase
     .from('services')
-    .update(data)
+    .update(updateData)
     .eq('id', id)
     .eq('business_id', businessId)
     .select()
     .single();
 
   if (error) {
-    console.error('Error updating service:', error);
+    console.error('Error updating service:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      data: updateData
+    });
     throw error;
   }
 
@@ -185,14 +242,14 @@ export interface ServiceAddonData {
 
 export async function getServiceAddons(serviceId: string) {
   const supabase = await createClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const businessId = await getBusinessId();
 
+  // Get addons for the specific service
   const { data: addons, error } = await supabase
     .from('service_addons')
     .select('*')
-    .eq('service_id', serviceId)
+    .eq('business_id', businessId)
+    .eq('service_id', serviceId) // Filter by service_id
     .order('name');
 
   if (error) throw error;
@@ -201,30 +258,35 @@ export async function getServiceAddons(serviceId: string) {
 
 export async function saveServiceAddons(serviceId: string, addons: ServiceAddonData[]) {
   const supabase = await createClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const businessId = await getBusinessId();
 
-  // Verify service belongs to user
+  // Verify service belongs to business
   const { data: service } = await supabase
     .from('services')
     .select('id')
     .eq('id', serviceId)
-    .eq('user_id', user.id)
+    .eq('business_id', businessId)
     .single();
 
   if (!service) throw new Error('Service not found');
 
-  // Delete existing addons
+  // Note: service_addons table uses business_id, not service_id
+  // Delete existing addons for this business (if you want service-specific, you'd need to filter differently)
+  // For now, we'll just insert new ones - you may want to delete all business addons first
+  // or implement a different strategy based on your needs
+
+  // Delete existing addons for this service first
   await supabase
     .from('service_addons')
     .delete()
-    .eq('service_id', serviceId);
+    .eq('service_id', serviceId)
+    .eq('business_id', businessId);
 
-  // Insert new addons
+  // Insert new addons with service_id
   if (addons.length > 0) {
     const addonsToInsert = addons.map(addon => ({
-      service_id: serviceId,
+      business_id: businessId,
+      service_id: serviceId, // Link add-ons to the specific service
       name: addon.name,
       description: addon.description || null,
       price: addon.price,
@@ -245,16 +307,14 @@ export async function saveServiceAddons(serviceId: string, addons: ServiceAddonD
 
 export async function createServiceAddon(serviceId: string, addon: ServiceAddonData) {
   const supabase = await createClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const businessId = await getBusinessId();
 
-  // Verify service belongs to user
+  // Verify service belongs to business
   const { data: service } = await supabase
     .from('services')
     .select('id')
     .eq('id', serviceId)
-    .eq('user_id', user.id)
+    .eq('business_id', businessId)
     .single();
 
   if (!service) throw new Error('Service not found');
@@ -262,7 +322,7 @@ export async function createServiceAddon(serviceId: string, addon: ServiceAddonD
   const { data: newAddon, error } = await supabase
     .from('service_addons')
     .insert({
-      service_id: serviceId,
+      business_id: businessId, // Use business_id instead of service_id
       name: addon.name,
       description: addon.description || null,
       price: addon.price,

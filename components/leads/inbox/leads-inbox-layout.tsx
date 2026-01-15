@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { LeadsFiltersPanel } from './leads-filters-panel'
-import { LeadsListPanel } from './leads-list-panel'
-import { LeadDetailPanel } from './lead-detail-panel'
+import { LeadsList } from './leads-list'
+import { LeadSlideOut } from './lead-slide-out'
+import { markLeadAsRead } from '@/lib/actions/leads'
+import { useRouter } from 'next/navigation'
 
 interface Lead {
   id: string
@@ -38,66 +39,74 @@ interface LeadsInboxLayoutProps {
 
 export function LeadsInboxLayout({ leads }: LeadsInboxLayoutProps) {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
-  const [activeView, setActiveView] = useState<'new' | 'at-risk' | 'engaged' | 'booked' | 'lost' | 'dnc'>('new')
-  const [filters, setFilters] = useState({
-    status: '',
-    source: '',
-    service: '',
-    score: '',
-    lastTouch: '',
-    tags: [] as string[],
-  })
+  const [leadsList, setLeadsList] = useState(leads)
+  const router = useRouter()
+  const processedLeadsRef = useRef<Set<string>>(new Set())
+  const selectedLead = selectedLeadId ? leadsList.find(l => l.id === selectedLeadId) : null
 
-  // Filter leads based on active view and filters
-  const filteredLeads = leads.filter(lead => {
-    // Apply view filter
-    if (activeView === 'new' && lead.status !== 'new') return false
-    if (activeView === 'at-risk') {
-      const hoursSinceContact = lead.last_contacted_at
-        ? (Date.now() - new Date(lead.last_contacted_at).getTime()) / (1000 * 60 * 60)
-        : Infinity
-      if (lead.score === 'hot' && hoursSinceContact < 24) return false
-      if (lead.score === 'warm' && hoursSinceContact < 48) return false
-      if (lead.score === 'cold') return false
+  // Update leads list when props change
+  useEffect(() => {
+    setLeadsList(leads)
+  }, [leads])
+
+  // Mark lead as read when selected
+  useEffect(() => {
+    if (!selectedLeadId) return
+    
+    // Skip if we've already processed this lead
+    if (processedLeadsRef.current.has(selectedLeadId)) return
+    
+    const lead = leadsList.find(l => l.id === selectedLeadId)
+    if (!lead || lead.viewed_at) {
+      processedLeadsRef.current.add(selectedLeadId)
+      return
     }
-    if (activeView === 'engaged' && lead.status !== 'in_progress') return false
-    if (activeView === 'booked' && lead.status !== 'booked') return false
-    if (activeView === 'lost' && lead.status !== 'lost') return false
-    if (activeView === 'dnc' && lead.status !== 'dnc') return false
+    
+    // Mark this lead as being processed
+    processedLeadsRef.current.add(selectedLeadId)
+    
+    // Mark as read
+    markLeadAsRead(selectedLeadId).then(() => {
+      // Update local state
+      setLeadsList(prev => prev.map(l => 
+        l.id === selectedLeadId 
+          ? { ...l, viewed_at: new Date().toISOString() }
+          : l
+      ))
+      // Refresh the page data
+      router.refresh()
+    }).catch(error => {
+      console.error('Error marking lead as read:', error)
+      // Remove from processed set on error so we can retry
+      processedLeadsRef.current.delete(selectedLeadId)
+    })
+  }, [selectedLeadId, router])
 
-    // Apply additional filters
-    if (filters.status && lead.status !== filters.status) return false
-    if (filters.source && lead.source !== filters.source) return false
-    if (filters.service && lead.interested_in_service_name !== filters.service) return false
-    if (filters.score && lead.score !== filters.score) return false
-
-    return true
-  })
-
-  const selectedLead = selectedLeadId ? filteredLeads.find(l => l.id === selectedLeadId) : null
+  const handleLeadDeleted = (deletedLeadId: string) => {
+    // Remove deleted lead from list
+    setLeadsList(prev => prev.filter(l => l.id !== deletedLeadId))
+    // Clear selection if deleted lead was selected
+    if (selectedLeadId === deletedLeadId) {
+      setSelectedLeadId(null)
+    }
+    router.refresh()
+  }
 
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">
-      {/* Left Panel: Filters */}
-      <div className="hidden lg:block w-64 flex-shrink-0 border-r border-zinc-200/50 dark:border-white/10 overflow-y-auto">
-        <LeadsFiltersPanel
-          activeView={activeView}
-          onViewChange={setActiveView}
-          filters={filters}
-          onFiltersChange={setFilters}
-        />
-      </div>
-
-      {/* Center Panel: Lead List */}
-      <div className="flex-1 overflow-y-auto min-w-0">
-        <LeadsListPanel
-          leads={filteredLeads}
+      {/* Left Column: List of leads */}
+      <div className="w-80 flex-shrink-0 border-r border-zinc-200/50 dark:border-white/10 overflow-y-auto">
+        <LeadsList
+          leads={leadsList}
           selectedLeadId={selectedLeadId}
           onSelectLead={setSelectedLeadId}
         />
       </div>
 
-      {/* Right Panel: Lead Detail */}
+      {/* Middle Column: Empty or stats (for future use) */}
+      <div className="flex-1 hidden lg:block" />
+
+      {/* Right Column: Slide-out */}
       <div className={cn(
         "hidden xl:block w-96 flex-shrink-0 border-l border-zinc-200/50 dark:border-white/10 overflow-hidden transition-all duration-300 ease-in-out",
         selectedLead 
@@ -105,22 +114,22 @@ export function LeadsInboxLayout({ leads }: LeadsInboxLayoutProps) {
           : "opacity-0 translate-x-full pointer-events-none w-0"
       )}>
         {selectedLead && (
-          <div className="h-full animate-in slide-in-from-right duration-300">
-            <LeadDetailPanel
-              lead={selectedLead}
-              onClose={() => setSelectedLeadId(null)}
-            />
-          </div>
+          <LeadSlideOut
+            lead={selectedLead}
+            onClose={() => setSelectedLeadId(null)}
+            onDelete={handleLeadDeleted}
+          />
         )}
       </div>
 
-      {/* Mobile: Detail as Modal/Drawer */}
+      {/* Mobile: Slide-out as Modal/Drawer */}
       {selectedLead && (
         <div className="xl:hidden fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white dark:bg-zinc-900 shadow-xl animate-in slide-in-from-right duration-300">
-            <LeadDetailPanel
+            <LeadSlideOut
               lead={selectedLead}
               onClose={() => setSelectedLeadId(null)}
+              onDelete={handleLeadDeleted}
             />
           </div>
         </div>

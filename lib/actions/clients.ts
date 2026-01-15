@@ -351,10 +351,16 @@ export async function getClient(id: string) {
       
       // Only log if we have a real error with meaningful content
       if (hasRealError) {
-        const errorInfo: any = {
-          clientId: id,
-          businessId: businessId
+        const errorInfo: any = {}
+        
+        // Only add clientId and businessId if they're defined
+        if (id) {
+          errorInfo.clientId = id
         }
+        if (businessId) {
+          errorInfo.businessId = businessId
+        }
+        
         if (errorCode && String(errorCode).trim().length > 0) {
           errorInfo.code = errorCode
         }
@@ -362,7 +368,10 @@ export async function getClient(id: string) {
           errorInfo.message = errorMessage
         }
         
-        console.error('Invoice query error:', errorInfo)
+        // Only log if errorInfo has at least one meaningful property
+        if (Object.keys(errorInfo).length > 0) {
+          console.error('Invoice query error:', errorInfo)
+        }
       } else {
         // If no meaningful error, treat as no error (likely false positive)
         invoicesError = null

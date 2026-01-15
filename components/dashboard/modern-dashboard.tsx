@@ -446,18 +446,6 @@ export default function ModernDashboard({
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link href="/dashboard/jobs">
-                    <button className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors">
-                      + New Job
-                    </button>
-                  </Link>
-                  <Link href="/dashboard/reports">
-                    <button className="rounded-2xl border border-violet-500/30 dark:border-violet-500/30 bg-violet-500/10 dark:bg-violet-500/15 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-200 hover:bg-violet-500/20 dark:hover:bg-violet-500/20 transition-colors">
-                      View Reports
-                    </button>
-                  </Link>
-                </div>
               </div>
 
               {/* KPI Row */}
@@ -496,58 +484,60 @@ export default function ModernDashboard({
                 />
               </div>
 
-              {/* Two-up: Revenue + Upcoming */}
+              {/* Three-up: Revenue + Upcoming + Reports */}
               <div className="mt-6 grid gap-4 lg:grid-cols-3">
-                <CardShell
-                  title="Revenue Overview"
-                  subtitle="Last 12 months"
-                  action={
-                    <Link href="/dashboard/reports">
-                      <button className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-xs text-zinc-700 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors">
-                        Export
-                      </button>
-                    </Link>
-                  }
-                >
-                  <div className="h-[280px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={revenueData} margin={{ left: 0, right: 0, top: 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" className="dark:stroke-white/8" />
-                        <XAxis
-                          dataKey="month"
-                          tick={{ fill: "rgb(63,63,70)", fontSize: 12 }}
-                          className="dark:[&_text]:fill-white/55 dark:[&_line]:stroke-white/10"
-                          axisLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                          tickLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                        />
-                        <YAxis
-                          tick={{ fill: "rgb(63,63,70)", fontSize: 12 }}
-                          className="dark:[&_text]:fill-white/55 dark:[&_line]:stroke-white/10"
-                          axisLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                          tickLine={{ stroke: "rgba(0,0,0,0.1)" }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            background: "rgba(255,255,255,0.95)",
-                            border: "1px solid rgba(0,0,0,0.1)",
-                            borderRadius: 16,
-                            color: "rgb(24,24,27)",
-                          }}
-                          formatter={(v: any) => currency(Number(v))}
-                          labelStyle={{ color: "rgb(24,24,27)" }}
-                        />
-                        <Bar
-                          dataKey="revenue"
-                          radius={[12, 12, 12, 12]}
-                          fill="rgba(99,102,241,0.65)"
-                          className="dark:fill-[rgba(99,102,241,0.65)]"
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardShell>
+                <div className="lg:col-span-2">
+                  <CardShell
+                    title="Revenue Overview"
+                    subtitle="Last 12 months"
+                    action={
+                      <Link href="/dashboard/reports">
+                        <button className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-1.5 text-xs text-zinc-700 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors">
+                          Export
+                        </button>
+                      </Link>
+                    }
+                  >
+                    <div className="h-[280px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={revenueData} margin={{ left: 0, right: 0, top: 10 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" className="dark:stroke-white/8" />
+                          <XAxis
+                            dataKey="month"
+                            tick={{ fill: "rgb(63,63,70)", fontSize: 12 }}
+                            className="dark:[&_text]:fill-white/55 dark:[&_line]:stroke-white/10"
+                            axisLine={{ stroke: "rgba(0,0,0,0.1)" }}
+                            tickLine={{ stroke: "rgba(0,0,0,0.1)" }}
+                          />
+                          <YAxis
+                            tick={{ fill: "rgb(63,63,70)", fontSize: 12 }}
+                            className="dark:[&_text]:fill-white/55 dark:[&_line]:stroke-white/10"
+                            axisLine={{ stroke: "rgba(0,0,0,0.1)" }}
+                            tickLine={{ stroke: "rgba(0,0,0,0.1)" }}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              background: "rgba(255,255,255,0.95)",
+                              border: "1px solid rgba(0,0,0,0.1)",
+                              borderRadius: 16,
+                              color: "rgb(24,24,27)",
+                            }}
+                            formatter={(v: any) => currency(Number(v))}
+                            labelStyle={{ color: "rgb(24,24,27)" }}
+                          />
+                          <Bar
+                            dataKey="revenue"
+                            radius={[12, 12, 12, 12]}
+                            fill="rgba(99,102,241,0.65)"
+                            className="dark:fill-[rgba(99,102,241,0.65)]"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardShell>
+                </div>
 
-                <div className="lg:col-span-1">
+                <div className="space-y-4">
                   <CardShell
                     title="Upcoming Jobs"
                     subtitle="Next scheduled visits"
@@ -563,7 +553,7 @@ export default function ModernDashboard({
                       {upcomingJobs.length === 0 ? (
                         <p className="text-sm text-zinc-600 dark:text-white/50 text-center py-4">No upcoming jobs</p>
                       ) : (
-                        upcomingJobs.map((j) => (
+                        upcomingJobs.slice(0, 2).map((j) => (
                           <Link key={j.id} href={`/dashboard/jobs`}>
                             <div className="flex items-start justify-between gap-3 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4 hover:bg-zinc-100 dark:hover:bg-white/5 cursor-pointer transition-colors">
                               <div className="min-w-0">
@@ -580,29 +570,41 @@ export default function ModernDashboard({
                                   {j.scheduled_date ? formatJobDate(j.scheduled_date) : "Not scheduled"}
                                 </p>
                               </div>
-                              <button className="shrink-0 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-3 py-2 text-xs text-zinc-700 dark:text-white/75 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors">
-                                View
-                              </button>
                             </div>
                           </Link>
                         ))
                       )}
                     </div>
+                  </CardShell>
 
-                    <div className="mt-4 rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-gradient-to-br from-zinc-50/50 dark:from-white/5 to-transparent p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-zinc-900 dark:text-white">Today's focus</p>
-                          <p className="mt-1 text-xs text-zinc-600 dark:text-white/50">
-                            {stats.activeJobs} active job{stats.activeJobs !== 1 ? 's' : ''} · {upcomingJobs.length} upcoming this week
-                          </p>
+                  <Link href="/dashboard/reports">
+                    <div className="group relative overflow-hidden rounded-3xl border border-violet-500/30 dark:border-violet-500/30 bg-gradient-to-br from-violet-500/15 dark:from-violet-500/15 via-violet-500/10 dark:via-violet-500/10 to-purple-500/5 dark:to-purple-500/5 backdrop-blur-sm p-6 shadow-lg dark:shadow-[0_12px_40px_rgba(139,92,246,0.25)] hover:shadow-xl dark:hover:shadow-[0_16px_50px_rgba(139,92,246,0.35)] transition-all duration-300 hover:-translate-y-1 cursor-pointer">
+                      {/* Animated background glow */}
+                      <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-violet-500/20 dark:bg-violet-500/30 blur-2xl group-hover:bg-violet-500/30 dark:group-hover:bg-violet-500/40 transition-all duration-500" />
+                      <div className="absolute -left-8 -bottom-8 h-24 w-24 rounded-full bg-purple-500/15 dark:bg-purple-500/20 blur-xl group-hover:bg-purple-500/25 dark:group-hover:bg-purple-500/30 transition-all duration-500" />
+                      
+                      <div className="relative">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/20 dark:from-violet-500/25 to-purple-500/15 dark:to-purple-500/20 border border-violet-500/30 dark:border-violet-500/30 shadow-lg">
+                            <BarChart3 className="h-6 w-6 text-violet-600 dark:text-violet-300" />
+                          </div>
+                          <ArrowUpRight className="h-5 w-5 text-violet-600 dark:text-violet-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         </div>
-                        <div className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/15 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300">
-                          <Bell className="h-5 w-5" />
+                        
+                        <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                          View Reports
+                        </h3>
+                        <p className="text-sm text-zinc-600 dark:text-white/60 mb-4">
+                          Analytics, insights & performance metrics
+                        </p>
+                        
+                        <div className="flex items-center gap-2 text-xs text-violet-700 dark:text-violet-300 font-medium">
+                          <span>Explore Reports</span>
+                          <ArrowUpRight className="h-3.5 w-3.5" />
                         </div>
                       </div>
                     </div>
-                  </CardShell>
+                  </Link>
                 </div>
               </div>
 

@@ -34,6 +34,26 @@ type Service = {
 
 type BookingStep = 1 | 2 | 3 | 4 | 5
 
+// Format phone number as (***) ***-****
+function formatPhoneNumber(value: string): string {
+  // Remove all non-digit characters
+  const phoneNumber = value.replace(/\D/g, '')
+
+  // Limit to 10 digits
+  const phoneNumberDigits = phoneNumber.slice(0, 10)
+
+  // Format based on length
+  if (phoneNumberDigits.length === 0) {
+    return ''
+  } else if (phoneNumberDigits.length <= 3) {
+    return `(${phoneNumberDigits}`
+  } else if (phoneNumberDigits.length <= 6) {
+    return `(${phoneNumberDigits.slice(0, 3)}) ${phoneNumberDigits.slice(3)}`
+  } else {
+    return `(${phoneNumberDigits.slice(0, 3)}) ${phoneNumberDigits.slice(3, 6)}-${phoneNumberDigits.slice(6)}`
+  }
+}
+
 export default function BookingForm({
   business,
   service,
@@ -113,32 +133,78 @@ export default function BookingForm({
 
   // Load available add-ons
   useEffect(() => {
+    // Only load if both business and service IDs are available
+    if (!business?.id || !service?.id) {
+      setAddons([])
+      return
+    }
+
     async function loadAddons() {
       setLoadingAddons(true)
       try {
-        console.log('[BookingForm] Loading add-ons for business:', business.id)
-        const response = await fetch(`/api/booking/addons?businessId=${business.id}`)
+        console.log('[BookingForm] Loading add-ons for business:', business.id, 'service:', service.id)
+        const response = await fetch(`/api/booking/addons?businessId=${business.id}&serviceId=${service.id}`)
         console.log('[BookingForm] Add-ons response status:', response.status)
-        
+
         if (response.ok) {
           const data = await response.json()
           console.log('[BookingForm] Add-ons data received:', data)
           const addonsList = data.addons || []
-          console.log('[BookingForm] Setting addons:', addonsList.length, 'addons')
-          setAddons(addonsList)
+          // Deduplicate by ID and ensure no add-ons are auto-selected
+          const uniqueAddons = addonsList.filter((addon: any, index: number, self: any[]) =>
+            index === self.findIndex((a: any) => a.id === addon.id)
+          )
+          console.log('[BookingForm] Setting addons:', uniqueAddons.length, 'addons')
+          setAddons(uniqueAddons)
+          // Ensure selectedAddons stays empty - no auto-selection
+          setFormData(prev => ({ ...prev, selectedAddons: [] }))
         } else {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          console.error('[BookingForm] Error loading add-ons:', errorData)
+          // Try to get error message from response
+          let errorMessage = `Failed to load add-ons (${response.status})`
+          try {
+            const contentType = response.headers.get('content-type')
+            if (contentType && contentType.includes('application/json')) {
+              const errorData = await response.json()
+              // Only log if errorData has meaningful content
+              if (errorData && typeof errorData === 'object' && Object.keys(errorData).length > 0) {
+                errorMessage = errorData.error || errorData.details || errorMessage
+                console.error('[BookingForm] Error loading add-ons:', {
+                  status: response.status,
+                  error: errorData.error,
+                  details: errorData.details,
+                  hint: errorData.hint
+                })
+              } else {
+                // Empty JSON response - just log status
+                console.warn(`[BookingForm] Empty error response from add-ons API (${response.status})`)
+              }
+            } else {
+              const text = await response.text()
+              if (text && text.trim()) {
+                errorMessage = text
+                console.error('[BookingForm] Error loading add-ons (non-JSON):', text)
+              } else {
+                console.warn(`[BookingForm] Empty error response from add-ons API (${response.status})`)
+              }
+            }
+          } catch (parseError) {
+            console.error('[BookingForm] Error parsing error response:', parseError)
+            console.error('[BookingForm] Response status:', response.status, response.statusText)
+          }
+          // Set empty add-ons array on error (don't break the flow)
+          setAddons([])
         }
       } catch (err) {
         console.error('[BookingForm] Exception loading add-ons:', err)
+        // Set empty add-ons array on exception (don't break the flow)
+        setAddons([])
       } finally {
         setLoadingAddons(false)
       }
     }
 
     loadAddons()
-  }, [business.id])
+  }, [business?.id, service?.id])
 
   // Track abandonment on unmount or navigation away
   useEffect(() => {
@@ -170,7 +236,7 @@ export default function BookingForm({
               businessId: business.id,
               name: formData.name,
               email: formData.email,
-              phone: formData.phone || null,
+              phone: formData.phone || null, // Already stored as digits only
               source: 'quote',
               interested_in_service_id: service.id,
               interested_in_service_name: service.name,
@@ -191,7 +257,7 @@ export default function BookingForm({
     createLeadFromQuote()
   }, [quote, business.id, service.id, service.name, formData.name, formData.email, formData.phone, leadId])
 
-  // Step 1: Create Lead (Email + Name)
+  // Step 1: Create Lead (Email + Name + Phone)
   async function handleStep1(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -200,6 +266,14 @@ export default function BookingForm({
     try {
       if (!formData.name.trim() || !formData.email.trim()) {
         setError('Name and email are required')
+        setLoading(false)
+        return
+      }
+
+      // Validate phone number (must have at least 10 digits)
+      const phoneDigits = formData.phone.replace(/\D/g, '')
+      if (!phoneDigits || phoneDigits.length < 10) {
+        setError('Please enter a valid 10-digit phone number')
         setLoading(false)
         return
       }
@@ -217,6 +291,7 @@ export default function BookingForm({
           businessId: business.id,
           name: formData.name.trim(),
           email: formData.email.trim(),
+          phone: formData.phone, // Already stored as digits only
           smsConsent: formData.smsConsent,
           serviceId: service.id,
           serviceName: service.name,
@@ -325,7 +400,7 @@ export default function BookingForm({
         })
       }
 
-      setCurrentStep(4)
+      setCurrentStep(4) // Go to notes step (add-ons are in Step 2)
     } catch (err: any) {
       setError(err.message || 'Failed to proceed. Please try again.')
     } finally {
@@ -333,21 +408,14 @@ export default function BookingForm({
     }
   }
 
-  // Step 3: Phone + Notes
+  // Step 3: Notes (phone already collected in Step 1)
   async function handleStep3(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
     try {
-      // Validate phone number
-      if (!formData.phone || !formData.phone.trim()) {
-        setError('Phone number is required')
-        setLoading(false)
-        return
-      }
-
-      // Update lead progress
+      // Update lead progress (phone already saved in Step 1)
       if (leadId) {
         await fetch('/api/booking/update-lead', {
           method: 'POST',
@@ -356,7 +424,6 @@ export default function BookingForm({
             leadId,
             step: 4,
             data: {
-              phone: formData.phone.trim(),
               notes: formData.notes.trim() || null,
             },
           }),
@@ -468,9 +535,9 @@ export default function BookingForm({
                 </p>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   {currentStep === 1 && 'Your Information'}
-                  {currentStep === 2 && 'Add Extras'}
-                  {currentStep === 3 && 'Date & Time'}
-                  {currentStep === 4 && 'Contact Details'}
+                  {currentStep === 2 && 'Date & Time'}
+                  {currentStep === 3 && 'Add Extras'}
+                  {currentStep === 4 && 'Special Requests'}
                   {currentStep === 5 && 'Location & Vehicle'}
                 </p>
               </div>
@@ -602,6 +669,26 @@ export default function BookingForm({
                       className="h-11 text-base"
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="phone" className="mb-2 block">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formatPhoneNumber(formData.phone)}
+                      onChange={(e) => {
+                        // Store only digits in state, but display formatted
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+                        setFormData({ ...formData, phone: digits })
+                      }}
+                      required
+                      placeholder="(555) 123-4567"
+                      className="h-11 text-base"
+                      maxLength={14} // (555) 123-4567 = 14 characters
+                    />
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
+                      We'll use this to confirm your appointment
+                    </p>
+                  </div>
                   {/* SMS Consent - Cleaner Design */}
                   <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
                     <div className="flex items-start gap-3">
@@ -648,23 +735,23 @@ export default function BookingForm({
                       className="flex h-11 w-full items-center justify-between rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-base shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
                       <span className={formData.date ? 'text-zinc-900 dark:text-zinc-50' : 'text-zinc-500 dark:text-zinc-400'}>
-                        {formData.date 
-                          ? new Date(formData.date + 'T00:00:00').toLocaleDateString('en-US', { 
-                              weekday: 'short', 
-                              month: 'short', 
-                              day: 'numeric',
-                              year: 'numeric'
-                            })
+                        {formData.date
+                          ? new Date(formData.date + 'T00:00:00').toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })
                           : 'Select a date'}
                       </span>
                       <Calendar className="h-4 w-4 text-zinc-500" />
                     </button>
-                    
+
                     {/* Calendar Popup */}
                     {showCalendar && (
                       <>
-                        <div 
-                          className="fixed inset-0 z-40" 
+                        <div
+                          className="fixed inset-0 z-40"
                           onClick={() => setShowCalendar(false)}
                         />
                         <div className="absolute z-50 mt-2 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 shadow-lg">
@@ -695,7 +782,7 @@ export default function BookingForm({
                               <ChevronRight className="h-5 w-5" />
                             </button>
                           </div>
-                          
+
                           {/* Calendar Grid */}
                           <div className="grid grid-cols-7 gap-1">
                             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -711,19 +798,19 @@ export default function BookingForm({
                               const daysInMonth = lastDay.getDate()
                               const startingDayOfWeek = firstDay.getDay()
                               const days: React.ReactElement[] = []
-                              
+
                               // Empty cells for days before month starts
                               for (let i = 0; i < startingDayOfWeek; i++) {
                                 days.push(<div key={`empty-${i}`} className="p-2" />)
                               }
-                              
+
                               // Days of the month
                               for (let day = 1; day <= daysInMonth; day++) {
                                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                                 const isPast = dateStr < today
                                 const isSelected = formData.date === dateStr
                                 const isToday = dateStr === today
-                                
+
                                 days.push(
                                   <button
                                     key={day}
@@ -734,21 +821,20 @@ export default function BookingForm({
                                       setSelectedDate(dateStr)
                                       setShowCalendar(false)
                                     }}
-                                    className={`p-2 rounded-md text-sm transition-colors ${
-                                      isPast
-                                        ? 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed'
-                                        : isSelected
+                                    className={`p-2 rounded-md text-sm transition-colors ${isPast
+                                      ? 'text-zinc-300 dark:text-zinc-600 cursor-not-allowed'
+                                      : isSelected
                                         ? 'bg-blue-600 text-white font-semibold'
                                         : isToday
-                                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold'
-                                        : 'hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-50'
-                                    }`}
+                                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold'
+                                          : 'hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-50'
+                                      }`}
                                   >
                                     {day}
                                   </button>
                                 )
                               }
-                              
+
                               return days
                             })()}
                           </div>
@@ -776,21 +862,19 @@ export default function BookingForm({
                             const displayMinutes = minutes.toString().padStart(2, '0')
                             const period = isPM ? 'PM' : 'AM'
                             const isSelected = formData.time === slot
-                            
+
                             return (
                               <button
                                 key={slot}
                                 type="button"
                                 onClick={() => setFormData({ ...formData, time: slot })}
-                                className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                                  isSelected
-                                    ? 'bg-blue-600 text-white shadow-md'
-                                    : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700'
-                                } border-2 ${
-                                  isSelected
+                                className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${isSelected
+                                  ? 'bg-blue-600 text-white shadow-md'
+                                  : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700'
+                                  } border-2 ${isSelected
                                     ? 'border-blue-600'
                                     : 'border-transparent'
-                                }`}
+                                  }`}
                               >
                                 {displayHours}:{displayMinutes} {period}
                               </button>
@@ -833,79 +917,77 @@ export default function BookingForm({
                   ) : addons.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {addons.map((addon) => {
-                          const isSelected = formData.selectedAddons.some(a => a.id === addon.id)
-                          return (
-                            <div
-                              key={addon.id}
-                              onClick={() => {
-                                if (isSelected) {
-                                  setFormData({
-                                    ...formData,
-                                    selectedAddons: formData.selectedAddons.filter(a => a.id !== addon.id)
-                                  })
-                                } else {
-                                  setFormData({
-                                    ...formData,
-                                    selectedAddons: [...formData.selectedAddons, addon]
-                                  })
-                                }
-                              }}
-                              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                                  : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-purple-300 dark:hover:border-purple-700'
+                        const isSelected = formData.selectedAddons.some(a => a.id === addon.id)
+                        return (
+                          <div
+                            key={addon.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setFormData({
+                                  ...formData,
+                                  selectedAddons: formData.selectedAddons.filter(a => a.id !== addon.id)
+                                })
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  selectedAddons: [...formData.selectedAddons, addon]
+                                })
+                              }
+                            }}
+                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${isSelected
+                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                              : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-purple-300 dark:hover:border-purple-700'
                               }`}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-lg">{addon.icon || '⭐'}</span>
-                                    <h4 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                                      {addon.name}
-                                    </h4>
-                                  </div>
-                                  {addon.description && (
-                                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-                                      {addon.description}
-                                    </p>
-                                  )}
-                                  <p className="text-lg font-bold text-purple-600">
-                                    ${Number(addon.price).toFixed(2)}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-lg">{addon.icon || '⭐'}</span>
+                                  <h4 className="font-semibold text-zinc-900 dark:text-zinc-50">
+                                    {addon.name}
+                                  </h4>
+                                </div>
+                                {addon.description && (
+                                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                                    {addon.description}
                                   </p>
-                                </div>
-                                <div
-                                  className={`ml-3 w-5 h-5 rounded border-2 flex items-center justify-center ${
-                                    isSelected
-                                      ? 'border-purple-500 bg-purple-500'
-                                      : 'border-zinc-300 dark:border-zinc-600'
+                                )}
+                                <p className="text-lg font-bold text-purple-600">
+                                  ${Number(addon.price).toFixed(2)}
+                                </p>
+                              </div>
+                              <div
+                                className={`ml-3 w-5 h-5 rounded border-2 flex items-center justify-center ${isSelected
+                                  ? 'border-purple-500 bg-purple-500'
+                                  : 'border-zinc-300 dark:border-zinc-600'
                                   }`}
-                                >
-                                  {isSelected && (
-                                    <Check className="h-3 w-3 text-white" />
-                                  )}
-                                </div>
+                              >
+                                {isSelected && (
+                                  <Check className="h-3 w-3 text-white" />
+                                )}
                               </div>
                             </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-                        No add-ons available at this time.
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
+                      No add-ons available at this time.
+                    </p>
+                  )}
+                  {formData.selectedAddons.length > 0 && (
+                    <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                      <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                        <span className="font-semibold">Selected:</span>{' '}
+                        {formData.selectedAddons.map(a => a.name).join(', ')}
                       </p>
-                    )}
-                    {formData.selectedAddons.length > 0 && (
-                      <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                        <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                          <span className="font-semibold">Selected:</span>{' '}
-                          {formData.selectedAddons.map(a => a.name).join(', ')}
-                        </p>
-                        <p className="text-sm font-semibold text-purple-600 mt-1">
-                          Add-ons Total: ${formData.selectedAddons.reduce((sum, a) => sum + Number(a.price), 0).toFixed(2)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                      <p className="text-sm font-semibold text-purple-600 mt-1">
+                        Add-ons Total: ${formData.selectedAddons.reduce((sum, a) => sum + Number(a.price), 0).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
@@ -924,27 +1006,12 @@ export default function BookingForm({
               </form>
             )}
 
-            {/* Step 4: Phone + Notes */}
+            {/* Step 4: Notes (phone already collected in Step 1) */}
             {currentStep === 4 && (
               <form onSubmit={handleStep3} className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Phone className="h-5 w-5 text-purple-600" />
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Contact & Notes</h3>
-                </div>
-                <div>
-                  <Label htmlFor="phone" className="mb-2 block">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="(555) 123-4567"
-                    required
-                    className="h-11 text-base"
-                  />
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
-                    We'll use this to contact you about your appointment.
-                  </p>
+                  <MessageSquare className="h-5 w-5 text-purple-600" />
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Special Requests</h3>
                 </div>
                 <div>
                   <Label htmlFor="notes" className="mb-2 block">Special Requests or Notes (Optional)</Label>
@@ -960,7 +1027,7 @@ export default function BookingForm({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setCurrentStep(4)}
+                    onClick={() => setCurrentStep(2)}
                     className="w-full sm:w-auto h-12"
                   >
                     Back
@@ -1231,9 +1298,9 @@ export default function BookingForm({
                   >
                     Back
                   </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={loading} 
+                  <Button
+                    type="submit"
+                    disabled={loading}
                     className="w-full sm:flex-1 h-12 text-base order-1 sm:order-2"
                   >
                     {loading ? 'Processing...' : 'Continue to Payment'}

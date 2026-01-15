@@ -50,6 +50,7 @@ async function getService(serviceId: string, businessId: string) {
     .select('*')
     .eq('id', serviceId)
     .eq('business_id', businessId)
+    .eq('is_active', true) // Only get active services
     .single()
 
   if (error) {

@@ -1,4 +1,4 @@
-import { Target, Inbox, PlayCircle, FileCode, BarChart3, Wrench, Users, Calendar, DollarSign, Sparkles } from 'lucide-react'
+import { Target, Inbox, PlayCircle, BarChart3, Wrench, Users, Calendar, DollarSign, Sparkles } from 'lucide-react'
 
 const features = [
   {
@@ -13,13 +13,8 @@ const features = [
   },
   {
     icon: PlayCircle,
-    title: 'Automated Sequences',
+    title: 'Auto Follow-Up',
     description: 'Build multi-step automation sequences with SMS, email, wait times, and conditional logic. Set it and forget it.',
-  },
-  {
-    icon: FileCode,
-    title: 'Scripts Library',
-    description: 'Template library with performance tracking. A/B test messages and see which scripts convert best.',
   },
   {
     icon: BarChart3,

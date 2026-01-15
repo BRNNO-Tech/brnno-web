@@ -327,7 +327,7 @@ export function SequenceEditor({ mode, sequence }: SequenceEditorProps) {
                   <div>
                     <Label htmlFor="enabled">Enable Sequence</Label>
                     <p className="text-xs text-zinc-600 dark:text-white/55 mt-0.5">
-                      Activate this sequence to start enrolling leads
+                      When enabled, leads matching the trigger will be automatically enrolled and the sequence will process steps
                     </p>
                   </div>
                   <Switch
@@ -345,15 +345,15 @@ export function SequenceEditor({ mode, sequence }: SequenceEditorProps) {
                 <div className="mb-4">
                   <Label>Manually Enroll Lead</Label>
                   <p className="text-xs text-zinc-600 dark:text-white/55 mt-0.5">
-                    Select a lead to enroll in this sequence
+                    Select a lead by name to enroll in this sequence (sequence must be enabled)
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={selectedLeadId}
                     onChange={(e) => setSelectedLeadId(e.target.value)}
                     disabled={loadingLeads || enrolling}
-                    className="flex-1 rounded-md border border-zinc-200/50 dark:border-white/10 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:opacity-50"
+                    className="flex-1 min-w-0 rounded-md border border-zinc-200/50 dark:border-white/10 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:opacity-50"
                   >
                     <option value="">Select a lead by name...</option>
                     {leads
@@ -368,7 +368,7 @@ export function SequenceEditor({ mode, sequence }: SequenceEditorProps) {
                   <Button
                     onClick={handleEnrollLead}
                     disabled={!selectedLeadId || enrolling || loadingLeads}
-                    className="bg-violet-600 hover:bg-violet-700 text-white"
+                    className="bg-violet-600 hover:bg-violet-700 text-white whitespace-nowrap shrink-0"
                   >
                     {enrolling ? (
                       <>
@@ -380,6 +380,11 @@ export function SequenceEditor({ mode, sequence }: SequenceEditorProps) {
                     )}
                   </Button>
                 </div>
+                {!enabled && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    Note: Sequence is disabled. Enable it above to start processing enrolled leads automatically.
+                  </p>
+                )}
               </div>
             )}
 

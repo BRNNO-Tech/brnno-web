@@ -417,10 +417,13 @@ export async function enrollLeadInSequence(leadId: string, sequenceId: string): 
       .eq('business_id', businessId)
       .single()
 
-    if (seqError || !sequence || !sequence.enabled) {
-      console.log('Sequence not found or not enabled:', sequenceId)
+    if (seqError || !sequence) {
+      console.log('Sequence not found:', sequenceId)
       return false
     }
+
+    // Allow enrollment even if sequence is disabled (user can enable it later)
+    // The cron job will only process enabled sequences, so this is fine
 
     // Check if already enrolled
     const { data: existing } = await supabase

@@ -50,9 +50,11 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
   const [name, setName] = useState(service?.name || '');
   const [description, setDescription] = useState(service?.description || '');
   const [basePrice, setBasePrice] = useState(service?.base_price?.toString() || '');
-  const [estimatedDuration, setEstimatedDuration] = useState(
-    service?.estimated_duration?.toString() || ''
-  );
+  // Convert minutes to hours for display (if editing)
+  const initialDurationHours = service?.estimated_duration 
+    ? (service.estimated_duration / 60).toFixed(1) 
+    : '';
+  const [estimatedDuration, setEstimatedDuration] = useState(initialDurationHours);
   const [icon, setIcon] = useState(service?.icon || '✨');
   const [imageUrl, setImageUrl] = useState(service?.image_url || '');
   const [isPopular, setIsPopular] = useState(service?.is_popular || false);
@@ -182,11 +184,15 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
 
     setIsLoading(true);
     try {
+      // Convert hours to minutes for storage
+      const hours = estimatedDuration ? parseFloat(estimatedDuration) : undefined;
+      const minutes = hours !== undefined ? Math.round(hours * 60) : undefined;
+      
       const serviceData = {
         name: name.trim(),
         description: description.trim() || undefined,
         base_price: parseFloat(basePrice),
-        estimated_duration: estimatedDuration ? parseInt(estimatedDuration) : undefined,
+        estimated_duration: minutes,
         icon,
         image_url: imageUrl || undefined,
         is_popular: isPopular,
@@ -283,14 +289,15 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duration">Est. Duration (minutes)</Label>
+              <Label htmlFor="duration">Est. Duration (hours)</Label>
               <Input
                 id="duration"
                 type="number"
+                step="0.5"
                 min="0"
                 value={estimatedDuration}
                 onChange={(e) => setEstimatedDuration(e.target.value)}
-                placeholder="120"
+                placeholder="2.0"
               />
             </div>
           </div>

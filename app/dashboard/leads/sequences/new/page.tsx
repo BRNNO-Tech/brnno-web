@@ -23,10 +23,10 @@ export default function NewSequencePage() {
             </Link>
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white">
-                Create Sequence
+                Create Auto Follow-Up
               </h1>
               <p className="mt-1 text-sm text-zinc-600 dark:text-white/55">
-                Build an automated follow-up sequence for your leads
+                Build an automated follow-up for your leads
               </p>
             </div>
           </div>

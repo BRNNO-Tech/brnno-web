@@ -49,6 +49,7 @@ async function getServices(businessId: string) {
     .from('services')
     .select('*')
     .eq('business_id', businessId)
+    .eq('is_active', true) // Only get active services
     .order('name', { ascending: true })
 
   if (error) {
@@ -56,7 +57,12 @@ async function getServices(businessId: string) {
     return []
   }
 
-  return services || []
+  // Deduplicate by ID (in case of any duplicates)
+  const uniqueServices = (services || []).filter((service, index, self) =>
+    index === self.findIndex((s) => s.id === service.id)
+  )
+
+  return uniqueServices
 }
 
 export default async function BookingPage({

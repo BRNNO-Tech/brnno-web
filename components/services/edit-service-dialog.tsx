@@ -39,11 +39,16 @@ export default function EditServiceDialog({
     const formData = new FormData(e.currentTarget)
     
     try {
+      const hoursInput = formData.get('duration_minutes') as string
+      const hours = hoursInput ? parseFloat(hoursInput) : undefined
+      // Convert hours to minutes for storage
+      const minutes = hours !== undefined ? Math.round(hours * 60) : undefined
+      
       await updateService(service.id, {
         name: formData.get('name') as string,
         description: formData.get('description') as string || undefined,
         base_price: parseFloat(formData.get('price') as string) || 0,
-        estimated_duration: parseFloat(formData.get('duration_minutes') as string) ? parseFloat(formData.get('duration_minutes') as string) * 60 : undefined,
+        estimated_duration: minutes,
       })
       onOpenChange(false)
     } catch (error) {

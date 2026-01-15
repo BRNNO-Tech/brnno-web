@@ -23,7 +23,7 @@ export default function Hero() {
         </h1>
         
         <p className="text-base sm:text-lg md:text-xl text-zinc-600 dark:text-zinc-400 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
-          Turn missed opportunities into booked jobs with our powerful lead recovery system. Track, automate, and convert leads with sequences, scripts, and real-time analytics—all while managing your entire business in one place.
+          Turn missed opportunities into booked jobs with our powerful lead recovery system. Track, automate, and convert leads with Auto Follow-Up sequences and real-time analytics—all while managing your entire business in one place.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">

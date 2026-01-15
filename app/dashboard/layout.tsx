@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "@/lib/actions/auth";
 import { getBusiness } from "@/lib/actions/business";
 import { useFeatureGate } from "@/hooks/use-feature-gate";
+import { getUnreadLeadsCount } from "@/lib/actions/leads";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -76,9 +77,8 @@ const navigation: NavigationEntry[] = [
     items: [
       { name: "Recovery Command Center", href: "/dashboard/leads", icon: Target, requiredFeature: "limited_lead_recovery" },
       { name: "Leads Inbox", href: "/dashboard/leads/inbox", icon: Inbox, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
-      { name: "Sequences", href: "/dashboard/leads/sequences", icon: PlayCircle, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
-      { name: "Scripts", href: "/dashboard/leads/scripts", icon: FileCode, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
-      { name: "Reports", href: "/dashboard/leads/reports", icon: BarChart, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
+      { name: "Auto Follow-Up", href: "/dashboard/leads/sequences", icon: PlayCircle, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
+      // { name: "Scripts", href: "/dashboard/leads/scripts", icon: FileCode, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" }, // Hidden - may revisit later
     ],
   },
   {
@@ -104,12 +104,12 @@ const navigation: NavigationEntry[] = [
   },
 ];
 
-function Sidebar({ 
-  isCollapsed, 
-  toggleSidebar, 
+function Sidebar({
+  isCollapsed,
+  toggleSidebar,
   isMobile = false,
-  onMobileClose 
-}: { 
+  onMobileClose
+}: {
   isCollapsed: boolean
   toggleSidebar: () => void
   isMobile?: boolean
@@ -118,8 +118,9 @@ function Sidebar({
   const pathname = usePathname()
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const [businessName, setBusinessName] = useState<string>('Business')
+  const [unreadCount, setUnreadCount] = useState<number>(0)
   const { can } = useFeatureGate()
-  
+
   useEffect(() => {
     async function loadBusiness() {
       try {
@@ -133,7 +134,32 @@ function Sidebar({
     }
     loadBusiness()
   }, [])
-  
+
+  useEffect(() => {
+    // Check access inside effect to avoid dependency issues
+    if (!can('lead_recovery_dashboard')) {
+      setUnreadCount(0)
+      return
+    }
+
+    async function loadUnreadCount() {
+      try {
+        const count = await getUnreadLeadsCount()
+        setUnreadCount(count)
+      } catch (error) {
+        console.error('Error loading unread count:', error)
+      }
+    }
+
+    loadUnreadCount()
+
+    // Refresh count every 30 seconds
+    const interval = setInterval(loadUnreadCount, 30000)
+
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]) // Only depend on pathname, check can() inside
+
   async function handleLogout() {
     // Use server action for proper cookie handling
     await signOut()
@@ -191,9 +217,9 @@ function Sidebar({
             const navItem = item as NavigationItem
             const Icon = navItem.icon as React.ComponentType<{ className?: string }>
             const isActive = pathname === navItem.href
-            
+
             if (!Icon) return null
-            
+
             return (
               <Link
                 key={navItem.name}
@@ -203,7 +229,7 @@ function Sidebar({
                   "group flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition",
                   "hover:bg-zinc-100/50 dark:hover:bg-white/5",
                   isActive &&
-                    "bg-gradient-to-r from-violet-500/15 to-transparent ring-1 ring-violet-500/25"
+                  "bg-gradient-to-r from-violet-500/15 to-transparent ring-1 ring-violet-500/25"
                 )}
                 title={isCollapsed && !isMobile ? navItem.name : undefined}
               >
@@ -212,7 +238,7 @@ function Sidebar({
                     className={cn(
                       "grid h-9 w-9 place-items-center rounded-xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-white/5",
                       isActive &&
-                        "border-violet-500/25 dark:border-violet-500/25 bg-violet-500/10 dark:bg-violet-500/10 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
+                      "border-violet-500/25 dark:border-violet-500/25 bg-violet-500/10 dark:bg-violet-500/10 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
                     )}
                   >
                     <Icon className={cn("h-4 w-4 text-zinc-700 dark:text-white/70", isActive && "text-violet-600 dark:text-violet-300")} />
@@ -240,7 +266,7 @@ function Sidebar({
           }
 
           const isGroupCollapsed = collapsedGroups[navGroup.name]
-          
+
           return (
             <div key={navGroup.name} className="mt-6">
               {/* Group Header */}
@@ -271,14 +297,14 @@ function Sidebar({
                   {navGroup.items?.map((subItem: NavigationItem) => {
                     const Icon = subItem.icon as React.ComponentType<{ className?: string }> | undefined
                     const isActive = pathname === subItem.href || (subItem.href !== '/dashboard' && pathname?.startsWith(subItem.href))
-                    
+
                     // Hide items that require features the user doesn't have
                     if (subItem.requiredFeature && !can(subItem.requiredFeature)) {
                       return null
                     }
-                    
+
                     if (!Icon) return null
-                    
+
                     return (
                       <Link
                         key={subItem.name}
@@ -288,7 +314,7 @@ function Sidebar({
                           "group flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition",
                           "hover:bg-zinc-100/50 dark:hover:bg-white/5",
                           isActive &&
-                            "bg-gradient-to-r from-violet-500/15 to-transparent ring-1 ring-violet-500/25"
+                          "bg-gradient-to-r from-violet-500/15 to-transparent ring-1 ring-violet-500/25"
                         )}
                       >
                         <span className="flex items-center gap-3">
@@ -296,13 +322,19 @@ function Sidebar({
                             className={cn(
                               "grid h-9 w-9 place-items-center rounded-xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-white/5",
                               isActive &&
-                                "border-violet-500/25 dark:border-violet-500/25 bg-violet-500/10 dark:bg-violet-500/10 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
+                              "border-violet-500/25 dark:border-violet-500/25 bg-violet-500/10 dark:bg-violet-500/10 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
                             )}
                           >
                             <Icon className={cn("h-4 w-4 text-zinc-700 dark:text-white/70", isActive && "text-violet-600 dark:text-violet-300")} />
                           </span>
                           <span className={cn("text-zinc-700 dark:text-white/75", isActive && "text-zinc-900 dark:text-white")}>{subItem.name}</span>
                         </span>
+                        {/* Show unread count badge for Leads Inbox */}
+                        {subItem.href === '/dashboard/leads/inbox' && unreadCount > 0 && (
+                          <span className="rounded-full bg-violet-500 text-white px-2 py-0.5 text-xs font-semibold min-w-[20px] text-center">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        )}
                         {subItem.badge && (
                           <span className="rounded-full bg-amber-500/15 dark:bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
                             {subItem.badge}
@@ -414,7 +446,7 @@ function DateRangeSelector({ value, onChange }: { value: string; onChange: (valu
 // Add Lead Button for Topbar
 function AddLeadButtonTopbar() {
   const [open, setOpen] = useState(false)
-  
+
   return (
     <>
       <button
@@ -453,7 +485,7 @@ function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle: () => void }) {
 
   // Get first letter for avatar
   const initial = businessName.charAt(0).toUpperCase()
-  
+
   // Check if we're on a leads page to show leads-specific topbar features
   const isLeadsPage = pathname?.startsWith('/dashboard/leads')
 
@@ -489,7 +521,8 @@ function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle: () => void }) {
           )}
 
           {/* Quick Action Button - shown on leads pages */}
-          {isLeadsPage && (
+          {/* Temporarily hidden - not creating leads manually for now */}
+          {false && isLeadsPage && (
             <div className="hidden md:flex">
               <AddLeadButtonTopbar />
             </div>
@@ -531,15 +564,15 @@ export default function DashboardLayout({
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 dark:bg-black/50 backdrop-blur-sm"
             onClick={() => setIsMobileMenuOpen(false)}
           />
           {/* Sidebar */}
           <div className="fixed left-0 top-0 bottom-0 w-64 animate-in slide-in-from-left">
-            <Sidebar 
-              isCollapsed={false} 
-              toggleSidebar={() => {}} 
+            <Sidebar
+              isCollapsed={false}
+              toggleSidebar={() => { }}
               isMobile={true}
               onMobileClose={() => setIsMobileMenuOpen(false)}
             />

@@ -25,8 +25,15 @@ export function BookingServices({
   onSelectService,
   onToggleAddon
 }: BookingServicesProps) {
+  // Filter out inactive services and deduplicate by ID
+  const activeServices = services
+    .filter((service) => service.is_active !== false) // Only show active services
+    .filter((service, index, self) => 
+      index === self.findIndex((s) => s.id === service.id) // Deduplicate by ID
+    )
+
   // Sort services: popular first, then by price
-  const sortedServices = [...services].sort((a, b) => {
+  const sortedServices = [...activeServices].sort((a, b) => {
     if (a.is_popular && !b.is_popular) return -1;
     if (!a.is_popular && b.is_popular) return 1;
     return (a.base_price || 0) - (b.base_price || 0);

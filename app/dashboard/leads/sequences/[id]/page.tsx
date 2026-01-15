@@ -33,7 +33,7 @@ export default async function EditSequencePage({ params }: EditSequencePageProps
             </Link>
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white">
-                Edit Sequence
+                Edit Auto Follow-Up
               </h1>
               <p className="mt-1 text-sm text-zinc-600 dark:text-white/55">
                 {sequence.name}

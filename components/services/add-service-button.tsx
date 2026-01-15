@@ -27,17 +27,31 @@ export default function AddServiceButton() {
     const formData = new FormData(e.currentTarget)
     
     try {
+      const hoursInput = formData.get('duration_minutes') as string
+      const hours = hoursInput ? parseFloat(hoursInput) : undefined
+      // Convert hours to minutes for storage
+      const minutes = hours !== undefined ? Math.round(hours * 60) : undefined
+      
+      const priceInput = formData.get('price') as string
+      const price = priceInput ? parseFloat(priceInput) : 0
+      
+      if (!price || price <= 0) {
+        alert('Please enter a valid price')
+        return
+      }
+      
       await createService({
         name: formData.get('name') as string,
         description: formData.get('description') as string || undefined,
-        base_price: parseFloat(formData.get('price') as string) || 0,
-        estimated_duration: parseFloat(formData.get('duration_minutes') as string) || undefined,
+        base_price: price,
+        estimated_duration: minutes,
       })
       formRef.current?.reset()
       setOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating service:', error)
-      alert('Failed to create service')
+      const errorMessage = error?.message || error?.code || 'Failed to create service. Please check the console for details.'
+      alert(`Error: ${errorMessage}`)
     } finally {
       setLoading(false)
     }

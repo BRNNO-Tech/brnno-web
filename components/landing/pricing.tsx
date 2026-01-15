@@ -42,8 +42,7 @@ const plans = [
     features: [
       'Everything in Starter, plus:',
       'Lead Recovery Command Center (3-panel inbox)',
-      'Automated Sequences Builder (multi-step workflows)',
-      'Scripts Library with Performance Tracking',
+      'Auto Follow-Up Sequences (multi-step workflows)',
       'Reports & Analytics (revenue, funnels, ROI)',
       'Full Automation (reviews, follow-ups, rebook reminders)',
       'Services with Add-ons Management',
