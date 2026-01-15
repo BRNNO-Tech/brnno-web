@@ -169,7 +169,8 @@ export default function WorkerRouteMap({ jobs }: { jobs: Job[] }) {
                         month: 'short',
                         day: 'numeric',
                         hour: 'numeric',
-                        minute: '2-digit'
+                        minute: '2-digit',
+                        hour12: true
                       })}
                     </span>
                   </div>

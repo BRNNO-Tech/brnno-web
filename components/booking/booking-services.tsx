@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Check, Clock, DollarSign, Star } from 'lucide-react';
+import { getStartingPrice, isVariablePricing, getServicePrice, getServiceDuration } from '@/lib/utils/service-pricing';
+import type { VehicleType } from '@/components/services/pricing-config';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
@@ -120,18 +122,34 @@ export function BookingServices({
                 </div>
 
                 {/* Price & Duration */}
-                <div className="flex items-center gap-4 text-sm font-semibold">
-                  <div className="flex items-center gap-1.5 text-primary">
-                    <DollarSign className="h-4 w-4" />
-                    <span>${service.base_price}</span>
-                  </div>
-                  {service.estimated_duration && (
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{service.estimated_duration} min</span>
+                {(() => {
+                  const vehicleType = (selectedService as any)?.vehicleType as VehicleType | undefined
+                  const price = vehicleType 
+                    ? getServicePrice(service as any, vehicleType)
+                    : getStartingPrice(service as any)
+                  const duration = vehicleType
+                    ? getServiceDuration(service as any, vehicleType)
+                    : (service.estimated_duration || service.base_duration || 120)
+                  const isVariable = isVariablePricing(service as any)
+                  const showStartingAt = isVariable && !vehicleType
+                  
+                  return (
+                    <div className="flex items-center gap-4 text-sm font-semibold">
+                      <div className="flex items-center gap-1.5 text-primary">
+                        <DollarSign className="h-4 w-4" />
+                        <span>
+                          {showStartingAt ? 'Starting at ' : ''}${price.toFixed(2)}
+                        </span>
+                      </div>
+                      {duration && (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          <span>{duration} min</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  )
+                })()}
 
                 {/* What's Included */}
                 {service.whats_included && 

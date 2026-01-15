@@ -32,6 +32,9 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ServiceAddon, COMMON_ADDONS } from '@/lib/addons/addon-presets';
 import { Badge } from '@/components/ui/badge';
+import FeatureSelector from '@/components/services/feature-selector';
+import { MASTER_FEATURES } from '@/lib/features/master-features';
+import PricingConfig, { type PricingData, type VehicleType } from '@/components/services/pricing-config';
 
 interface ServiceFormProps {
   service?: Service;
@@ -49,19 +52,25 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
   // Form state
   const [name, setName] = useState(service?.name || '');
   const [description, setDescription] = useState(service?.description || '');
-  const [basePrice, setBasePrice] = useState(service?.base_price?.toString() || '');
-  // Convert minutes to hours for display (if editing)
-  const initialDurationHours = service?.estimated_duration 
-    ? (service.estimated_duration / 60).toFixed(1) 
-    : '';
-  const [estimatedDuration, setEstimatedDuration] = useState(initialDurationHours);
   const [icon, setIcon] = useState(service?.icon || '✨');
   const [imageUrl, setImageUrl] = useState(service?.image_url || '');
   const [isPopular, setIsPopular] = useState(service?.is_popular || false);
   const [whatsIncluded, setWhatsIncluded] = useState<string[]>(
     Array.isArray(service?.whats_included) ? service.whats_included : []
   );
-  const [newIncludedItem, setNewIncludedItem] = useState('');
+
+  // Pricing state - handle both old and new format
+  const initialPrice = service?.base_price ?? service?.price ?? 0;
+  const initialDuration = service?.base_duration ?? service?.estimated_duration ?? 120;
+  const initialPricingModel = (service as any)?.pricing_model || 'flat';
+  const initialVariations = (service as any)?.variations || {};
+
+  const [pricingData, setPricingData] = useState<PricingData>({
+    pricing_model: initialPricingModel,
+    base_price: initialPrice,
+    base_duration: initialDuration,
+    variations: initialVariations,
+  });
 
   // Add-ons state
   const [addons, setAddons] = useState<ServiceAddon[]>([]);
@@ -116,15 +125,6 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
     }
   };
 
-  const addIncludedItem = () => {
-    if (!newIncludedItem.trim()) return;
-    setWhatsIncluded([...whatsIncluded, newIncludedItem.trim()]);
-    setNewIncludedItem('');
-  };
-
-  const removeIncludedItem = (index: number) => {
-    setWhatsIncluded(whatsIncluded.filter((_, i) => i !== index));
-  };
 
   // Add-ons management
   const addPresetAddon = (preset: typeof COMMON_ADDONS[0]) => {
@@ -169,9 +169,20 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !basePrice) {
+    if (!name.trim() || !pricingData.base_price) {
       toast.error('Please fill in all required fields');
       return;
+    }
+
+    // Validate variable pricing if enabled
+    if (pricingData.pricing_model === 'variable') {
+      const hasValidVariation = Object.values(pricingData.variations || {}).some(
+        (v) => v.enabled && v.price > 0 && v.duration > 0
+      );
+      if (!hasValidVariation) {
+        toast.error('Please set at least one vehicle size with price and duration');
+        return;
+      }
     }
 
     // Validate add-ons
@@ -184,15 +195,15 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
 
     setIsLoading(true);
     try {
-      // Convert hours to minutes for storage
-      const hours = estimatedDuration ? parseFloat(estimatedDuration) : undefined;
-      const minutes = hours !== undefined ? Math.round(hours * 60) : undefined;
-      
       const serviceData = {
         name: name.trim(),
         description: description.trim() || undefined,
-        base_price: parseFloat(basePrice),
-        estimated_duration: minutes,
+        base_price: pricingData.base_price,
+        base_duration: pricingData.base_duration,
+        pricing_model: pricingData.pricing_model,
+        variations: pricingData.pricing_model === 'variable' ? pricingData.variations : undefined,
+        // Keep estimated_duration for backward compatibility (use base_duration)
+        estimated_duration: pricingData.base_duration,
         icon,
         image_url: imageUrl || undefined,
         is_popular: isPopular,
@@ -263,44 +274,28 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what's special about this service..."
-              rows={3}
+              onChange={(e) => {
+                // Limit to 200 characters (about 2 sentences)
+                const value = e.target.value;
+                if (value.length <= 200) {
+                  setDescription(value);
+                }
+              }}
+              placeholder="Brief description (1-2 sentences)..."
+              rows={2}
+              maxLength={200}
             />
+            <p className="text-xs text-muted-foreground">
+              {description.length}/200 characters
+            </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="basePrice">Base Price * ($)</Label>
-              <Input
-                id="basePrice"
-                type="number"
-                step="0.01"
-                min="0"
-                value={basePrice}
-                onChange={(e) => setBasePrice(e.target.value)}
-                placeholder="99.99"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="duration">Est. Duration (hours)</Label>
-              <Input
-                id="duration"
-                type="number"
-                step="0.5"
-                min="0"
-                value={estimatedDuration}
-                onChange={(e) => setEstimatedDuration(e.target.value)}
-                placeholder="2.0"
-              />
-            </div>
-          </div>
+          {/* Pricing Configuration */}
+          <PricingConfig data={pricingData} onChange={setPricingData} />
 
           <div className="flex items-center space-x-2">
             <Switch
@@ -379,52 +374,15 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
         <CardHeader>
           <CardTitle>What's Included</CardTitle>
           <CardDescription>
-            List the features and services included in this package
+            Select the features and services included in this package
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              value={newIncludedItem}
-              onChange={(e) => setNewIncludedItem(e.target.value)}
-              placeholder="e.g., Exterior wash and dry"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addIncludedItem();
-                }
-              }}
-            />
-            <Button
-              type="button"
-              onClick={addIncludedItem}
-              variant="outline"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add
-            </Button>
-          </div>
-
-          {whatsIncluded.length > 0 && (
-            <div className="space-y-2">
-              {whatsIncluded.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 p-3 bg-muted rounded-lg"
-                >
-                  <span className="flex-1">{item}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeIncludedItem(index)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+        <CardContent>
+          <FeatureSelector
+            featuresConfig={MASTER_FEATURES}
+            selectedIds={whatsIncluded}
+            onChange={setWhatsIncluded}
+          />
         </CardContent>
       </Card>
 

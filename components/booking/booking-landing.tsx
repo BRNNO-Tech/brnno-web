@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Phone, Mail, MapPin } from 'lucide-react'
+import { getStartingPrice, isVariablePricing } from '@/lib/utils/service-pricing'
 
 type Business = {
   id: string
@@ -114,19 +115,25 @@ export default function BookingLanding({
 
                   <div className="flex items-end justify-between mb-4">
                     <div>
-                      {service.price && (
-                        <p className="text-3xl font-bold text-green-600 dark:text-green-500">
-                          ${service.price.toFixed(2)}
-                        </p>
-                      )}
-                      {service.duration_minutes && (
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                          ~
-                          {service.duration_minutes % 60 === 0
-                            ? `${service.duration_minutes / 60} ${service.duration_minutes / 60 === 1 ? 'hour' : 'hours'}`
-                            : `${(service.duration_minutes / 60).toFixed(1)} hours`}
-                        </p>
-                      )}
+                      {(() => {
+                        const price = getStartingPrice(service as any)
+                        const isVariable = isVariablePricing(service as any)
+                        return (
+                          <>
+                            <p className="text-3xl font-bold text-green-600 dark:text-green-500">
+                              {isVariable ? 'Starting at ' : ''}${price.toFixed(2)}
+                            </p>
+                            {service.duration_minutes && (
+                              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                                ~
+                                {service.duration_minutes % 60 === 0
+                                  ? `${service.duration_minutes / 60} ${service.duration_minutes / 60 === 1 ? 'hour' : 'hours'}`
+                                  : `${(service.duration_minutes / 60).toFixed(1)} hours`}
+                              </p>
+                            )}
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
 

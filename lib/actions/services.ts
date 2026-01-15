@@ -8,7 +8,10 @@ export interface ServiceFormData {
   name: string;
   description?: string;
   base_price: number;
-  estimated_duration?: number;
+  base_duration?: number;
+  pricing_model?: 'flat' | 'variable';
+  variations?: Record<string, { price: number; duration: number; enabled: boolean }>;
+  estimated_duration?: number; // Legacy field for backward compatibility
   icon?: string;
   image_url?: string;
   is_popular?: boolean;
@@ -47,7 +50,7 @@ export async function createService(data: ServiceFormData) {
   // Note: Services table doesn't have 'user_id', only 'business_id'
   const serviceData: any = {
     name: data.name.trim(),
-    price: Number(data.base_price), // Map base_price to price column
+    price: Number(data.base_price), // Map base_price to price column (for backward compatibility)
     business_id: businessId,
     is_active: data.is_active ?? true,
     is_popular: data.is_popular ?? false,
@@ -67,9 +70,23 @@ export async function createService(data: ServiceFormData) {
     serviceData.whats_included = data.whats_included;
   }
   
-  // Convert estimated_duration to integer if provided (database expects int)
-  if (data.estimated_duration !== undefined && data.estimated_duration !== null && !isNaN(data.estimated_duration)) {
+  // Handle new pricing fields
+  if (data.pricing_model !== undefined) {
+    serviceData.pricing_model = data.pricing_model;
+  }
+  if (data.base_duration !== undefined && data.base_duration !== null) {
+    serviceData.base_duration = Math.round(data.base_duration);
+    // Also set estimated_duration for backward compatibility
+    serviceData.estimated_duration = Math.round(data.base_duration);
+  } else if (data.estimated_duration !== undefined && data.estimated_duration !== null && !isNaN(data.estimated_duration)) {
+    // Fallback to legacy field
     serviceData.estimated_duration = Math.round(data.estimated_duration);
+    serviceData.base_duration = Math.round(data.estimated_duration);
+  }
+  
+  // Add variations if variable pricing is enabled
+  if (data.pricing_model === 'variable' && data.variations) {
+    serviceData.variations = data.variations;
   }
 
   const { data: service, error } = await supabase
@@ -108,9 +125,21 @@ export async function updateService(id: string, data: ServiceFormData) {
     delete updateData.base_price;
   }
   
-  // Convert estimated_duration to integer if provided (database expects int)
-  if (updateData.estimated_duration !== undefined && updateData.estimated_duration !== null) {
+  // Handle base_duration and estimated_duration
+  if (updateData.base_duration !== undefined && updateData.base_duration !== null) {
+    updateData.base_duration = Math.round(updateData.base_duration);
+    // Also set estimated_duration for backward compatibility
+    updateData.estimated_duration = Math.round(updateData.base_duration);
+  } else if (updateData.estimated_duration !== undefined && updateData.estimated_duration !== null) {
+    // Fallback to legacy field
     updateData.estimated_duration = Math.round(updateData.estimated_duration);
+    updateData.base_duration = Math.round(updateData.estimated_duration);
+  }
+  
+  // Handle variations - only include if variable pricing
+  if (updateData.pricing_model === 'flat' && updateData.variations) {
+    // Clear variations when switching to flat
+    updateData.variations = {};
   }
 
   const { data: service, error } = await supabase
@@ -180,6 +209,12 @@ export async function getService(id: string) {
     throw new Error('Service not found');
   }
   
+  // Map price to base_price for form compatibility
+  // Database uses 'price' but form expects 'base_price'
+  if (service.price !== undefined && service.base_price === undefined) {
+    service.base_price = service.price;
+  }
+  
   return service;
 }
 
@@ -193,18 +228,38 @@ export async function uploadServiceImage(file: File) {
   const fileExt = file.name.split('.').pop();
   const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
-  // Upload to Supabase Storage
-  const { data, error } = await supabase.storage
+  // Use service role client for storage to bypass RLS (we've already verified auth)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase configuration for storage upload');
+  }
+
+  // Create service role client for storage operations
+  const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+  const storageClient = createServiceClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+
+  // Upload to Supabase Storage using service role (bypasses RLS)
+  const { data, error } = await storageClient.storage
     .from('service-images')
     .upload(fileName, file, {
       cacheControl: '3600',
       upsert: false,
     });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Storage upload error:', error);
+    throw new Error(`Failed to upload image: ${error.message}`);
+  }
 
   // Get public URL
-  const { data: { publicUrl } } = supabase.storage
+  const { data: { publicUrl } } = storageClient.storage
     .from('service-images')
     .getPublicUrl(fileName);
 
@@ -322,7 +377,8 @@ export async function createServiceAddon(serviceId: string, addon: ServiceAddonD
   const { data: newAddon, error } = await supabase
     .from('service_addons')
     .insert({
-      business_id: businessId, // Use business_id instead of service_id
+      business_id: businessId,
+      service_id: serviceId, // Link add-on to the specific service
       name: addon.name,
       description: addon.description || null,
       price: addon.price,

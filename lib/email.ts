@@ -13,6 +13,8 @@ type BookingEmailData = {
   }
   service: {
     name: string
+    price?: number
+    duration_minutes?: number
   }
   customer: {
     name: string
@@ -21,6 +23,12 @@ type BookingEmailData = {
   }
   scheduledDate: string
   scheduledTime: string
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
+  assetDetails?: Record<string, any> | null
+  notes?: string | null
 }
 
 export async function sendBookingConfirmation(booking: BookingEmailData) {
@@ -34,6 +42,55 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
 
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'bookings@resend.dev'
 
+  // Format date and time
+  const appointmentDate = new Date(booking.scheduledDate)
+  const formattedDate = appointmentDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+  const formattedTime = appointmentDate.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
+
+  // Format address
+  const fullAddress = booking.address 
+    ? `${booking.address}${booking.city ? `, ${booking.city}` : ''}${booking.state ? `, ${booking.state}` : ''}${booking.zip ? ` ${booking.zip}` : ''}`
+    : null
+
+  // Format asset details
+  let assetDetailsHtml = ''
+  if (booking.assetDetails && Object.keys(booking.assetDetails).length > 0) {
+    const assetEntries = Object.entries(booking.assetDetails)
+      .filter(([key, value]) => value && value !== '')
+      .map(([key, value]) => {
+        // Format key (e.g., "asset_year" -> "Year")
+        const formattedKey = key
+          .replace(/^asset_/, '')
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase())
+        return `<li style="margin-bottom: 8px;"><strong>${formattedKey}:</strong> ${value}</li>`
+      })
+    if (assetEntries.length > 0) {
+      assetDetailsHtml = `
+        <h3 style="margin-top: 20px; margin-bottom: 10px;">Vehicle/Asset Details</h3>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          ${assetEntries.join('')}
+        </ul>
+      `
+    }
+  }
+
+  // Format duration
+  const durationText = booking.service.duration_minutes
+    ? booking.service.duration_minutes >= 60
+      ? `${Math.floor(booking.service.duration_minutes / 60)} ${Math.floor(booking.service.duration_minutes / 60) === 1 ? 'hour' : 'hours'}${booking.service.duration_minutes % 60 > 0 ? ` ${booking.service.duration_minutes % 60} minutes` : ''}`
+      : `${booking.service.duration_minutes} minutes`
+    : null
+
   try {
     // Email to customer
     await resend.emails.send({
@@ -41,22 +98,67 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
       to: booking.customer.email,
       subject: `Booking Confirmed - ${booking.business.name}`,
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>Booking Confirmed!</h1>
-          <p>Your appointment has been successfully scheduled.</p>
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #18181b; margin-bottom: 10px;">Booking Confirmed! ✅</h1>
+          <p style="color: #52525b; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+            Hi ${booking.customer.name.split(' ')[0]}, your appointment has been successfully scheduled with ${booking.business.name}.
+          </p>
           
-          <div style="background-color: #f4f4f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0;">Appointment Details</h3>
-            <ul style="list-style: none; padding: 0;">
-              <li style="margin-bottom: 10px;"><strong>Service:</strong> ${booking.service.name}</li>
-              <li style="margin-bottom: 10px;"><strong>Date:</strong> ${new Date(booking.scheduledDate).toLocaleDateString()}</li>
-              <li style="margin-bottom: 10px;"><strong>Time:</strong> ${booking.scheduledTime}</li>
+          <div style="background-color: #f4f4f5; padding: 24px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+            <h2 style="margin-top: 0; margin-bottom: 20px; color: #18181b; font-size: 20px;">Appointment Details</h2>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Service:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${booking.service.name}</span>
+              </li>
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Date:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${formattedDate}</span>
+              </li>
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Time:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${formattedTime}</span>
+              </li>
+              ${booking.service.price ? `
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Price:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">$${booking.service.price.toFixed(2)}</span>
+              </li>
+              ` : ''}
+              ${durationText ? `
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Estimated Duration:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${durationText}</span>
+              </li>
+              ` : ''}
             </ul>
+            ${fullAddress ? `
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e4e4e7;">
+              <h3 style="margin-top: 0; margin-bottom: 10px; color: #18181b; font-size: 16px;">Service Location</h3>
+              <p style="color: #52525b; margin: 0; font-size: 15px;">${fullAddress}</p>
+            </div>
+            ` : ''}
+            ${assetDetailsHtml}
+            ${booking.notes ? `
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e4e4e7;">
+              <h3 style="margin-top: 0; margin-bottom: 10px; color: #18181b; font-size: 16px;">Notes</h3>
+              <p style="color: #52525b; margin: 0; font-size: 15px; white-space: pre-wrap;">${booking.notes}</p>
+            </div>
+            ` : ''}
           </div>
 
-          <p><strong>Business Contact:</strong><br>
-          ${booking.business.name}<br>
-          ${booking.business.phone || booking.business.email}</p>
+          <div style="background-color: #fafafa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0; margin-bottom: 10px; color: #18181b; font-size: 16px;">Business Contact</h3>
+            <p style="color: #52525b; margin: 5px 0; font-size: 15px;"><strong>${booking.business.name}</strong></p>
+            ${booking.business.phone ? `
+            <p style="color: #52525b; margin: 5px 0; font-size: 15px;">Phone: <a href="tel:${booking.business.phone}" style="color: #3b82f6; text-decoration: none;">${booking.business.phone}</a></p>
+            ` : ''}
+            <p style="color: #52525b; margin: 5px 0; font-size: 15px;">Email: <a href="mailto:${booking.business.email}" style="color: #3b82f6; text-decoration: none;">${booking.business.email}</a></p>
+          </div>
+
+          <p style="color: #71717a; font-size: 14px; margin-top: 30px; line-height: 1.6;">
+            If you need to make any changes to your appointment, please contact ${booking.business.name} directly.
+          </p>
         </div>
       `
     })
@@ -67,23 +169,68 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
       to: booking.business.email,
       subject: `New Booking - ${booking.customer.name}`,
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>New Booking Received!</h1>
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #18181b; margin-bottom: 10px;">New Booking Received! 🎉</h1>
           
-          <div style="background-color: #f4f4f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0;">Customer Details</h3>
-            <ul style="list-style: none; padding: 0;">
-              <li style="margin-bottom: 10px;"><strong>Name:</strong> ${booking.customer.name}</li>
-              <li style="margin-bottom: 10px;"><strong>Email:</strong> ${booking.customer.email}</li>
-              <li style="margin-bottom: 10px;"><strong>Phone:</strong> ${booking.customer.phone || 'N/A'}</li>
+          <div style="background-color: #f4f4f5; padding: 24px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+            <h2 style="margin-top: 0; margin-bottom: 20px; color: #18181b; font-size: 20px;">Customer Details</h2>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Name:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${booking.customer.name}</span>
+              </li>
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Email:</strong> 
+                <span style="color: #52525b; margin-left: 8px;"><a href="mailto:${booking.customer.email}" style="color: #3b82f6; text-decoration: none;">${booking.customer.email}</a></span>
+              </li>
+              ${booking.customer.phone ? `
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Phone:</strong> 
+                <span style="color: #52525b; margin-left: 8px;"><a href="tel:${booking.customer.phone}" style="color: #3b82f6; text-decoration: none;">${booking.customer.phone}</a></span>
+              </li>
+              ` : '<li style="margin-bottom: 12px; font-size: 15px;"><strong style="color: #18181b;">Phone:</strong> <span style="color: #52525b; margin-left: 8px;">N/A</span></li>'}
             </ul>
 
-            <h3 style="margin-top: 20px;">Service Details</h3>
-            <ul style="list-style: none; padding: 0;">
-              <li style="margin-bottom: 10px;"><strong>Service:</strong> ${booking.service.name}</li>
-              <li style="margin-bottom: 10px;"><strong>Date:</strong> ${new Date(booking.scheduledDate).toLocaleDateString()}</li>
-              <li style="margin-bottom: 10px;"><strong>Time:</strong> ${booking.scheduledTime}</li>
+            <h3 style="margin-top: 20px; margin-bottom: 10px; color: #18181b; font-size: 16px;">Service Details</h3>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Service:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${booking.service.name}</span>
+              </li>
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Date:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${formattedDate}</span>
+              </li>
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Time:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${formattedTime}</span>
+              </li>
+              ${booking.service.price ? `
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Price:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">$${booking.service.price.toFixed(2)}</span>
+              </li>
+              ` : ''}
+              ${durationText ? `
+              <li style="margin-bottom: 12px; font-size: 15px;">
+                <strong style="color: #18181b;">Estimated Duration:</strong> 
+                <span style="color: #52525b; margin-left: 8px;">${durationText}</span>
+              </li>
+              ` : ''}
             </ul>
+            ${fullAddress ? `
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e4e4e7;">
+              <h3 style="margin-top: 0; margin-bottom: 10px; color: #18181b; font-size: 16px;">Service Location</h3>
+              <p style="color: #52525b; margin: 0; font-size: 15px;">${fullAddress}</p>
+            </div>
+            ` : ''}
+            ${assetDetailsHtml}
+            ${booking.notes ? `
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e4e4e7;">
+              <h3 style="margin-top: 0; margin-bottom: 10px; color: #18181b; font-size: 16px;">Customer Notes</h3>
+              <p style="color: #52525b; margin: 0; font-size: 15px; white-space: pre-wrap;">${booking.notes}</p>
+            </div>
+            ` : ''}
           </div>
         </div>
       `

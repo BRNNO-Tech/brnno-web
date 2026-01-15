@@ -4,6 +4,29 @@ const nextConfig: NextConfig = {
   /* config options here */
   // Optimize for Vercel deployment
   output: undefined, // Let Vercel handle the output
+  
+  // Increase Server Actions body size limit (default is 1MB)
+  // Set to 50MB to handle large image uploads
+  serverActions: {
+    bodySizeLimit: '50mb',
+  },
+
+  // Configure image domains for Next.js Image component
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'kvlsqzmvuaehqhjkskch.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+      // Allow any Supabase storage URL
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
 
   // Add headers to allow Stripe Connect
   /*

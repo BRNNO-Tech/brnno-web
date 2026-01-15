@@ -118,12 +118,12 @@ export default function ScheduleCalendar({
         return ''
       }
       
-      // Format in selected timezone
+      // Format in local timezone (consistent with position calculations)
       return date.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true,
-        timeZone: timezone
+        hour12: true
+        // Removed timeZone to use local timezone consistently
       })
     } catch (error) {
       console.error('Error formatting time:', error, datetime)
@@ -599,6 +599,8 @@ export default function ScheduleCalendar({
                         // Only show jobs for the current day
                         if (jobDateLocal.getTime() !== currentDateLocal.getTime()) return null
                         
+                        // Use local timezone consistently for hour/minute calculations
+                        // This ensures the displayed time matches the position on the calendar
                         const jobHour = jobDate.getHours()
                         const jobMin = jobDate.getMinutes()
                         const jobDuration = job.estimated_duration || 60 // in minutes

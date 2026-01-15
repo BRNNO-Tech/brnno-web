@@ -45,8 +45,14 @@ export function LeadsInboxLayout({ leads }: LeadsInboxLayoutProps) {
   const selectedLead = selectedLeadId ? leadsList.find(l => l.id === selectedLeadId) : null
 
   // Update leads list when props change
+  // Filter out fully booked leads from default inbox view
+  // (leads with status 'booked' or job_id - these are fully completed bookings)
   useEffect(() => {
-    setLeadsList(leads)
+    const filteredLeads = leads.filter((lead: any) => {
+      // Exclude leads that are fully booked (have status 'booked' or have a job_id)
+      return lead.status !== 'booked' && !lead.job_id
+    })
+    setLeadsList(filteredLeads)
   }, [leads])
 
   // Mark lead as read when selected

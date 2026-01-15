@@ -355,8 +355,8 @@ export default function ModernDashboard({
         meta = activity.title || "Job";
       } else if (activity.type === "client") {
         icon = "client";
-        title = "New client added";
-        meta = activity.name || "Client";
+        title = "New customer added";
+        meta = activity.name || "Customer";
       }
 
       return {

@@ -109,7 +109,8 @@ export default function WorkerJobList({ assignments }: { assignments: Assignment
                       month: 'short',
                       day: 'numeric',
                       hour: 'numeric',
-                      minute: '2-digit'
+                      minute: '2-digit',
+                      hour12: true
                     })}
                   </span>
                 </div>

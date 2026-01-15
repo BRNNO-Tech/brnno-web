@@ -6,8 +6,11 @@ export interface Service {
   description?: string;
   base_price: number;
   price?: number; // Legacy field for backward compatibility
-  estimated_duration?: number; // in minutes
+  base_duration?: number; // Base duration in minutes
+  estimated_duration?: number; // in minutes (legacy, use base_duration)
   duration_minutes?: number; // Legacy field for backward compatibility
+  pricing_model?: 'flat' | 'variable'; // Pricing model type
+  variations?: Record<string, { price: number; duration: number; enabled: boolean }>; // Vehicle size variations
   icon?: string; // emoji
   image_url?: string;
   is_popular: boolean;
