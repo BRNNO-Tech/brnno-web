@@ -102,7 +102,7 @@ export default async function ReportsPage() {
                   title="Trend"
                   value={reportsData.recoveredRevenueTrend >= 0 ? `+${reportsData.recoveredRevenueTrend.toFixed(0)}%` : `${reportsData.recoveredRevenueTrend.toFixed(0)}%`}
                   sub="vs previous 30 days"
-                  trend={reportsData.recoveredRevenueTrend}
+                  trend={reportsData.recoveredRevenueTrend >= 0 ? `+${reportsData.recoveredRevenueTrend.toFixed(0)}%` : `${reportsData.recoveredRevenueTrend.toFixed(0)}%`}
                   trendDir={reportsData.recoveredRevenueTrend >= 0 ? 'up' : 'down'}
                   icon="TrendingUp"
                   tone="emerald"
