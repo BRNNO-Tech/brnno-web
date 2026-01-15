@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getTierFromBusiness, getMaxLeads } from '@/lib/permissions'
 import type { SMSProviderConfig } from '@/lib/sms/providers'
 import { getBusinessId } from './utils'
+import { normalizePhoneNumber } from '@/lib/utils/phone'
 
 /**
  * Calculates lead score (hot/warm/cold) based on multiple factors
@@ -211,7 +212,7 @@ export async function createLead(formData: FormData) {
     business_id: business.id,
     name: formData.get('name') as string,
     email: (formData.get('email') as string) || null,
-    phone: (formData.get('phone') as string) || null,
+    phone: normalizePhoneNumber(formData.get('phone') as string),
     source: (formData.get('source') as string) || null,
     interested_in_service_id: serviceId || null,
     interested_in_service_name: serviceName,
@@ -580,6 +581,61 @@ export async function deleteLead(id: string) {
 
   if (error) throw error
 
+  revalidatePath('/dashboard/leads')
+  revalidatePath('/dashboard/leads/inbox')
+}
+
+export async function getUnreadLeadsCount() {
+  try {
+    const supabase = await createClient()
+    const businessId = await getBusinessId()
+
+    if (!businessId) return 0
+
+    const { count, error } = await supabase
+      .from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('business_id', businessId)
+      .is('viewed_at', null)
+      .neq('status', 'lost')
+      .neq('status', 'booked')
+
+    if (error) {
+      // Only log if it's a real error (not empty object)
+      if (error.code || error.message) {
+        console.error('Error getting unread leads count:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
+      }
+      return 0
+    }
+
+    return count || 0
+  } catch (error) {
+    console.error('Exception in getUnreadLeadsCount:', error)
+    return 0
+  }
+}
+
+export async function markLeadAsRead(leadId: string) {
+  const supabase = await createClient()
+  const businessId = await getBusinessId()
+
+  const { error } = await supabase
+    .from('leads')
+    .update({ viewed_at: new Date().toISOString() })
+    .eq('id', leadId)
+    .eq('business_id', businessId)
+
+  if (error) {
+    console.error('Error marking lead as read:', error)
+    throw error
+  }
+
+  revalidatePath('/dashboard/leads/inbox')
   revalidatePath('/dashboard/leads')
 }
 
