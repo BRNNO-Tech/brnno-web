@@ -355,12 +355,15 @@ export function SequenceEditor({ mode, sequence }: SequenceEditorProps) {
                     disabled={loadingLeads || enrolling}
                     className="flex-1 rounded-md border border-zinc-200/50 dark:border-white/10 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:opacity-50"
                   >
-                    <option value="">Select a lead...</option>
-                    {leads.map((lead) => (
-                      <option key={lead.id} value={lead.id}>
-                        {lead.name || 'Unnamed Lead'} {lead.phone ? `(${lead.phone})` : ''} {lead.email ? `- ${lead.email}` : ''}
-                      </option>
-                    ))}
+                    <option value="">Select a lead by name...</option>
+                    {leads
+                      .filter(lead => lead.name) // Only show leads with names
+                      .sort((a, b) => (a.name || '').localeCompare(b.name || '')) // Sort alphabetically by name
+                      .map((lead) => (
+                        <option key={lead.id} value={lead.id}>
+                          {lead.name}
+                        </option>
+                      ))}
                   </select>
                   <Button
                     onClick={handleEnrollLead}
