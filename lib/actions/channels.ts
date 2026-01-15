@@ -5,6 +5,8 @@ import { getBusiness } from './business'
 import { Resend } from 'resend'
 import type { SMSProviderConfig } from '@/lib/sms/providers'
 
+// Trigger Vercel build
+
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null
