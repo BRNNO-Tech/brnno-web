@@ -31,63 +31,97 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseClient()
 
-    // Only show add-ons that were created for the specific service (have service_id matching)
-    // This excludes general business add-ons created via seed scripts or other means
-    if (!serviceId) {
-      // If no serviceId provided, return empty array (shouldn't happen in booking flow)
-      return NextResponse.json({ addons: [] })
-    }
-
-    // Query for service-specific add-ons
-    // Build query step by step
-    let query = supabase
-      .from('service_addons')
-      .select('*')
-      .eq('business_id', businessId)
-      .eq('is_active', true)
-
-    // Add service_id filter if serviceId is provided
+    // Query for service-specific add-ons first
+    // If service_id column exists and serviceId is provided, filter by it
+    // Also include business-wide add-ons (where service_id is NULL) as fallback
+    let addons: any[] = []
+    
     if (serviceId) {
-      query = query.eq('service_id', serviceId)
+      // Try to get service-specific add-ons first
+      const serviceSpecificQuery = supabase
+        .from('service_addons')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('is_active', true)
+        .eq('service_id', serviceId)
+        .order('name', { ascending: true })
+      
+      const { data: serviceAddons, error: serviceError } = await serviceSpecificQuery
+      
+      if (!serviceError && serviceAddons) {
+        addons = serviceAddons
+        console.log('[addons API] Found', addons.length, 'service-specific add-ons')
+      } else if (serviceError?.code === '42703') {
+        // Column doesn't exist, fall through to business-wide query
+        console.log('[addons API] service_id column does not exist, querying all business add-ons')
+      } else {
+        console.error('[addons API] Error querying service-specific add-ons:', serviceError)
+      }
+      
+      // If we have service-specific add-ons, also include business-wide ones (service_id IS NULL)
+      // This allows businesses to have both service-specific and general add-ons
+      const businessWideQuery = supabase
+        .from('service_addons')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('is_active', true)
+        .is('service_id', null)
+        .order('name', { ascending: true })
+      
+      const { data: businessAddons, error: businessError } = await businessWideQuery
+      
+      if (!businessError && businessAddons) {
+        // Merge service-specific and business-wide add-ons, avoiding duplicates
+        const existingIds = new Set(addons.map(a => a.id))
+        const newAddons = businessAddons.filter(a => !existingIds.has(a.id))
+        addons = [...addons, ...newAddons]
+        console.log('[addons API] Added', newAddons.length, 'business-wide add-ons')
+      } else if (businessError?.code !== '42703') {
+        // Only log if it's not a column error (which we already handled above)
+        console.error('[addons API] Error querying business-wide add-ons:', businessError)
+      }
+    } else {
+      // No serviceId provided, just get all business add-ons
+      const allAddonsQuery = supabase
+        .from('service_addons')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+      
+      const { data: allAddons, error: allError } = await allAddonsQuery
+      
+      if (allError) {
+        throw allError
+      }
+      
+      addons = allAddons || []
     }
 
-    // Order by name (sort_order might not exist on all records)
-    query = query.order('name', { ascending: true })
-
-    const { data: addons, error } = await query
+    // For backward compatibility, if no addons found and service_id column might not exist,
+    // try a simple query without service_id filter
+    if (addons.length === 0 && serviceId) {
+      console.log('[addons API] No add-ons found with service_id filter, trying fallback query')
+      const fallbackQuery = supabase
+        .from('service_addons')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+      
+      const { data: fallbackAddons, error: fallbackError } = await fallbackQuery
+      
+      if (!fallbackError && fallbackAddons) {
+        addons = fallbackAddons
+        console.log('[addons API] Fallback query found', addons.length, 'add-ons')
+      }
+    }
 
     console.log('[addons API] Query result:', { 
       addonsCount: addons?.length || 0, 
-      error: error?.message,
-      errorCode: error?.code,
-      errorDetails: error?.details,
-      errorHint: error?.hint,
       businessId,
       serviceId
     })
-
-    if (error) {
-      // Check if error is about missing column (PostgreSQL error code 42703 = undefined_column)
-      const isColumnError = error.code === '42703' || 
-                           (error.message?.includes('column') && error.message?.includes('does not exist'))
-      
-      console.error('[addons API] Database error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-        isColumnError
-      })
-      
-      // If it's a column error (like service_id doesn't exist), return empty array instead of throwing
-      // This allows the booking flow to continue even if service_id column doesn't exist yet
-      if (isColumnError) {
-        console.warn('[addons API] Column error detected (likely service_id missing). Returning empty array.')
-        return NextResponse.json({ addons: [] })
-      }
-      
-      throw error
-    }
 
     // Deduplicate add-ons by ID (in case of any duplicates)
     const uniqueAddons = (addons || []).filter((addon, index, self) =>
