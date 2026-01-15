@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import type { SMSProviderConfig } from '@/lib/sms/providers'
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -121,7 +122,7 @@ export async function sendBookingConfirmationSMS(booking: BookingEmailData, smsC
   try {
     // Dynamically import to avoid errors if SMS is not configured
     const { getBusiness } = await import('@/lib/actions/business')
-    const { sendSMS, SMSProviderConfig } = await import('@/lib/sms/providers')
+    const { sendSMS } = await import('@/lib/sms/providers')
 
     const business = await getBusiness()
     if (!business) {

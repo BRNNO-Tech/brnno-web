@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getTierFromBusiness, getMaxLeads } from '@/lib/permissions'
+import type { SMSProviderConfig } from '@/lib/sms/providers'
 
 /**
  * Calculates lead score (hot/warm/cold) based on multiple factors
@@ -314,7 +315,7 @@ export async function updateLeadStatus(
 async function sendSMSToLead(leadId: string, message: string) {
   const supabase = await createClient()
   const { getBusiness } = await import('./business')
-  const { sendSMS, SMSProviderConfig } = await import('@/lib/sms/providers')
+  const { sendSMS } = await import('@/lib/sms/providers')
 
   // Get lead with phone number and SMS consent
   const { data: lead, error: leadError } = await supabase

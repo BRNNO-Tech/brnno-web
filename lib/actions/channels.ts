@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getBusiness } from './business'
 import { Resend } from 'resend'
+import type { SMSProviderConfig } from '@/lib/sms/providers'
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -151,7 +152,7 @@ export async function sendTestSMS(phoneNumber?: string) {
   const message = `Test SMS from ${senderName} via BRNNO. Your SMS channel is working correctly! ✅`
 
   // Import the SMS provider abstraction
-  const { sendSMS, SMSProviderConfig } = await import('@/lib/sms/providers')
+  const { sendSMS } = await import('@/lib/sms/providers')
 
   // Build provider config based on selected provider
   const config: SMSProviderConfig = {
