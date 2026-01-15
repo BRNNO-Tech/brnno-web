@@ -90,16 +90,16 @@ export function LeadBookingTab({
       const selectedService = services.find(s => s.id === selectedServiceId)
       await createJobFromLead(leadId, {
         title: selectedService?.name || interestedInServiceName || 'Service',
-        service_type: selectedService?.name || interestedInServiceName || null,
+        service_type: selectedService?.name || interestedInServiceName || undefined,
         scheduled_date: `${scheduledDate}T${scheduledTime}:00`,
         estimated_duration: estimatedDuration,
         estimated_cost: estimatedCost,
-        description: description || null,
-        address: address || null,
-        city: city || null,
-        state: state || null,
-        zip: zip || null,
-        client_notes: clientNotes || null,
+        description: description || undefined,
+        address: address || undefined,
+        city: city || undefined,
+        state: state || undefined,
+        zip: zip || undefined,
+        client_notes: clientNotes || undefined,
       })
       setSuccess(true)
       toast.success('Booking created successfully!')
