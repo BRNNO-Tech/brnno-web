@@ -88,7 +88,7 @@ const navigation: NavigationEntry[] = [
       { name: "Customers", href: "/dashboard/customers", icon: Users },
       { name: "Jobs", href: "/dashboard/jobs", icon: Briefcase },
       { name: "Quick Quote", href: "/dashboard/quick-quote", icon: Sparkles, badge: "New" },
-      // { name: "Messages", href: "/dashboard/messages", icon: MessageSquare, badge: "Soon" }, // Hidden - on back burner
+      { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
     ],
   },
   {
