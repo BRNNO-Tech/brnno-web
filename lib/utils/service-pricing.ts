@@ -23,7 +23,7 @@ export function getServicePrice(
   }
 
   // Get variation for vehicle type
-  const variations = service.variations || {}
+  const variations: Record<string, { price: number; duration: number; enabled: boolean }> = service.variations || {}
   const variation = variations[vehicleType]
   
   if (process.env.NODE_ENV === 'development') {
@@ -58,7 +58,7 @@ export function getServiceDuration(
   }
 
   // Get variation for vehicle type
-  const variations = service.variations || {}
+  const variations: Record<string, { price: number; duration: number; enabled: boolean }> = service.variations || {}
   const variation = variations[vehicleType]
   
   if (process.env.NODE_ENV === 'development') {
