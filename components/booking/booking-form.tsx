@@ -15,6 +15,7 @@ import AssetDetailsForm from './asset-details-form'
 import { DEFAULT_INDUSTRY } from '@/lib/config/industry-assets'
 import VehicleSelector from './vehicle-selector'
 import { calculateTotals, formatDuration, formatDurationHours } from '@/lib/utils/booking-utils'
+import { Service } from '@/types'
 
 type Business = {
   id: string
@@ -24,21 +25,12 @@ type Business = {
   industry?: string
 }
 
-type Service = {
-  id: string
-  name: string
-  description: string | null
-  price: number | null
+// Extended Service type for booking form that allows nullable fields from API
+// This matches the Service interface but allows nullable values for fields that come from the API
+type BookingService = Service & {
   base_price?: number | null
-  duration_minutes: number | null
-  base_duration?: number | null
-  estimated_duration?: number | null
-  whats_included?: string[] | null
-  is_popular?: boolean | null
-  image_url?: string | null
-  icon?: string | null
-  pricing_model?: 'flat' | 'variable' | null
-  variations?: Record<string, { price: number; duration: number; enabled: boolean }> | null
+  price?: number | null
+  duration_minutes?: number | null
 }
 
 type BookingStep = 1 | 2 | 3 | 4 | 5 | 6
@@ -69,7 +61,7 @@ export default function BookingForm({
   quote
 }: {
   business: Business
-  service: Service
+  service: BookingService
   quote?: any
 }) {
   const router = useRouter()
@@ -131,8 +123,18 @@ export default function BookingForm({
     })
   }
   
+  // Cast service to Service type with required fields (calculateTotals doesn't actually use is_active, created_at, updated_at)
+  const serviceForCalculation: Service = {
+    ...service,
+    base_price: service.base_price ?? service.price ?? 0,
+    is_active: service.is_active ?? true,
+    created_at: service.created_at ?? new Date().toISOString(),
+    updated_at: service.updated_at ?? new Date().toISOString(),
+    is_popular: service.is_popular ?? false,
+  } as Service
+
   const totals = calculateTotals(
-    service,
+    serviceForCalculation,
     vehicleSizeForPricing as 'sedan' | 'suv' | 'truck' | 'coupe' | null,
     formData.selectedAddons
   )
