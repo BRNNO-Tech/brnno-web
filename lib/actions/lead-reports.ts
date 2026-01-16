@@ -69,10 +69,10 @@ export async function getLeadReportsData(days: number = 30): Promise<ReportsData
         { channel: 'website', sent: 1, replied: 0, booked: 0, revenue: 0 },
       ],
       funnelData: [
-        { stage: 'New Leads', count: 2 },
-        { stage: 'Contacted', count: 2 },
-        { stage: 'Quoted', count: 1 },
-        { stage: 'Booked', count: 1 },
+        { stage: 'New Leads', count: 2, percentage: 100 },
+        { stage: 'Contacted', count: 2, percentage: 100 },
+        { stage: 'Quoted', count: 1, percentage: 50 },
+        { stage: 'Booked', count: 1, percentage: 50 },
       ],
       topSequences: [],
       speedToLeadDistribution: [
