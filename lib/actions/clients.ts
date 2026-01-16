@@ -307,8 +307,8 @@ export async function getClient(id: string) {
   }
   
   // Get all invoices for this client
-  let invoices = null
-  let invoicesError = null
+  let invoices: any[] | null = null
+  let invoicesError: any = null
   
   try {
     const result = await supabase
