@@ -330,22 +330,25 @@ export default function SettingsPage() {
       if (businessData) {
         setBusiness(businessData)
 
+        // Type assertion for properties that may not be in the base type
+        const businessWithAllFields = businessData as any
+
         // Auto-generate subdomain if missing
-        if (!businessData.subdomain || businessData.subdomain.trim() === '') {
+        if (!businessWithAllFields.subdomain || businessWithAllFields.subdomain.trim() === '') {
           console.log('Business missing subdomain, auto-generating...')
           try {
             // Save with existing data - this will trigger subdomain generation
             const updatedBusiness = await saveBusiness({
-              name: businessData.name,
-              email: businessData.email,
-              phone: businessData.phone,
-              address: businessData.address,
-              city: businessData.city,
-              state: businessData.state,
-              zip: businessData.zip,
-              website: businessData.website,
-              description: businessData.description,
-            }, businessData.id)
+              name: businessWithAllFields.name,
+              email: businessWithAllFields.email,
+              phone: businessWithAllFields.phone,
+              address: businessWithAllFields.address,
+              city: businessWithAllFields.city,
+              state: businessWithAllFields.state,
+              zip: businessWithAllFields.zip,
+              website: businessWithAllFields.website,
+              description: businessWithAllFields.description,
+            }, businessWithAllFields.id)
 
             if (updatedBusiness) {
               setBusiness(updatedBusiness)
