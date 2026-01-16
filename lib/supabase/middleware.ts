@@ -180,7 +180,7 @@ export async function updateSession(request: NextRequest) {
         .single()
       
       const tier = business?.subscription_plan?.toLowerCase()
-      const isActive = business?.subscription_status === 'active'
+      const isActive = business?.subscription_status === 'active' || business?.subscription_status === 'trialing'
       
       // Only Pro and Fleet plans can access team management
       if (!isActive || (tier !== 'pro' && tier !== 'fleet')) {

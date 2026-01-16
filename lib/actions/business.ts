@@ -97,10 +97,10 @@ export async function getBusiness() {
     return null
   }
 
-  // Optimized: Only select needed columns for sidebar
+  // Include subscription fields needed for permissions checks
   const { data: business, error: businessError } = await supabase
     .from('businesses')
-    .select('id, name, owner_id, created_at')
+    .select('id, name, owner_id, created_at, subscription_plan, subscription_status')
     .eq('owner_id', user.id)
     .single()
 
