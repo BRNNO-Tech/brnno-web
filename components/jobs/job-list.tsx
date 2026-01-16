@@ -20,6 +20,7 @@ import EditJobSheet from './edit-job-dialog'
 import AssignJobDialog from './assign-job-dialog'
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 type Job = {
   id: string
@@ -237,6 +238,15 @@ function JobCard({
   onStatusChange: (id: string, status: any) => void
 }) {
   const statusConfig = getStatusConfig(job.status)
+  const router = useRouter()
+
+  const handleCustomerClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (job.client_id) {
+      router.push(`/dashboard/customers/${job.client_id}`)
+    }
+  }
 
   return (
     <Link href={`/dashboard/jobs/${job.id}`}>
@@ -314,8 +324,12 @@ function JobCard({
         </div>
 
         {/* Customer Info */}
-        {job.client && (
-          <div className="flex items-center gap-2 mb-3 pb-3 border-b border-zinc-200 dark:border-zinc-700">
+        {job.client && job.client_id && (
+          <button
+            type="button"
+            onClick={handleCustomerClick}
+            className="w-full text-left flex items-center gap-2 mb-3 pb-3 border-b border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 -mx-4 px-4 py-2 rounded transition-colors"
+          >
             <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-semibold text-blue-600 dark:text-blue-300">
               {job.client.name.charAt(0)}
             </div>
@@ -329,7 +343,7 @@ function JobCard({
                 </p>
               )}
             </div>
-          </div>
+          </button>
         )}
 
         {/* Vehicle/Asset Details */}

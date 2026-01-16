@@ -181,6 +181,22 @@ export async function deleteJob(id: string) {
 }
 
 export async function getJob(id: string) {
+  // Check if in demo mode
+  if (await isDemoMode()) {
+    const { getMockJobs } = await import('@/lib/demo/mock-data')
+    const mockJobs = getMockJobs()
+    const job = mockJobs.find(j => j.id === id)
+    if (!job) {
+      throw new Error('Job not found')
+    }
+    // Return job with proper structure matching the database query
+    return {
+      ...job,
+      client: job.client || null,
+      assignments: job.assignments || [],
+    }
+  }
+
   const supabase = await createClient()
 
   const { data: job, error } = await supabase

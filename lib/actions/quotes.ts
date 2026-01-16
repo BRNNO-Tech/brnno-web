@@ -286,6 +286,14 @@ export async function createQuoteForLead(
 }
 
 export async function getQuickQuotes() {
+  // Check if in demo mode
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  const { getMockQuotes } = await import('@/lib/demo/mock-data')
+  
+  if (await isDemoMode()) {
+    return getMockQuotes()
+  }
+
   const supabase = await createClient()
   
   const { data: { user } } = await supabase.auth.getUser()

@@ -133,6 +133,28 @@ export async function getLeads(filter?: 'hot' | 'warm' | 'cold' | 'all') {
 }
 
 export async function getLead(id: string) {
+  // Check if in demo mode
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  const { getMockLeads } = await import('@/lib/demo/mock-data')
+  
+  if (await isDemoMode()) {
+    const leads = getMockLeads()
+    const lead = leads.find(l => l.id === id)
+    if (!lead) {
+      throw new Error('Lead not found')
+    }
+    // Return lead with mock interactions structure
+    return {
+      ...lead,
+      interested_service: lead.interested_in_service_name ? {
+        name: lead.interested_in_service_name,
+        price: lead.estimated_value || 0,
+        description: null,
+      } : null,
+      interactions: [],
+    }
+  }
+
   const supabase = await createClient()
 
   const {
@@ -625,6 +647,13 @@ export async function getUnreadLeadsCount() {
 }
 
 export async function markLeadAsRead(leadId: string) {
+  // Check if in demo mode - no-op in demo mode
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  if (await isDemoMode()) {
+    // In demo mode, just return without updating (mock data doesn't persist)
+    return
+  }
+
   const supabase = await createClient()
   const businessId = await getBusinessId()
 

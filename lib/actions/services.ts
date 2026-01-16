@@ -20,6 +20,14 @@ export interface ServiceFormData {
 }
 
 export async function getServices() {
+  // Check if in demo mode
+  const { isDemoMode } = await import('@/lib/demo/utils');
+  const { getMockServices } = await import('@/lib/demo/mock-data');
+  
+  if (await isDemoMode()) {
+    return getMockServices();
+  }
+
   const supabase = await createClient();
   const businessId = await getBusinessId();
   

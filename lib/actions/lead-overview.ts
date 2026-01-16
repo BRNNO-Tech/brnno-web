@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { isDemoMode } from '@/lib/demo/utils'
 
 export interface LeadOverviewStats {
   recoveredRevenue: number
@@ -15,6 +16,22 @@ export interface LeadOverviewStats {
 }
 
 export async function getLeadOverviewStats(): Promise<LeadOverviewStats> {
+  // Check if in demo mode
+  if (await isDemoMode()) {
+    // Return mock overview stats
+    return {
+      recoveredRevenue: 1249.97,
+      recoveredRevenueTrend: 15.5, // 15.5% increase
+      bookingsFromRecovery: 4,
+      atRiskLeads: 2,
+      speedToLead: 3600, // 1 hour in seconds
+      replyRate: 65.5,
+      hotLeadsCount: 2,
+      needsIncentiveCount: 1,
+      missedCallsCount: 1,
+    }
+  }
+
   const supabase = await createClient()
 
   const {

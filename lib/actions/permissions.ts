@@ -5,6 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 import { hasFeature, getTierFromBusiness, getMaxTeamSize, getMaxLeads, type Tier } from '@/lib/permissions'
 
 export async function checkFeature(feature: string): Promise<boolean> {
+  // Check if in demo mode - allow all features in demo mode
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  if (await isDemoMode()) {
+    // In demo mode, allow all features (demo uses pro tier)
+    return true
+  }
+
   const business = await getBusiness()
   if (!business) return false
   
@@ -43,6 +50,12 @@ export async function getMaxTeamSizeForCurrentBusiness(): Promise<number> {
 }
 
 export async function getMaxLeadsForCurrentBusiness(): Promise<number> {
+  // Check if in demo mode - return unlimited for demo (pro tier)
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  if (await isDemoMode()) {
+    return -1 // Unlimited
+  }
+
   const business = await getBusiness()
   if (!business) return 0
   
@@ -56,6 +69,12 @@ export async function getMaxLeadsForCurrentBusiness(): Promise<number> {
 }
 
 export async function canAddMoreLeads(): Promise<{ canAdd: boolean; currentCount: number; maxLeads: number }> {
+  // Check if in demo mode - return unlimited for demo (pro tier)
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  if (await isDemoMode()) {
+    return { canAdd: true, currentCount: 0, maxLeads: -1 }
+  }
+
   const business = await getBusiness()
   if (!business) return { canAdd: false, currentCount: 0, maxLeads: 0 }
   
