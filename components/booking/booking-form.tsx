@@ -898,7 +898,13 @@ export default function BookingForm({
                       },
                     }))
                   }}
-                  initialValue={formData.assetDetails}
+                  initialValue={{
+                    asset_size: formData.assetDetails.size || undefined,
+                    asset_color: formData.assetDetails.color || undefined,
+                    asset_year: formData.assetDetails.year || undefined,
+                    asset_make: formData.assetDetails.make || undefined,
+                    asset_model: formData.assetDetails.model || undefined,
+                  }}
                 />
                 {error && (
                   <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
