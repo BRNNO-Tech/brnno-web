@@ -276,7 +276,6 @@ export async function updateConditionConfig(config: {
   }
 
   revalidatePath('/dashboard/settings')
-  return { success: true }
 }
 
 export async function updateBrandSettings(brandData: {

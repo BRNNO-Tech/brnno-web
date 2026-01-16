@@ -42,13 +42,18 @@ export async function addJob(formData: FormData) {
 
   // Convert datetime-local value to ISO string
   // datetime-local format: "YYYY-MM-DDTHH:mm" (no timezone)
-  // We need to treat it as local time and convert to ISO
+  // We need to treat it as local time and convert to UTC properly
   let scheduledDate: string | null = null
   const scheduledDateInput = formData.get('scheduled_date') as string | null
   if (scheduledDateInput) {
-    // datetime-local gives us local time, create a Date object from it
-    // This will be interpreted as local time by JavaScript
-    const localDate = new Date(scheduledDateInput)
+    // datetime-local gives us local time (YYYY-MM-DDTHH:mm)
+    // Parse the string manually to ensure it's treated as local time
+    const [datePart, timePart] = scheduledDateInput.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hours, minutes] = timePart.split(':').map(Number)
+    
+    // Create a Date object in local timezone
+    const localDate = new Date(year, month - 1, day, hours, minutes)
     // Convert to ISO string (UTC) for storage
     scheduledDate = localDate.toISOString()
   }
@@ -127,11 +132,19 @@ export async function updateJob(id: string, formData: FormData) {
   const supabase = await createClient()
 
   // Convert datetime-local value to ISO string
+  // datetime-local format: "YYYY-MM-DDTHH:mm" (no timezone)
+  // We need to treat it as local time and convert to UTC properly
   let scheduledDate: string | null = null
   const scheduledDateInput = formData.get('scheduled_date') as string | null
   if (scheduledDateInput) {
-    // datetime-local gives us local time, create a Date object from it
-    const localDate = new Date(scheduledDateInput)
+    // datetime-local gives us local time (YYYY-MM-DDTHH:mm)
+    // Parse the string manually to ensure it's treated as local time
+    const [datePart, timePart] = scheduledDateInput.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hours, minutes] = timePart.split(':').map(Number)
+    
+    // Create a Date object in local timezone
+    const localDate = new Date(year, month - 1, day, hours, minutes)
     // Convert to ISO string (UTC) for storage
     scheduledDate = localDate.toISOString()
   }

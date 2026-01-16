@@ -61,10 +61,12 @@ export default function EditJobSheet({
     if (open) loadClients()
   }, [open])
 
-  // Format datetime for input
+  // Format datetime for input (convert from UTC to local time)
   const formatDateTime = (dateString: string | null) => {
     if (!dateString) return ''
+    // Parse the UTC date string and convert to local time
     const date = new Date(dateString)
+    // Use local time methods to get the correct local time
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
