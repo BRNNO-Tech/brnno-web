@@ -319,16 +319,19 @@ export async function sendBookingConfirmationSMS(booking: BookingEmailData, smsC
       return
     }
 
+    // Type assertion for properties that may not be in the base type
+    const businessWithFields = business as any
+
     // Determine SMS provider
     let smsProvider: 'surge' | 'twilio' | null = null
     
-    if (business.sms_provider === 'surge' || business.sms_provider === 'twilio') {
-      smsProvider = business.sms_provider as 'surge' | 'twilio'
+    if (businessWithFields.sms_provider === 'surge' || businessWithFields.sms_provider === 'twilio') {
+      smsProvider = businessWithFields.sms_provider as 'surge' | 'twilio'
     } else {
       // Fallback: check which credentials are available
-      if (business.surge_api_key && business.surge_account_id) {
+      if (businessWithFields.surge_api_key && businessWithFields.surge_account_id) {
         smsProvider = 'surge'
-      } else if (business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID) {
+      } else if (businessWithFields.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID) {
         smsProvider = 'twilio'
       }
     }
@@ -344,15 +347,15 @@ export async function sendBookingConfirmationSMS(booking: BookingEmailData, smsC
     }
 
     if (smsProvider === 'surge') {
-      config.surgeApiKey = business.surge_api_key || undefined
-      config.surgeAccountId = business.surge_account_id || undefined
+      config.surgeApiKey = businessWithFields.surge_api_key || undefined
+      config.surgeAccountId = businessWithFields.surge_account_id || undefined
       
       if (!config.surgeApiKey || !config.surgeAccountId) {
         console.log('Surge credentials not configured. Skipping SMS.')
         return
       }
     } else if (smsProvider === 'twilio') {
-      config.twilioAccountSid = business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || undefined
+      config.twilioAccountSid = businessWithFields.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || undefined
       config.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined
       config.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER || undefined
       
@@ -371,7 +374,7 @@ export async function sendBookingConfirmationSMS(booking: BookingEmailData, smsC
     })
 
     // Create SMS message (keep it short and friendly)
-    const senderName = business.sender_name || business.name || 'BRNNO'
+    const senderName = businessWithFields.sender_name || business.name || 'BRNNO'
     const message = `Hi ${booking.customer.name.split(' ')[0]}! Your booking with ${senderName} is confirmed for ${formattedDate} at ${booking.scheduledTime}. Service: ${booking.service.name}. Reply STOP to opt out.`
 
     // Send SMS
