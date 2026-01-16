@@ -351,16 +351,19 @@ async function sendSMSToLead(leadId: string, message: string) {
     throw new Error('Business not found')
   }
 
+  // Type assertion for properties that may not be in the base type
+  const businessWithFields = business as any
+
   // Determine SMS provider
   let smsProvider: 'surge' | 'twilio' | null = null
   
-  if (business.sms_provider === 'surge' || business.sms_provider === 'twilio') {
-    smsProvider = business.sms_provider as 'surge' | 'twilio'
+  if (businessWithFields.sms_provider === 'surge' || businessWithFields.sms_provider === 'twilio') {
+    smsProvider = businessWithFields.sms_provider as 'surge' | 'twilio'
   } else {
     // Fallback: check which credentials are available
-    if (business.surge_api_key && business.surge_account_id) {
+    if (businessWithFields.surge_api_key && businessWithFields.surge_account_id) {
       smsProvider = 'surge'
-    } else if (business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID) {
+    } else if (businessWithFields.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID) {
       smsProvider = 'twilio'
     }
   }
@@ -375,14 +378,14 @@ async function sendSMSToLead(leadId: string, message: string) {
   }
 
   if (smsProvider === 'surge') {
-    config.surgeApiKey = business.surge_api_key || undefined
-    config.surgeAccountId = business.surge_account_id || undefined
+    config.surgeApiKey = businessWithFields.surge_api_key || undefined
+    config.surgeAccountId = businessWithFields.surge_account_id || undefined
     
     if (!config.surgeApiKey || !config.surgeAccountId) {
       throw new Error('Surge credentials not configured. Please check your SMS settings.')
     }
   } else if (smsProvider === 'twilio') {
-    config.twilioAccountSid = business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || undefined
+    config.twilioAccountSid = businessWithFields.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || undefined
     config.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined
     config.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER || undefined
     
@@ -395,7 +398,7 @@ async function sendSMSToLead(leadId: string, message: string) {
   const result = await sendSMS(config, {
     to: lead.phone,
     body: message,
-    fromName: business.sender_name || business.name || 'BRNNO',
+    fromName: businessWithFields.sender_name || business.name || 'BRNNO',
     contactFirstName: lead.name?.split(' ')[0] || undefined,
     contactLastName: lead.name?.split(' ').slice(1).join(' ') || undefined,
   })
