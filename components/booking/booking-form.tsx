@@ -37,6 +37,8 @@ type Service = {
   is_popular?: boolean | null
   image_url?: string | null
   icon?: string | null
+  pricing_model?: 'flat' | 'variable' | null
+  variations?: Record<string, { price: number; duration: number; enabled: boolean }> | null
 }
 
 type BookingStep = 1 | 2 | 3 | 4 | 5 | 6
