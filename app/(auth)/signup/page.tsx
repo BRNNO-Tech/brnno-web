@@ -35,6 +35,7 @@ type FormData = {
 export default function SignupPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [trialLoading, setTrialLoading] = useState(false)
   const [error, setError] = useState('')
   const [signupLeadId, setSignupLeadId] = useState<string | null>(null)
   const router = useRouter()
@@ -147,6 +148,93 @@ export default function SignupPage() {
       trackStepProgress(currentStep, stepData)
     }
   }, [currentStep, signupLeadId])
+
+  async function handleStartTrial() {
+    setTrialLoading(true)
+    setError('')
+
+    const supabase = createClient()
+
+    try {
+      // Create auth account first
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+            user_type: 'business_owner',
+          },
+        },
+      })
+
+      if (signUpError) throw signUpError
+      if (!data.user) throw new Error('Failed to create account')
+
+      // Clear demo mode cookie when user successfully signs up
+      document.cookie = 'demo-mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax'
+
+      // Track subscription selection
+      if (signupLeadId) {
+        trackStepProgress(5, {
+          selectedPlan: formData.selectedPlan,
+          teamSize: formData.teamSize,
+          billingPeriod: formData.billingPeriod,
+          trial: true,
+        })
+      }
+
+      // Start free trial
+      const response = await fetch('/api/start-trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: formData.selectedPlan,
+          billingPeriod: formData.billingPeriod,
+          teamSize: formData.teamSize || (formData.selectedPlan === 'starter' ? 1 : (formData.selectedPlan === 'pro' ? 2 : 3)),
+          email: formData.email,
+          businessName: formData.businessName,
+          userId: data.user.id,
+          signupLeadId: signupLeadId,
+          signupData: {
+            name: formData.name,
+            email: formData.email,
+            businessName: formData.businessName,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+            subdomain: formData.subdomain,
+            description: formData.description,
+          },
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to start free trial')
+      }
+
+      const result = await response.json()
+      
+      // Sign in the user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      })
+
+      if (signInError) {
+        throw new Error(`Failed to sign in: ${signInError.message}`)
+      }
+
+      // Redirect to dashboard
+      window.location.href = '/dashboard'
+    } catch (err: any) {
+      setError(err.message || 'Failed to start free trial')
+      setTrialLoading(false)
+    }
+  }
 
   async function handleSubmit() {
     setLoading(true)
@@ -397,8 +485,10 @@ export default function SignupPage() {
             onBillingChange={(period) => updateFormData({ billingPeriod: period })}
             onTeamSizeChange={(size) => updateFormData({ teamSize: size })}
             onSubmit={handleSubmit}
+            onStartTrial={handleStartTrial}
             onBack={() => setCurrentStep(3)}
             loading={loading}
+            trialLoading={trialLoading}
           />
         )}
 

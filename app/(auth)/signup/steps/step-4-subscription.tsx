@@ -13,8 +13,10 @@ interface Step4Props {
   onBillingChange: (period: 'monthly' | 'yearly') => void
   onTeamSizeChange: (size: number) => void
   onSubmit: () => void
+  onStartTrial: () => void
   onBack: () => void
   loading: boolean
+  trialLoading: boolean
 }
 
 const plans = [
@@ -83,8 +85,10 @@ export default function Step4Subscription({
   onBillingChange,
   onTeamSizeChange,
   onSubmit,
+  onStartTrial,
   onBack,
   loading,
+  trialLoading,
 }: Step4Props) {
   const calculatePrice = (planId: string, size: number, period: 'monthly' | 'yearly') => {
     if (planId === 'starter') {
@@ -360,24 +364,38 @@ export default function Step4Subscription({
         </p>
       )}
 
-      <div className="flex gap-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onBack}
-          disabled={loading}
-          className="flex-1"
-        >
-          Back
-        </Button>
-        <Button
-          type="button"
-          onClick={onSubmit}
-          disabled={loading || !selectedPlan || ((selectedPlan === 'pro' || selectedPlan === 'fleet') && (!teamSize || teamSize === 0))}
-          className="flex-1"
-        >
-          {loading ? 'Processing...' : 'Continue to Payment'}
-        </Button>
+      <div className="space-y-3">
+        <div className="flex gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onBack}
+            disabled={loading || trialLoading}
+            className="flex-1"
+          >
+            Back
+          </Button>
+          <Button
+            type="button"
+            onClick={onStartTrial}
+            disabled={loading || trialLoading || !selectedPlan || ((selectedPlan === 'pro' || selectedPlan === 'fleet') && (!teamSize || teamSize === 0))}
+            variant="secondary"
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white dark:bg-green-600 dark:hover:bg-green-700"
+          >
+            {trialLoading ? 'Starting Trial...' : 'Start Free Trial (14 Days)'}
+          </Button>
+          <Button
+            type="button"
+            onClick={onSubmit}
+            disabled={loading || trialLoading || !selectedPlan || ((selectedPlan === 'pro' || selectedPlan === 'fleet') && (!teamSize || teamSize === 0))}
+            className="flex-1"
+          >
+            {loading ? 'Processing...' : 'Continue to Payment'}
+          </Button>
+        </div>
+        <p className="text-center text-xs text-zinc-600 dark:text-zinc-400">
+          Start your 14-day free trial with full access. No credit card required.
+        </p>
       </div>
     </div>
   )
