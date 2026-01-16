@@ -32,13 +32,21 @@ type BookingEmailData = {
 }
 
 export async function sendBookingConfirmation(booking: BookingEmailData) {
+  console.log('[sendBookingConfirmation] Starting email send process...')
+  console.log('[sendBookingConfirmation] Resend client initialized:', !!resend)
+  console.log('[sendBookingConfirmation] RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY)
+  
   // If no API key, log and return (for dev/mock mode)
   if (!resend) {
-    console.warn('⚠️ RESEND_API_KEY not set. Skipping email sending.')
-    console.warn('Would send to customer:', booking.customer.email)
-    console.warn('Would send to business:', booking.business.email)
-    throw new Error('RESEND_API_KEY not configured. Cannot send booking confirmation emails.')
+    const errorMsg = 'RESEND_API_KEY not configured. Cannot send booking confirmation emails.'
+    console.error('❌', errorMsg)
+    console.error('  - RESEND_API_KEY env var exists:', !!process.env.RESEND_API_KEY)
+    console.error('  - Would send to customer:', booking.customer.email)
+    console.error('  - Would send to business:', booking.business.email)
+    throw new Error(errorMsg)
   }
+  
+  console.log('[sendBookingConfirmation] Resend client is ready, proceeding with email send...')
 
   // Validate required fields
   if (!booking.customer.email) {
@@ -124,7 +132,7 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
 
   try {
     // Email to customer
-    await resend.emails.send({
+    const customerEmailResult = await resend.emails.send({
       from: `BRNNO <${fromEmail}>`,
       to: booking.customer.email,
       subject: `Booking Confirmed - ${booking.business.name}`,
@@ -194,8 +202,27 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
       `
     })
 
+    console.log('[sendBookingConfirmation] Customer email API response:', {
+      hasError: !!customerEmailResult.error,
+      error: customerEmailResult.error,
+      emailId: customerEmailResult.data?.id,
+      to: booking.customer.email,
+      from: fromEmail
+    })
+    
+    if (customerEmailResult.error) {
+      console.error('[sendBookingConfirmation] ❌ Customer email failed:', customerEmailResult.error)
+      throw new Error(`Failed to send customer email: ${customerEmailResult.error.message || JSON.stringify(customerEmailResult.error)}`)
+    }
+    
+    if (!customerEmailResult.data?.id) {
+      console.warn('[sendBookingConfirmation] ⚠️ Customer email sent but no ID returned from Resend')
+    } else {
+      console.log('✅ Customer confirmation email sent successfully. Resend ID:', customerEmailResult.data.id)
+    }
+
     // Email to business (detailer)
-    await resend.emails.send({
+    const businessEmailResult = await resend.emails.send({
       from: `BRNNO <${fromEmail}>`,
       to: booking.business.email,
       subject: `New Booking - ${booking.customer.name}`,
@@ -267,7 +294,26 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
       `
     })
 
-    console.log('Booking emails sent successfully')
+    console.log('[sendBookingConfirmation] Business email API response:', {
+      hasError: !!businessEmailResult.error,
+      error: businessEmailResult.error,
+      emailId: businessEmailResult.data?.id,
+      to: booking.business.email,
+      from: fromEmail
+    })
+    
+    if (businessEmailResult.error) {
+      console.error('[sendBookingConfirmation] ❌ Business email failed:', businessEmailResult.error)
+      throw new Error(`Failed to send business email: ${businessEmailResult.error.message || JSON.stringify(businessEmailResult.error)}`)
+    }
+    
+    if (!businessEmailResult.data?.id) {
+      console.warn('[sendBookingConfirmation] ⚠️ Business email sent but no ID returned from Resend')
+    } else {
+      console.log('✅ Business notification email sent successfully. Resend ID:', businessEmailResult.data.id)
+    }
+    
+    console.log('✅ Booking emails sent successfully - both customer and business emails sent')
   } catch (error) {
     console.error('Error sending booking emails:', error)
     // Log more details for debugging

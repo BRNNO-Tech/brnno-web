@@ -539,8 +539,7 @@ export default function BookingForm({
 
       // Always redirect to checkout - let checkout page handle payment/no-payment
       // Save booking data to sessionStorage and redirect to checkout
-      const totalPrice = (service.price || 0) + formData.selectedAddons.reduce((sum, a) => sum + a.price, 0)
-
+      // Use the calculated totals which include vehicle size adjustments and addons
       const bookingData = {
         businessId: business.id,
         leadId, // Include leadId for tracking
@@ -548,11 +547,16 @@ export default function BookingForm({
           id: service.id,
           name: service.name,
           description: service.description,
-          price: service.price || 0,
-          duration_minutes: service.duration_minutes,
+          price: totals.price, // Use calculated total price (includes vehicle size adjustments)
+          base_price: service.base_price || service.price || 0, // Keep base price for reference
+          duration_minutes: totals.duration, // Use calculated total duration
+          base_duration: service.base_duration || service.estimated_duration || service.duration_minutes || 60, // Keep base duration for reference
+          pricing_model: service.pricing_model,
+          variations: service.variations,
         },
         addons: formData.selectedAddons,
-        totalPrice,
+        totalPrice: totals.price, // Total including vehicle adjustments and addons
+        vehicleSize: vehicleSizeForPricing, // Store vehicle size for reference
         customer: {
           name: formData.name.trim(),
           email: formData.email.trim(),

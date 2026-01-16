@@ -254,65 +254,105 @@ export async function POST(request: NextRequest) {
       .eq('id', businessId)
       .single()
 
-    if (business) {
-      const bookingData = {
-        business: {
-          name: business.name,
-          email: business.email,
-          phone: business.phone
-        },
-        service: {
-          name: service.name,
-          price: body.totalPrice || service.price || 0,
-          duration_minutes: service.duration_minutes || service.base_duration || service.estimated_duration || 60
-        },
-        customer: {
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone
-        },
-        scheduledDate,
-        scheduledTime,
-        address: address || null,
-        city: city || null,
-        state: state || null,
-        zip: zip || null,
-        assetDetails: assetDetails || null,
-        notes: notes || null
-      }
+    console.log('[create-booking] Email sending check:', {
+      hasBusiness: !!business,
+      businessEmail: business?.email || 'MISSING',
+      customerEmail: customer.email || 'MISSING',
+      hasResendKey: !!process.env.RESEND_API_KEY,
+      resendFromEmail: process.env.RESEND_FROM_EMAIL || 'not set'
+    })
 
-      // Send email confirmation (existing)
-      try {
-        await sendBookingConfirmation(bookingData)
-        console.log('Booking confirmation email sent successfully')
-      } catch (emailError) {
-        console.error('Failed to send booking confirmation email:', emailError)
-        // Don't fail the booking if email fails
+    // Prepare bookingData for both email and SMS (needed outside conditional blocks)
+    const bookingData = business ? {
+      business: {
+        name: business.name,
+        email: business.email,
+        phone: business.phone
+      },
+      service: {
+        name: service.name,
+        price: body.totalPrice || service.price || 0,
+        duration_minutes: service.duration_minutes || service.base_duration || service.estimated_duration || 60
+      },
+      customer: {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone
+      },
+      scheduledDate,
+      scheduledTime,
+      address: address || null,
+      city: city || null,
+      state: state || null,
+      zip: zip || null,
+      assetDetails: assetDetails || null,
+      notes: notes || null
+    } : null
+
+    if (business && bookingData) {
+      // Check if business email exists
+      if (!business.email) {
+        console.error('❌ Business email is missing. Cannot send booking confirmation emails.')
+        console.error('Business ID:', businessId, 'Business Name:', business.name)
+      } else if (!customer.email) {
+        console.error('❌ Customer email is missing. Cannot send booking confirmation emails.')
+        console.error('Customer Name:', customer.name)
+      } else if (!process.env.RESEND_API_KEY) {
+        console.error('❌ RESEND_API_KEY is not configured. Cannot send booking confirmation emails.')
+        console.error('Please add RESEND_API_KEY to your .env.local file')
+      } else {
+        // Send email confirmation (existing)
+        try {
+          await sendBookingConfirmation(bookingData)
+          console.log('✅ Booking confirmation email sent successfully')
+          console.log('  - Customer email:', customer.email)
+          console.log('  - Business email:', business.email)
+        } catch (emailError: any) {
+          console.error('❌ Failed to send booking confirmation email:', emailError)
+          console.error('  - Error message:', emailError?.message)
+          console.error('  - Customer email:', customer.email)
+          console.error('  - Business email:', business.email)
+          console.error('  - RESEND_API_KEY configured:', !!process.env.RESEND_API_KEY)
+          
+          // Check if it's a domain verification error
+          if (emailError?.message?.includes('verify a domain')) {
+            console.error('  - ⚠️ RESEND DOMAIN VERIFICATION REQUIRED:')
+            console.error('     You need to verify a domain in Resend and set RESEND_FROM_EMAIL to use that domain.')
+            console.error('     Example: RESEND_FROM_EMAIL=noreply@yourdomain.com')
+            console.error('     Visit: https://resend.com/domains to verify a domain')
+          }
+          // Don't fail the booking if email fails
+        }
       }
 
       // Send SMS confirmation (new) - only if customer has phone
       // Note: SMS consent is required in the booking form, so we can safely send
       // The booking form requires SMS consent to proceed, so consent is implied
-      if (customer.phone) {
-        const { sendBookingConfirmationSMS } = await import('@/lib/email')
-        // Check if we can get SMS consent from the lead record (if it exists)
-        let smsConsent = true // Default to true since form requires consent
-        if (leadIdFinal) {
-          try {
-            const { data: lead } = await supabase
-              .from('leads')
-              .select('sms_consent')
-              .eq('id', leadIdFinal)
-              .single()
-            if (lead && lead.sms_consent !== undefined) {
-              smsConsent = lead.sms_consent
+      if (customer.phone && bookingData) {
+        try {
+          const { sendBookingConfirmationSMS } = await import('@/lib/email')
+          // Check if we can get SMS consent from the lead record (if it exists)
+          let smsConsent = true // Default to true since form requires consent
+          if (leadIdFinal) {
+            try {
+              const { data: lead } = await supabase
+                .from('leads')
+                .select('sms_consent')
+                .eq('id', leadIdFinal)
+                .single()
+              if (lead && lead.sms_consent !== undefined) {
+                smsConsent = lead.sms_consent
+              }
+            } catch (error) {
+              // If we can't check, default to true (form requires consent)
+              console.log('Could not verify SMS consent from lead, defaulting to true')
             }
-          } catch (error) {
-            // If we can't check, default to true (form requires consent)
-            console.log('Could not verify SMS consent from lead, defaulting to true')
           }
+          await sendBookingConfirmationSMS(bookingData, smsConsent)
+        } catch (smsError) {
+          console.error('❌ Failed to send booking confirmation SMS:', smsError)
+          // Don't fail the booking if SMS fails
         }
-        await sendBookingConfirmationSMS(bookingData, smsConsent)
       }
     }
 

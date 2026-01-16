@@ -152,10 +152,33 @@ export default function CheckoutForm({ business }: { business: Business }) {
                 </div>
 
                 <div className="border-t pt-4">
+                  {/* Show breakdown if there are addons or variable pricing */}
+                  {(bookingData.addons?.length > 0 || bookingData.vehicleSize) && (
+                    <div className="space-y-2 mb-4 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-zinc-600 dark:text-zinc-400">Service</span>
+                        <span>${(bookingData.service.base_price || bookingData.service.price || 0).toFixed(2)}</span>
+                      </div>
+                      {bookingData.vehicleSize && bookingData.service.pricing_model === 'variable' && (
+                        <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                          <span>Vehicle ({bookingData.vehicleSize})</span>
+                          <span>
+                            ${(bookingData.service.price - (bookingData.service.base_price || bookingData.service.price || 0) - (bookingData.addons?.reduce((sum: number, a: any) => sum + (a.price || 0), 0) || 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      {bookingData.addons?.map((addon: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-zinc-500 dark:text-zinc-400">
+                          <span>{addon.name}</span>
+                          <span>+${(addon.price || 0).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-lg font-bold">
                     <span>Total</span>
                     <span className="text-green-600">
-                      ${bookingData.service.price.toFixed(2)}
+                      ${(bookingData.totalPrice || bookingData.service.price || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -229,7 +252,7 @@ function MockPayment({ business, bookingData }: any) {
               size="lg"
               className="w-full"
             >
-              {loading ? 'Creating booking...' : `✅ Complete Booking ($${bookingData.service.price.toFixed(2)})`}
+              {loading ? 'Creating booking...' : `✅ Complete Booking ($${(bookingData.totalPrice || bookingData.service.price || 0).toFixed(2)})`}
             </Button>
           </div>
         </div>
@@ -246,7 +269,7 @@ function RealPayment({ business, bookingData }: any) {
   useEffect(() => {
     async function createPaymentIntent() {
       try {
-        const amount = Math.round((bookingData.service.price || 0) * 100) // Convert to cents
+        const amount = Math.round((bookingData.totalPrice || bookingData.service.price || 0) * 100) // Convert to cents
 
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
@@ -421,7 +444,7 @@ function StripePaymentForm({ business, bookingData }: any) {
             size="lg"
             className="w-full"
           >
-            {loading ? 'Processing...' : `Pay $${bookingData.service.price.toFixed(2)}`}
+            {loading ? 'Processing...' : `Pay $${(bookingData.totalPrice || bookingData.service.price || 0).toFixed(2)}`}
           </Button>
 
           <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
@@ -548,7 +571,7 @@ function NoPaymentOption({ business, bookingData }: any) {
                     {formattedTime} - {formattedEndTime}
                   </p>
                   <p className="text-sm text-zinc-500 dark:text-zinc-500 mt-1">
-                    Est. due at appointment: ${bookingData.service.price.toFixed(2)}
+                    Est. due at appointment: ${(bookingData.totalPrice || bookingData.service.price || 0).toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -575,9 +598,23 @@ function NoPaymentOption({ business, bookingData }: any) {
             <h2 className="font-semibold text-lg mb-4">Cost Breakdown</h2>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-600 dark:text-zinc-400">Subtotal</span>
-                <span className="font-medium">${bookingData.service.price.toFixed(2)}</span>
+                <span className="text-zinc-600 dark:text-zinc-400">Service</span>
+                <span className="font-medium">${(bookingData.service.base_price || bookingData.service.price || 0).toFixed(2)}</span>
               </div>
+              {bookingData.vehicleSize && bookingData.service.pricing_model === 'variable' && (
+                <div className="flex justify-between text-sm text-blue-600 dark:text-blue-400">
+                  <span>Vehicle ({bookingData.vehicleSize})</span>
+                  <span>
+                    ${(bookingData.service.price - (bookingData.service.base_price || bookingData.service.price || 0) - (bookingData.addons?.reduce((sum: number, a: any) => sum + (a.price || 0), 0) || 0)).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {bookingData.addons?.map((addon: any, idx: number) => (
+                <div key={idx} className="flex justify-between text-sm text-zinc-500 dark:text-zinc-400">
+                  <span>{addon.name}</span>
+                  <span>+${(addon.price || 0).toFixed(2)}</span>
+                </div>
+              ))}
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600 dark:text-zinc-400">Taxes</span>
                 <span className="font-medium">$0.00</span>
@@ -585,7 +622,7 @@ function NoPaymentOption({ business, bookingData }: any) {
               <div className="border-t pt-3 flex justify-between text-lg font-bold">
                 <span>Total</span>
                 <span className="text-green-600 dark:text-green-400">
-                  ${bookingData.service.price.toFixed(2)}
+                  ${(bookingData.totalPrice || bookingData.service.price || 0).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -601,7 +638,7 @@ function NoPaymentOption({ business, bookingData }: any) {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-600 dark:text-zinc-400">Due at appointment</span>
-                <span className="font-medium">${bookingData.service.price.toFixed(2)}</span>
+                <span className="font-medium">${(bookingData.totalPrice || bookingData.service.price || 0).toFixed(2)}</span>
               </div>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-3">
