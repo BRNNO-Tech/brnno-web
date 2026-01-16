@@ -27,6 +27,8 @@ export interface ServiceAddon {
   name: string;
   description?: string;
   price: number;
+  duration?: number; // Duration in minutes (optional)
+  duration_minutes?: number; // Alternative field name for duration (optional)
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
