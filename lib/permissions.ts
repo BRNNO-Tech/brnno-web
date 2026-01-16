@@ -96,7 +96,10 @@ export function getTierFromBusiness(business: {
     return 'pro'
   }
   
-  if (!business.subscription_plan || business.subscription_status !== 'active') {
+  // Check if subscription is active or trialing (trials should have full access)
+  const isActive = business.subscription_status === 'active' || business.subscription_status === 'trialing'
+  
+  if (!business.subscription_plan || !isActive) {
     return null
   }
   const plan = business.subscription_plan.toLowerCase()
