@@ -149,23 +149,26 @@ async function executeMessageStep(enrollment: any, step: any, supabase: any) {
     const business = await getBusiness()
     if (!business) return
 
+    // Type assertion for SMS-related properties that may not be in the base type
+    const businessWithSMS = business as any
+
     // Determine SMS provider and build config
-    const smsProvider = business.sms_provider || 'twilio'
+    const smsProvider = businessWithSMS.sms_provider || 'twilio'
     const config: any = { provider: smsProvider }
     
     if (smsProvider === 'twilio') {
-      config.twilioAccountSid = business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID
+      config.twilioAccountSid = businessWithSMS.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID
       config.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN
       config.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER
     } else if (smsProvider === 'surge') {
-      config.surgeApiKey = business.surge_api_key
-      config.surgeAccountId = business.surge_account_id
+      config.surgeApiKey = businessWithSMS.surge_api_key
+      config.surgeAccountId = businessWithSMS.surge_account_id
     }
 
     const result = await sendSMS(config, {
       to: lead.phone,
       body: message,
-      fromName: business.sender_name || business.name || 'BRNNO',
+      fromName: businessWithSMS.sender_name || business.name || 'BRNNO',
     })
 
     // Record execution
