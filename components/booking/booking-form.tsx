@@ -890,8 +890,8 @@ export default function BookingForm({
                       vehicleColor: vehicle.color || null,
                       assetDetails: {
                         ...prev.assetDetails,
-                        size: vehicle.size,
-                        color: vehicle.color,
+                        size: vehicle.size || null,
+                        color: vehicle.color || null,
                         year: vehicle.year,
                         make: vehicle.make,
                         model: vehicle.model,
