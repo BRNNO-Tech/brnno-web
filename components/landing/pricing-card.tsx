@@ -95,12 +95,30 @@ export default function PricingCard({
 
         {/* Price */}
         <div className="mb-4">
-          <div className="flex items-baseline gap-1 mb-2">
-            <span className="text-3xl sm:text-4xl font-bold">{price}</span>
-            {period && (
-              <span className={highlight || dark || accent ? 'opacity-75' : 'text-zinc-600 dark:text-zinc-400'}>
-                {period}
-              </span>
+          <div className="mb-2">
+            {price.includes('Starting at') ? (
+              <div className="flex items-baseline flex-wrap gap-1.5">
+                <span className="text-base sm:text-lg font-medium text-zinc-600 dark:text-zinc-400">
+                  Starting at
+                </span>
+                <span className="text-3xl sm:text-4xl font-bold">
+                  {price.replace('Starting at ', '')}
+                </span>
+                {period && (
+                  <span className={`text-2xl sm:text-3xl font-medium ${highlight || dark || accent ? 'opacity-90' : 'text-zinc-600 dark:text-zinc-400'}`}>
+                    {period}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl sm:text-4xl font-bold">{price}</span>
+                {period && (
+                  <span className={`text-2xl sm:text-3xl font-medium ${highlight || dark || accent ? 'opacity-90' : 'text-zinc-600 dark:text-zinc-400'}`}>
+                    {period}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           {yearlySavings && period === '/yr' && (

@@ -5,6 +5,22 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import PricingCard from './pricing-card'
 
+// Helper function to extract lowest price from a range
+const extractLowestPrice = (priceString: string): string => {
+  // Handle special cases
+  if (priceString === "Let's Talk" || priceString.startsWith('From ')) {
+    return priceString
+  }
+  
+  // Extract the first price from ranges like "$149–$199" or "$1,490–$1,990"
+  const match = priceString.match(/^\$?([\d,]+)/)
+  if (match) {
+    return `$${match[1]}`
+  }
+  
+  return priceString
+}
+
 const plans = [
   {
     name: 'Starter',
@@ -103,7 +119,7 @@ const plans = [
     name: 'AI Add-ons Suite',
     color: 'gray' as const,
     description: 'Optional upgrades that automate your business and boost revenue.',
-    monthlyPrice: 'From $9/mo',
+    monthlyPrice: '$9',
     yearlyPrice: null,
     features: [
       'AI Chatbot Assistant ($29–$79/mo)',
@@ -114,7 +130,7 @@ const plans = [
       'AI Voice Agent ($49–$149/mo)',
     ],
     cta: 'View AI Suite',
-    href: '/ai-add-ons',
+    href: '/ai-suite',
     accent: true,
   },
 ]
@@ -214,12 +230,18 @@ export default function Pricing() {
             className="flex gap-6 overflow-x-auto pb-8 snap-x snap-mandatory scroll-smooth hide-scrollbar px-4 md:px-0"
           >
             {plans.map((plan) => {
-              const price = billingPeriod === 'monthly' 
+              const rawPrice = billingPeriod === 'monthly' 
                 ? plan.monthlyPrice 
                 : (plan.yearlyPrice || plan.monthlyPrice)
+              
+              // Extract lowest price and format with "Starting at"
+              const lowestPrice = extractLowestPrice(rawPrice)
+              const showStartingAt = rawPrice !== "Let's Talk" && !rawPrice.startsWith('From ')
+              const price = showStartingAt ? `Starting at ${lowestPrice}` : lowestPrice
+              
               const period = billingPeriod === 'yearly' && plan.yearlyPrice 
                 ? '/yr' 
-                : plan.monthlyPrice === "Let's Talk" || plan.monthlyPrice === 'From $9/mo'
+                : plan.monthlyPrice === "Let's Talk"
                   ? ''
                   : '/mo'
               
