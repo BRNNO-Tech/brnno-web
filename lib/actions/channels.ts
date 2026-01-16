@@ -19,7 +19,10 @@ export async function sendTestEmail() {
     throw new Error('No business found')
   }
 
-  if (!business.email) {
+  // Type assertion for properties that may not be in the base type
+  const businessWithFields = business as any
+
+  if (!businessWithFields.email) {
     throw new Error('Business email not set. Please add an email in Business Profile settings.')
   }
 
@@ -28,12 +31,12 @@ export async function sendTestEmail() {
   }
 
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
-  const senderName = business.sender_name || business.name || 'BRNNO'
+  const senderName = businessWithFields.sender_name || business.name || 'BRNNO'
 
   try {
     const result = await resend.emails.send({
       from: `${senderName} <${fromEmail}>`,
-      to: business.email,
+      to: businessWithFields.email,
       subject: 'Test Email from BRNNO',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -46,7 +49,7 @@ export async function sendTestEmail() {
             <h3 style="margin-top: 0; color: #18181b;">Email Configuration</h3>
             <ul style="list-style: none; padding: 0; color: #52525b;">
               <li style="margin-bottom: 10px;"><strong>From:</strong> ${senderName} &lt;${fromEmail}&gt;</li>
-              <li style="margin-bottom: 10px;"><strong>To:</strong> ${business.email}</li>
+              <li style="margin-bottom: 10px;"><strong>To:</strong> ${businessWithFields.email}</li>
               <li style="margin-bottom: 10px;"><strong>Provider:</strong> Resend</li>
             </ul>
           </div>
@@ -82,29 +85,32 @@ export async function sendTestSMS(phoneNumber?: string) {
     throw new Error('No business found')
   }
 
+  // Type assertion for properties that may not be in the base type
+  const businessWithFields = business as any
+
   // Determine which provider to use
   // Priority: 1. Explicit sms_provider setting, 2. Check for credentials
   let smsProvider: 'surge' | 'twilio' | null = null
   
   // Debug logging
   console.log('[sendTestSMS] Provider detection:', {
-    sms_provider: business.sms_provider,
-    has_surge_key: !!business.surge_api_key,
-    has_surge_account: !!business.surge_account_id,
-    has_twilio_sid: !!business.twilio_account_sid,
+    sms_provider: businessWithFields.sms_provider,
+    has_surge_key: !!businessWithFields.surge_api_key,
+    has_surge_account: !!businessWithFields.surge_account_id,
+    has_twilio_sid: !!businessWithFields.twilio_account_sid,
   })
   
   // Check explicit provider setting first
-  if (business.sms_provider === 'surge' || business.sms_provider === 'twilio') {
-    smsProvider = business.sms_provider as 'surge' | 'twilio'
+  if (businessWithFields.sms_provider === 'surge' || businessWithFields.sms_provider === 'twilio') {
+    smsProvider = businessWithFields.sms_provider as 'surge' | 'twilio'
     console.log('[sendTestSMS] Using explicit provider:', smsProvider)
   } else {
     // Fallback: check which credentials are available
     // Prioritize Surge if both Surge credentials exist
-    if (business.surge_api_key && business.surge_account_id) {
+    if (businessWithFields.surge_api_key && businessWithFields.surge_account_id) {
       smsProvider = 'surge'
       console.log('[sendTestSMS] Using Surge (credentials found)')
-    } else if (business.twilio_account_sid) {
+    } else if (businessWithFields.twilio_account_sid) {
       smsProvider = 'twilio'
       console.log('[sendTestSMS] Using Twilio (credentials found)')
     }
@@ -117,11 +123,11 @@ export async function sendTestSMS(phoneNumber?: string) {
   console.log('[sendTestSMS] Selected provider:', smsProvider)
 
   // Use business phone or provided phone number
-  let toPhone = phoneNumber || business.phone
+  let toPhone = phoneNumber || businessWithFields.phone
   
   console.log('[sendTestSMS] Phone number check:', {
     provided: phoneNumber,
-    businessPhone: business.phone,
+    businessPhone: businessWithFields.phone,
     final: toPhone,
   })
   
@@ -148,7 +154,7 @@ export async function sendTestSMS(phoneNumber?: string) {
 
   console.log('[sendTestSMS] Phone number validated:', toPhone, 'digits:', digitsOnly.length)
 
-  const senderName = business.sender_name || business.name || 'BRNNO'
+  const senderName = businessWithFields.sender_name || business.name || 'BRNNO'
   const message = `Test SMS from ${senderName} via BRNNO. Your SMS channel is working correctly! ✅`
 
   // Import the SMS provider abstraction
@@ -161,8 +167,8 @@ export async function sendTestSMS(phoneNumber?: string) {
 
   // Only include credentials for the selected provider
   if (smsProvider === 'surge') {
-    config.surgeApiKey = business.surge_api_key || undefined
-    config.surgeAccountId = business.surge_account_id || undefined
+    config.surgeApiKey = businessWithFields.surge_api_key || undefined
+    config.surgeAccountId = businessWithFields.surge_account_id || undefined
     // Note: Surge SDK doesn't require a "from" phone number - it uses the account's default
     
     // Validate Surge credentials before sending
@@ -178,7 +184,7 @@ export async function sendTestSMS(phoneNumber?: string) {
   } else if (smsProvider === 'twilio') {
     // For SaaS: Twilio credentials come from environment variables (shared account)
     // Account SID can optionally be stored per-business for tracking, but Auth Token and Phone Number are always from env
-    config.twilioAccountSid = business.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || undefined
+    config.twilioAccountSid = businessWithFields.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID || undefined
     config.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined
     config.twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER || undefined
     
@@ -191,7 +197,7 @@ export async function sendTestSMS(phoneNumber?: string) {
       hasAccountSid: !!config.twilioAccountSid,
       hasAuthToken: !!config.twilioAuthToken,
       hasPhoneNumber: !!config.twilioPhoneNumber,
-      accountSidSource: business.twilio_account_sid ? 'database' : 'env',
+      accountSidSource: businessWithFields.twilio_account_sid ? 'database' : 'env',
     })
   }
 
