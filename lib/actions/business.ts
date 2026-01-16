@@ -97,9 +97,10 @@ export async function getBusiness() {
     return null
   }
 
+  // Optimized: Only select needed columns for sidebar
   const { data: business, error: businessError } = await supabase
     .from('businesses')
-    .select('*')
+    .select('id, name, owner_id, created_at')
     .eq('owner_id', user.id)
     .single()
 

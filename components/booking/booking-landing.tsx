@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Phone, Mail, MapPin } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Phone, Mail, MapPin, Star, Clock, DollarSign, Check } from 'lucide-react'
 import { getStartingPrice, isVariablePricing } from '@/lib/utils/service-pricing'
+import Image from 'next/image'
 
 type Business = {
   id: string
@@ -23,7 +25,14 @@ type Service = {
   name: string
   description: string | null
   price: number | null
+  base_price?: number | null
   duration_minutes: number | null
+  base_duration?: number | null
+  estimated_duration?: number | null
+  image_url?: string | null
+  icon?: string | null
+  is_popular?: boolean | null
+  whats_included?: string[] | null
 }
 
 export default function BookingLanding({
@@ -98,53 +107,110 @@ export default function BookingLanding({
           </Card>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => (
-              <Card
-                key={service.id}
-                className="hover:shadow-md transition-shadow"
-              >
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-semibold mb-2 text-zinc-900 dark:text-zinc-50">
-                    {service.name}
-                  </h3>
-                  {service.description && (
-                    <p className="text-zinc-600 dark:text-zinc-400 mb-4 text-sm">
-                      {service.description}
-                    </p>
-                  )}
+            {services.map((service) => {
+              // Calculate display values
+              const displayPrice = service.base_price ?? service.price ?? 0
+              const durationMinutes = service.base_duration || service.estimated_duration || service.duration_minutes || 0
+              const durationHours = durationMinutes / 60
+              const price = getStartingPrice(service as any)
+              const isVariable = isVariablePricing(service as any)
+              
+              return (
+                <Card
+                  key={service.id}
+                  className="bg-card rounded-lg border overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  {/* Service Image */}
+                  <div className="relative h-48 bg-muted">
+                    {service.image_url ? (
+                      <Image
+                        src={service.image_url}
+                        alt={service.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-6xl">{service.icon || '✨'}</div>
+                      </div>
+                    )}
 
-                  <div className="flex items-end justify-between mb-4">
-                    <div>
-                      {(() => {
-                        const price = getStartingPrice(service as any)
-                        const isVariable = isVariablePricing(service as any)
-                        return (
-                          <>
-                            <p className="text-3xl font-bold text-green-600 dark:text-green-500">
-                              {isVariable ? 'Starting at ' : ''}${price.toFixed(2)}
-                            </p>
-                            {service.duration_minutes && (
-                              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                                ~
-                                {service.duration_minutes % 60 === 0
-                                  ? `${service.duration_minutes / 60} ${service.duration_minutes / 60 === 1 ? 'hour' : 'hours'}`
-                                  : `${(service.duration_minutes / 60).toFixed(1)} hours`}
-                              </p>
-                            )}
-                          </>
-                        )
-                      })()}
-                    </div>
+                    {/* Popular Badge */}
+                    {service.is_popular && (
+                      <Badge className="absolute top-3 right-3 bg-amber-500 hover:bg-amber-600">
+                        <Star className="h-3 w-3 mr-1" />
+                        Popular
+                      </Badge>
+                    )}
                   </div>
 
-                  <Link href={`/${business.subdomain}/book?service=${service.id}`}>
-                    <Button className="w-full" size="lg">
-                      Book Now
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+                  {/* Service Content */}
+                  <CardContent className="p-6 space-y-4">
+                    {/* Header */}
+                    <div>
+                      <h3 className="text-xl font-bold">{service.name}</h3>
+                      {service.description && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {service.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Price & Duration */}
+                    <div className="flex items-center gap-4 text-sm">
+                      {displayPrice > 0 && (
+                        <div className="flex items-center gap-1.5 text-green-600 font-semibold">
+                          <DollarSign className="h-4 w-4" />
+                          <span>
+                            {isVariable ? 'Starting at ' : ''}${price.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      {durationMinutes > 0 && (
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          <span>
+                            {durationHours % 1 === 0 
+                              ? durationHours.toFixed(0) 
+                              : durationHours.toFixed(1)
+                            } {durationHours === 1 ? 'hour' : 'hours'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* What's Included */}
+                    {service.whats_included && Array.isArray(service.whats_included) && service.whats_included.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase">
+                          What's Included
+                        </p>
+                        <ul className="space-y-1">
+                          {service.whats_included.slice(0, 3).map((item, index) => (
+                            <li key={index} className="flex items-start gap-2 text-sm">
+                              <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span className="line-clamp-1">{item}</span>
+                            </li>
+                          ))}
+                          {service.whats_included.length > 3 && (
+                            <li className="text-xs text-muted-foreground pl-6">
+                              +{service.whats_included.length - 3} more
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Book Button */}
+                    <Link href={`/${business.subdomain}/book?service=${service.id}`} className="block">
+                      <Button className="w-full" size="lg">
+                        Book Now
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         )}
       </main>

@@ -69,11 +69,33 @@ export function getMaxLeads(tier: Tier): number {
   }
 }
 
+// Admin emails that bypass subscription requirements
+const ADMIN_EMAILS = [
+  'john@brnno.com',
+  'adrian@brnno.com',
+  'sam@brnno.com',
+  'skylar@brnno.com',
+  'austin@brnno.com',
+  'brandon@brnno.com',
+] as const
+
+// Helper to check if email is an admin email
+function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false
+  return ADMIN_EMAILS.includes(email.toLowerCase() as any)
+}
+
 // Helper to get tier from business
 export function getTierFromBusiness(business: { 
   subscription_plan?: string | null
-  subscription_status?: string | null 
-}): Tier {
+  subscription_status?: string | null
+  owner_id?: string | null
+}, userEmail?: string | null): Tier {
+  // Admin email bypass - always return 'pro' for admin emails
+  if (userEmail && isAdminEmail(userEmail)) {
+    return 'pro'
+  }
+  
   if (!business.subscription_plan || business.subscription_status !== 'active') {
     return null
   }

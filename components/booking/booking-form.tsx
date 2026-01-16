@@ -7,11 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Calendar, Clock, DollarSign, ChevronRight, User, MapPin, Car, Mail, Phone, MessageSquare, Check, ChevronLeft } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, DollarSign, ChevronRight, User, MapPin, Car, Mail, Phone, MessageSquare, Check, ChevronLeft, Star } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getAvailableTimeSlots, checkTimeSlotAvailability } from '@/lib/actions/schedule'
 import AssetDetailsForm from './asset-details-form'
 import { DEFAULT_INDUSTRY } from '@/lib/config/industry-assets'
+import VehicleSelector from './vehicle-selector'
+import { calculateTotals, formatDuration, formatDurationHours } from '@/lib/utils/booking-utils'
 
 type Business = {
   id: string
@@ -26,13 +29,17 @@ type Service = {
   name: string
   description: string | null
   price: number | null
+  base_price?: number | null
   duration_minutes: number | null
-  whats_included?: string[] | null
+  base_duration?: number | null
   estimated_duration?: number | null
+  whats_included?: string[] | null
   is_popular?: boolean | null
+  image_url?: string | null
+  icon?: string | null
 }
 
-type BookingStep = 1 | 2 | 3 | 4 | 5
+type BookingStep = 1 | 2 | 3 | 4 | 5 | 6
 
 // Format phone number as (***) ***-****
 function formatPhoneNumber(value: string): string {
@@ -83,8 +90,16 @@ export default function BookingForm({
     city: '',
     state: '',
     zip: '',
-    assetDetails: {} as Record<string, any>,
-    selectedAddons: [] as any[]
+    assetDetails: {
+      size: null as string | null,
+      color: null as string | null,
+      year: '',
+      make: '',
+      model: '',
+    },
+    selectedAddons: [] as any[],
+    vehicleType: null as string | null,
+    vehicleColor: null as string | null,
   })
 
   const [addons, setAddons] = useState<any[]>([])
@@ -99,6 +114,27 @@ export default function BookingForm({
 
   const today = new Date().toISOString().split('T')[0]
 
+  // Calculate totals in real-time (runs on every render)
+  // Use the mapped size from assetDetails if available, otherwise use vehicleType directly
+  const vehicleSizeForPricing = formData.assetDetails?.size || formData.vehicleType
+  
+  // Debug logging (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[BookingForm] Vehicle pricing data:', {
+      vehicleType: formData.vehicleType,
+      assetDetailsSize: formData.assetDetails?.size,
+      vehicleSizeForPricing,
+      servicePricingModel: service.pricing_model,
+      serviceVariations: service.variations,
+    })
+  }
+  
+  const totals = calculateTotals(
+    service,
+    vehicleSizeForPricing as 'sedan' | 'suv' | 'truck' | 'coupe' | null,
+    formData.selectedAddons
+  )
+
   // Load available time slots when date is selected
   useEffect(() => {
     async function loadSlots() {
@@ -110,7 +146,7 @@ export default function BookingForm({
       setLoadingSlots(true)
       setSlotsError(null)
       try {
-        const duration = service.duration_minutes || 60
+        const duration = totals.duration
         const slots = await getAvailableTimeSlots(business.id, selectedDate, duration)
         setAvailableSlots(slots)
         if (slots.length === 0) {
@@ -125,11 +161,11 @@ export default function BookingForm({
       }
     }
 
-    // Load slots when on Date/Time step (step 2) and date is selected
-    if (currentStep === 2 && selectedDate) {
+    // Load slots when on Date/Time step (step 4) and date is selected
+    if (currentStep === 4 && selectedDate) {
       loadSlots()
     }
-  }, [selectedDate, business.id, service.duration_minutes, currentStep])
+  }, [selectedDate, business.id, currentStep, totals.duration])
 
   // Load available add-ons
   useEffect(() => {
@@ -295,7 +331,7 @@ export default function BookingForm({
           smsConsent: formData.smsConsent,
           serviceId: service.id,
           serviceName: service.name,
-          servicePrice: service.price || 0,
+          servicePrice: service.base_price || service.price || 0,
         }),
       })
 
@@ -324,7 +360,7 @@ export default function BookingForm({
         throw new Error('Invalid response from server')
       }
       setLeadId(result.lead.id)
-      setCurrentStep(2) // This is now add-ons
+      setCurrentStep(2) // Step 2: Vehicle Selection
     } catch (err: any) {
       setError(err.message || 'Failed to start booking. Please try again.')
     } finally {
@@ -332,8 +368,26 @@ export default function BookingForm({
     }
   }
 
-  // Step 2: Date/Time
-  async function handleStep2(e: React.FormEvent) {
+  // Step 2: Vehicle Selection (no form submission, just continue)
+  function handleVehicleContinue() {
+    if (!formData.vehicleType) {
+      setError('Please select a vehicle type')
+      return
+    }
+    setError(null)
+    setCurrentStep(3) // Go to add-ons
+  }
+
+  // Step 3: Add-ons (was Step 2)
+  async function handleStep3(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    // No validation needed for add-ons, just continue
+    setCurrentStep(4) // Go to date/time
+  }
+
+  // Step 4: Date/Time (was Step 2)
+  async function handleStep4(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -360,7 +414,7 @@ export default function BookingForm({
       }
 
       // Check availability using local date/time (NOT ISO/UTC)
-      const duration = service.duration_minutes || 60
+      const duration = totals.duration
       console.log('Calling checkTimeSlotAvailability with:', {
         businessId: business.id,
         date: formData.date,
@@ -400,7 +454,7 @@ export default function BookingForm({
         })
       }
 
-      setCurrentStep(4) // Go to notes step (add-ons are in Step 2)
+      setCurrentStep(5) // Go to notes step
     } catch (err: any) {
       setError(err.message || 'Failed to proceed. Please try again.')
     } finally {
@@ -408,8 +462,8 @@ export default function BookingForm({
     }
   }
 
-  // Step 3: Notes (phone already collected in Step 1)
-  async function handleStep3(e: React.FormEvent) {
+  // Step 5: Notes (phone already collected in Step 1)
+  async function handleStep5(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -422,7 +476,7 @@ export default function BookingForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             leadId,
-            step: 4,
+            step: 5,
             data: {
               notes: formData.notes.trim() || null,
             },
@@ -430,7 +484,7 @@ export default function BookingForm({
         })
       }
 
-      setCurrentStep(5)
+      setCurrentStep(6) // Go to final step (Address & Details)
     } catch (err: any) {
       setError(err.message || 'Failed to proceed. Please try again.')
     } finally {
@@ -438,8 +492,8 @@ export default function BookingForm({
     }
   }
 
-  // Step 4: Address + Asset Details → Continue to Payment
-  async function handleStep4(e: React.FormEvent<HTMLFormElement>) {
+  // Step 6: Address + Asset Details → Continue to Payment
+  async function handleStep6(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -531,18 +585,19 @@ export default function BookingForm({
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                  Step {currentStep} of 5
+                  Step {currentStep} of 6
                 </p>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   {currentStep === 1 && 'Your Information'}
-                  {currentStep === 2 && 'Date & Time'}
+                  {currentStep === 2 && 'Vehicle Selection'}
                   {currentStep === 3 && 'Add Extras'}
-                  {currentStep === 4 && 'Special Requests'}
-                  {currentStep === 5 && 'Location & Vehicle'}
+                  {currentStep === 4 && 'Date & Time'}
+                  {currentStep === 5 && 'Special Requests'}
+                  {currentStep === 6 && 'Location & Details'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {[1, 2, 3, 4, 5].map((step) => (
+                {[1, 2, 3, 4, 5, 6].map((step) => (
                   <div
                     key={step}
                     className={`flex-1 h-2.5 rounded-full transition-all duration-300 ${step < currentStep
@@ -557,17 +612,50 @@ export default function BookingForm({
             </div>
           </CardHeader>
           <CardContent>
-            {/* Enhanced Service Details Card */}
-            <div className="mb-6 p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 rounded-xl border-2 border-blue-200 dark:border-blue-800">
-              {quote && (
-                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-sm text-green-800 dark:text-green-200">
-                    <span className="font-semibold">Quote Code:</span> {quote.quote_code}
-                  </p>
-                </div>
-              )}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
+            {/* Enhanced Service Details Card - Matches Service List Format */}
+            <div className="mb-6 bg-card rounded-lg border overflow-hidden">
+              {/* Service Image/Icon */}
+              <div className="relative h-48 bg-muted">
+                {service.image_url ? (
+                  <Image
+                    src={service.image_url}
+                    alt={service.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-6xl">{service.icon || '✨'}</div>
+                  </div>
+                )}
+                
+                {/* Popular Badge */}
+                {!quote && service.is_popular && (
+                  <div className="absolute top-3 right-3 bg-amber-500 text-amber-900 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                    <Star className="h-3 w-3" />
+                    POPULAR
+                  </div>
+                )}
+                
+                {quote && (
+                  <div className="absolute top-3 right-3 bg-green-500 text-green-900 text-xs font-bold px-3 py-1 rounded-full">
+                    QUOTE
+                  </div>
+                )}
+              </div>
+
+              {/* Service Content */}
+              <div className="p-6 space-y-4">
+                {quote && (
+                  <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <p className="text-sm text-green-800 dark:text-green-200">
+                      <span className="font-semibold">Quote Code:</span> {quote.quote_code}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Header */}
+                <div>
                   <h3 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
                     {quote ? 'Your Custom Quote' : service.name}
                   </h3>
@@ -576,59 +664,124 @@ export default function BookingForm({
                       Vehicle: {quote.vehicle_type} • Condition: {quote.vehicle_condition}
                     </p>
                   ) : service.description && (
-                    <p className="text-zinc-600 dark:text-zinc-400 mb-3">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2">
                       {service.description}
                     </p>
                   )}
                 </div>
-                {!quote && service.is_popular && (
-                  <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full">
-                    POPULAR
-                  </span>
-                )}
-              </div>
 
-              <div className="flex flex-wrap gap-4 mb-4">
-                {(quote ? (quote.total_price || quote.total) : service.price) && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                    <DollarSign className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400">{quote ? 'Quote Price' : 'Price'}</p>
-                      <p className="text-lg font-bold text-green-600">
-                        ${(quote ? (quote.total_price || quote.total || 0) : (service.price || 0)).toFixed(2)}
-                      </p>
-                    </div>
+                {/* Price & Duration - Shows calculated totals in real-time */}
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5 text-green-600 font-semibold">
+                    <DollarSign className="h-4 w-4" />
+                    <span>
+                      {quote 
+                        ? `$${(quote.total_price || quote.total || 0).toFixed(2)}`
+                        : `$${totals.price.toFixed(2)}`
+                      }
+                      {vehicleSizeForPricing && service.pricing_model === 'variable' && totals.price !== (service.base_price || service.price || 0) && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          ({vehicleSizeForPricing})
+                        </span>
+                      )}
+                    </span>
                   </div>
-                )}
-                {(service.duration_minutes || service.estimated_duration) && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                    <Clock className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400">Duration</p>
-                      <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-                        {(service.duration_minutes || service.estimated_duration || 0) % 60 === 0
-                          ? `${(service.duration_minutes || service.estimated_duration || 0) / 60}h`
-                          : `${((service.duration_minutes || service.estimated_duration || 0) / 60).toFixed(1)}h`}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* What's Included (if available) */}
-              {service.whats_included && Array.isArray(service.whats_included) && service.whats_included.length > 0 && (
-                <div className="mt-4 p-4 bg-white dark:bg-zinc-900 rounded-lg">
-                  <p className="font-semibold mb-2 text-zinc-900 dark:text-zinc-50">What's Included:</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {service.whats_included.map((item: string, idx: number) => (
-                      <div key={idx} className="flex items-start gap-2 text-sm">
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-zinc-700 dark:text-zinc-300">{item}</span>
-                      </div>
-                    ))}
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>
+                      {quote
+                        ? formatDurationHours(service.duration_minutes || 60)
+                        : formatDurationHours(totals.duration)
+                      }
+                      {vehicleSizeForPricing && service.pricing_model === 'variable' && totals.duration !== (service.base_duration || service.estimated_duration || service.duration_minutes || 60) && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          ({vehicleSizeForPricing})
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
-              )}
+
+                {/* Real-time Summary (only show if vehicle or add-ons selected) - Show on all steps after vehicle selection */}
+                {(vehicleSizeForPricing || formData.selectedAddons.length > 0) && !quote && currentStep >= 2 && (
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-xs font-semibold text-blue-900 dark:text-blue-200 mb-2 uppercase tracking-wide">
+                      Booking Summary
+                    </p>
+                    <div className="space-y-1.5 text-sm">
+                      {/* Base Service */}
+                      <div className="flex justify-between">
+                        <span className="text-zinc-600 dark:text-zinc-400">{service.name}</span>
+                        <span className="font-medium">${(service.base_price || service.price || 0).toFixed(2)}</span>
+                      </div>
+                      
+                      {/* Vehicle Adjustment - Always show if vehicle selected and service has variable pricing */}
+                      {vehicleSizeForPricing && service.pricing_model === 'variable' && (
+                        (() => {
+                          const basePrice = service.base_price || service.price || 0
+                          const baseDuration = service.base_duration || service.estimated_duration || service.duration_minutes || 60
+                          const addonsPrice = formData.selectedAddons.reduce((sum, a) => sum + (a.price || 0), 0)
+                          const addonsDuration = formData.selectedAddons.reduce((sum, a) => sum + (a.duration_minutes || a.duration || 0), 0)
+                          const priceDiff = totals.price - basePrice - addonsPrice
+                          const durationDiff = totals.duration - baseDuration - addonsDuration
+                          
+                          // Always show vehicle adjustment if vehicle is selected and service has variable pricing
+                          return (
+                            <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                              <span>Vehicle ({vehicleSizeForPricing})</span>
+                              <span>
+                                {priceDiff !== 0 && `${priceDiff > 0 ? '+' : ''}$${Math.abs(priceDiff).toFixed(2)}`}
+                                {priceDiff !== 0 && durationDiff !== 0 && ' • '}
+                                {durationDiff !== 0 && `${durationDiff > 0 ? '+' : ''}${formatDuration(Math.abs(durationDiff))}`}
+                                {priceDiff === 0 && durationDiff === 0 && 'No change'}
+                              </span>
+                            </div>
+                          )
+                        })()
+                      )}
+                      
+                      {/* Add-ons */}
+                      {formData.selectedAddons.map((addon) => (
+                        <div key={addon.id} className="flex justify-between text-zinc-500 dark:text-zinc-400">
+                          <span>+ {addon.name}</span>
+                          <span>${(addon.price || 0).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      
+                      <div className="border-t border-blue-200 dark:border-blue-700 my-2"></div>
+                      
+                      {/* Totals - Always show calculated totals */}
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-50">Total Price</span>
+                        <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                          ${totals.price.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-600 dark:text-zinc-400">Est. Duration</span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                          {formatDuration(totals.duration)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* What's Included (if available) */}
+                {service.whats_included && Array.isArray(service.whats_included) && service.whats_included.length > 0 && (
+                  <div className="mt-4 p-4 bg-white dark:bg-zinc-900 rounded-lg">
+                    <p className="font-semibold mb-2 text-zinc-900 dark:text-zinc-50">What's Included:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {service.whats_included.map((item: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm">
+                          <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-zinc-700 dark:text-zinc-300">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {error && (
@@ -718,9 +871,157 @@ export default function BookingForm({
               </form>
             )}
 
-            {/* Step 2: Date/Time */}
+            {/* Step 2: Vehicle Selection */}
             {currentStep === 2 && (
-              <form onSubmit={handleStep2} className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Car className="h-5 w-5 text-blue-600" />
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Select Your Vehicle</h3>
+                </div>
+                <VehicleSelector
+                  onSelect={(vehicle) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      vehicleType: vehicle.type || null,
+                      vehicleColor: vehicle.color || null,
+                      assetDetails: {
+                        ...prev.assetDetails,
+                        size: vehicle.size,
+                        color: vehicle.color,
+                        year: vehicle.year,
+                        make: vehicle.make,
+                        model: vehicle.model,
+                      },
+                    }))
+                  }}
+                  initialValue={formData.assetDetails}
+                />
+                {error && (
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                )}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCurrentStep(1)}
+                    className="w-full sm:w-auto h-12"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleVehicleContinue}
+                    className="flex-1 h-12 text-base"
+                  >
+                    Continue
+                    <ChevronRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Add-ons */}
+            {currentStep === 3 && (
+              <form onSubmit={handleStep3} className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="h-5 w-5 text-purple-600" />
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Add Extras (Optional)</h3>
+                </div>
+                {loadingAddons ? (
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading add-ons...</p>
+                ) : addons.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {addons.map((addon) => {
+                      const isSelected = formData.selectedAddons.some(a => a.id === addon.id)
+                      return (
+                        <div
+                          key={addon.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setFormData((prev) => ({
+                                ...prev,
+                                selectedAddons: prev.selectedAddons.filter(a => a.id !== addon.id)
+                              }))
+                            } else {
+                              setFormData((prev) => ({
+                                ...prev,
+                                selectedAddons: [...prev.selectedAddons, addon]
+                              }))
+                            }
+                          }}
+                          className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${isSelected
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                            : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-purple-300 dark:hover:border-purple-700'
+                            }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-lg">{addon.icon || '⭐'}</span>
+                                <h4 className="font-semibold text-zinc-900 dark:text-zinc-50">
+                                  {addon.name}
+                                </h4>
+                              </div>
+                              {addon.description && (
+                                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                                  {addon.description}
+                                </p>
+                              )}
+                              <p className="text-lg font-bold text-purple-600">
+                                ${Number(addon.price).toFixed(2)}
+                              </p>
+                            </div>
+                            <div
+                              className={`ml-3 w-5 h-5 rounded border-2 flex items-center justify-center ${isSelected
+                                ? 'border-purple-500 bg-purple-500'
+                                : 'border-zinc-300 dark:border-zinc-600'
+                                }`}
+                            >
+                              {isSelected && (
+                                <Check className="h-3 w-3 text-white" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
+                    No add-ons available at this time.
+                  </p>
+                )}
+                {formData.selectedAddons.length > 0 && (
+                  <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                      <span className="font-semibold">Selected:</span>{' '}
+                      {formData.selectedAddons.map(a => a.name).join(', ')}
+                    </p>
+                    <p className="text-sm font-semibold text-purple-600 mt-1">
+                      Add-ons Total: ${formData.selectedAddons.reduce((sum, a) => sum + Number(a.price), 0).toFixed(2)}
+                    </p>
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCurrentStep(2)}
+                    className="w-full sm:w-auto h-12"
+                  >
+                    Back
+                  </Button>
+                  <Button type="submit" disabled={loading} className="flex-1 h-12 text-base">
+                    {loading ? 'Loading...' : 'Continue'}
+                    <ChevronRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* Step 4: Date/Time */}
+            {currentStep === 4 && (
+              <form onSubmit={handleStep4} className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Calendar className="h-5 w-5 text-green-600" />
                   <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Choose Date & Time</h3>
@@ -906,94 +1207,11 @@ export default function BookingForm({
                   <p className="text-sm text-amber-600 dark:text-amber-400">{slotsError}</p>
                 )}
 
-                {/* Add-ons Section */}
-                <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-                  <div className="flex items-center gap-2 mb-4">
-                    <DollarSign className="h-5 w-5 text-purple-600" />
-                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Add Extras (Optional)</h3>
-                  </div>
-                  {loadingAddons ? (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading add-ons...</p>
-                  ) : addons.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {addons.map((addon) => {
-                        const isSelected = formData.selectedAddons.some(a => a.id === addon.id)
-                        return (
-                          <div
-                            key={addon.id}
-                            onClick={() => {
-                              if (isSelected) {
-                                setFormData({
-                                  ...formData,
-                                  selectedAddons: formData.selectedAddons.filter(a => a.id !== addon.id)
-                                })
-                              } else {
-                                setFormData({
-                                  ...formData,
-                                  selectedAddons: [...formData.selectedAddons, addon]
-                                })
-                              }
-                            }}
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${isSelected
-                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                              : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-purple-300 dark:hover:border-purple-700'
-                              }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-lg">{addon.icon || '⭐'}</span>
-                                  <h4 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                                    {addon.name}
-                                  </h4>
-                                </div>
-                                {addon.description && (
-                                  <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-                                    {addon.description}
-                                  </p>
-                                )}
-                                <p className="text-lg font-bold text-purple-600">
-                                  ${Number(addon.price).toFixed(2)}
-                                </p>
-                              </div>
-                              <div
-                                className={`ml-3 w-5 h-5 rounded border-2 flex items-center justify-center ${isSelected
-                                  ? 'border-purple-500 bg-purple-500'
-                                  : 'border-zinc-300 dark:border-zinc-600'
-                                  }`}
-                              >
-                                {isSelected && (
-                                  <Check className="h-3 w-3 text-white" />
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-                      No add-ons available at this time.
-                    </p>
-                  )}
-                  {formData.selectedAddons.length > 0 && (
-                    <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                      <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                        <span className="font-semibold">Selected:</span>{' '}
-                        {formData.selectedAddons.map(a => a.name).join(', ')}
-                      </p>
-                      <p className="text-sm font-semibold text-purple-600 mt-1">
-                        Add-ons Total: ${formData.selectedAddons.reduce((sum, a) => sum + Number(a.price), 0).toFixed(2)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setCurrentStep(1)}
+                    onClick={() => setCurrentStep(3)}
                     className="w-full sm:w-auto h-12"
                   >
                     Back
@@ -1006,9 +1224,9 @@ export default function BookingForm({
               </form>
             )}
 
-            {/* Step 4: Notes (phone already collected in Step 1) */}
-            {currentStep === 4 && (
-              <form onSubmit={handleStep3} className="space-y-4">
+            {/* Step 5: Notes (phone already collected in Step 1) */}
+            {currentStep === 5 && (
+              <form onSubmit={handleStep5} className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare className="h-5 w-5 text-purple-600" />
                   <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">Special Requests</h3>
@@ -1027,7 +1245,7 @@ export default function BookingForm({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setCurrentStep(2)}
+                    onClick={() => setCurrentStep(4)}
                     className="w-full sm:w-auto h-12"
                   >
                     Back
@@ -1040,10 +1258,10 @@ export default function BookingForm({
               </form>
             )}
 
-            {/* Step 5: Address + Enhanced Vehicle Details */}
-            {currentStep === 5 && (
+            {/* Step 6: Address + Enhanced Vehicle Details */}
+            {currentStep === 6 && (
               <form
-                onSubmit={handleStep4}
+                onSubmit={handleStep6}
                 className="space-y-6 pb-8 sm:pb-4"
               >
                 <div className="flex items-center gap-2 mb-4">
@@ -1116,7 +1334,7 @@ export default function BookingForm({
 
                   {business.industry === 'detailing' ? (
                     <div className="space-y-4">
-                      {/* Year, Make, Model in responsive grid */}
+                      {/* Year, Make, Model in responsive grid - Pre-populated from Step 2 */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                           <Label htmlFor="vehicle_year" className="mb-2 block">Year *</Label>
@@ -1124,6 +1342,17 @@ export default function BookingForm({
                             id="vehicle_year"
                             name="asset_year"
                             required
+                            value={formData.assetDetails?.year ?? ''}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              assetDetails: { 
+                                size: prev.assetDetails?.size ?? null,
+                                color: prev.assetDetails?.color ?? null,
+                                year: e.target.value,
+                                make: prev.assetDetails?.make ?? '',
+                                model: prev.assetDetails?.model ?? '',
+                              }
+                            }))}
                             className="flex h-11 w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                           >
                             <option value="">Select year</option>
@@ -1139,6 +1368,17 @@ export default function BookingForm({
                             id="vehicle_make"
                             name="asset_make"
                             required
+                            value={formData.assetDetails?.make ?? ''}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              assetDetails: { 
+                                size: prev.assetDetails?.size ?? null,
+                                color: prev.assetDetails?.color ?? null,
+                                year: prev.assetDetails?.year ?? '',
+                                make: e.target.value,
+                                model: prev.assetDetails?.model ?? '',
+                              }
+                            }))}
                             className="flex h-11 w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                           >
                             <option value="">Select make</option>
@@ -1173,84 +1413,78 @@ export default function BookingForm({
                             id="vehicle_model"
                             name="asset_model"
                             required
+                            value={formData.assetDetails?.model ?? ''}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              assetDetails: { 
+                                size: prev.assetDetails?.size ?? null,
+                                color: prev.assetDetails?.color ?? null,
+                                year: prev.assetDetails?.year ?? '',
+                                make: prev.assetDetails?.make ?? '',
+                                model: e.target.value,
+                              }
+                            }))}
                             placeholder="e.g., Civic"
                             className="text-base h-11"
                           />
                         </div>
                       </div>
 
-                      {/* Color Picker */}
-                      <div>
-                        <Label className="mb-3 block">Color *</Label>
-                        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-                          {[
-                            { name: 'Black', value: 'black', color: '#000000' },
-                            { name: 'White', value: 'white', color: '#FFFFFF' },
-                            { name: 'Silver', value: 'silver', color: '#C0C0C0' },
-                            { name: 'Gray', value: 'gray', color: '#808080' },
-                            { name: 'Red', value: 'red', color: '#DC2626' },
-                            { name: 'Blue', value: 'blue', color: '#2563EB' },
-                            { name: 'Green', value: 'green', color: '#16A34A' },
-                            { name: 'Yellow', value: 'yellow', color: '#EAB308' },
-                            { name: 'Orange', value: 'orange', color: '#EA580C' },
-                            { name: 'Brown', value: 'brown', color: '#92400E' },
-                            { name: 'Purple', value: 'purple', color: '#9333EA' },
-                            { name: 'Gold', value: 'gold', color: '#CA8A04' },
-                          ].map((color) => (
-                            <label
-                              key={color.value}
-                              className="relative cursor-pointer group"
-                            >
-                              <input
-                                type="radio"
-                                name="asset_color"
-                                value={color.value}
-                                required
-                                className="peer sr-only"
-                              />
-                              <div
-                                className="h-12 w-full rounded-lg border-2 border-zinc-300 dark:border-zinc-600 peer-checked:border-blue-600 peer-checked:ring-2 peer-checked:ring-blue-500 peer-checked:ring-offset-2 transition-all hover:scale-105"
-                                style={{
-                                  backgroundColor: color.color,
-                                  border: color.value === 'white' ? '2px solid #e5e7eb' : undefined
-                                }}
-                              />
-                              <p className="text-xs text-center mt-1 text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
-                                {color.name}
-                              </p>
-                            </label>
-                          ))}
+                      {/* Vehicle Type Display (Read-only) */}
+                      {formData.assetDetails?.size && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Vehicle Type:</span>
+                            <span className="text-sm text-zinc-900 dark:text-zinc-50 capitalize">
+                              {formData.assetDetails.size === 'truck' ? 'Truck' : 
+                               formData.assetDetails.size === 'suv' ? 'SUV' :
+                               formData.assetDetails.size === 'sedan' ? 'Sedan' :
+                               formData.assetDetails.size === 'van' ? 'Van' :
+                               formData.assetDetails.size}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Vehicle Size */}
-                      <div>
-                        <Label className="mb-3 block">Vehicle Size *</Label>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {[
-                            { label: 'Sedan / Coupe', value: 'sedan', icon: '🚗' },
-                            { label: 'SUV / Crossover', value: 'suv', icon: '🚙' },
-                            { label: 'Truck / Van', value: 'truck', icon: '🚚' },
-                          ].map((size) => (
-                            <label
-                              key={size.value}
-                              className="relative cursor-pointer"
-                            >
-                              <input
-                                type="radio"
-                                name="asset_size"
-                                value={size.value}
-                                required
-                                className="peer sr-only"
-                              />
-                              <div className="p-4 border-2 border-zinc-300 dark:border-zinc-600 rounded-lg peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-950 transition-all hover:border-blue-400 text-center">
-                                <div className="text-3xl mb-2">{size.icon}</div>
-                                <p className="font-medium text-sm">{size.label}</p>
-                              </div>
-                            </label>
-                          ))}
+                      {/* Color Display (Read-only) - Already selected in Step 2 */}
+                      {formData.assetDetails?.color && (
+                        <div>
+                          <Label className="mb-2 block">Color</Label>
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-10 h-10 rounded-full border-2 border-zinc-300 dark:border-zinc-600"
+                              style={{
+                                backgroundColor: formData.assetDetails.color === 'white' ? '#ffffff' :
+                                                formData.assetDetails.color === 'silver' ? '#C0C0C0' :
+                                                formData.assetDetails.color === 'black' ? '#000000' :
+                                                formData.assetDetails.color === 'gray' ? '#808080' :
+                                                formData.assetDetails.color === 'red' ? '#DC2626' :
+                                                formData.assetDetails.color === 'blue' ? '#2563EB' :
+                                                formData.assetDetails.color === 'brown' ? '#78350F' :
+                                                formData.assetDetails.color === 'green' ? '#059669' :
+                                                formData.assetDetails.color === 'yellow' ? '#EAB308' :
+                                                formData.assetDetails.color === 'orange' ? '#EA580C' :
+                                                formData.assetDetails.color === 'purple' ? '#9333EA' :
+                                                '#808080'
+                              }}
+                            />
+                            <span className="text-sm text-zinc-700 dark:text-zinc-300 capitalize">
+                              {formData.assetDetails.color}
+                            </span>
+                          </div>
+                          {/* Hidden input for form submission */}
+                          <input
+                            type="hidden"
+                            name="asset_color"
+                            value={formData.assetDetails.color}
+                          />
+                          <input
+                            type="hidden"
+                            name="asset_size"
+                            value={formData.assetDetails.size || ''}
+                          />
                         </div>
-                      </div>
+                      )}
 
                       {/* Condition */}
                       <div>
@@ -1293,7 +1527,7 @@ export default function BookingForm({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setCurrentStep(4)}
+                    onClick={() => setCurrentStep(5)}
                     className="w-full sm:w-auto h-12 text-base order-2 sm:order-1"
                   >
                     Back
@@ -1314,33 +1548,31 @@ export default function BookingForm({
       </div>
 
       {/* Sticky Price Bar (Mobile) */}
-      {service.price && (
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 p-4 z-50 safe-area-inset-bottom">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400">Total</p>
-              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                ${(
-                  (service.price || 0) +
-                  formData.selectedAddons.reduce((sum, a) => sum + a.price, 0)
-                ).toFixed(2)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-zinc-600 dark:text-zinc-400">Step {currentStep} of 4</p>
-              <div className="flex gap-1 mt-1">
-                {[1, 2, 3, 4, 5].map((step) => (
-                  <div
-                    key={step}
-                    className={`h-1.5 w-3 rounded-full ${step <= currentStep ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-600'
-                      }`}
-                  />
-                ))}
-              </div>
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 p-4 z-50 safe-area-inset-bottom">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">Total</p>
+            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+              ${totals.price.toFixed(2)}
+            </p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">
+              {formatDuration(totals.duration)}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">Step {currentStep} of 6</p>
+            <div className="flex gap-1 mt-1">
+              {[1, 2, 3, 4, 5, 6].map((step) => (
+                <div
+                  key={step}
+                  className={`h-1.5 w-3 rounded-full ${step <= currentStep ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-600'
+                    }`}
+                />
+              ))}
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

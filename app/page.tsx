@@ -5,7 +5,7 @@ import Hero from '@/components/landing/hero'
 import Features from '@/components/landing/features'
 import Pricing from '@/components/landing/pricing'
 import Testimonials from '@/components/landing/testimonials'
-import AIAddOnsSection from '@/components/landing/ai-addons-section'
+import AIPreviewSection from '@/components/landing/ai-preview-section'
 import FAQ from '@/components/landing/faq'
 import Footer from '@/components/landing/footer'
 
@@ -37,7 +37,7 @@ export default async function Home() {
         <Features />
         <Pricing />
         <Testimonials />
-        <AIAddOnsSection />
+        <AIPreviewSection />
         <FAQ />
       </main>
       

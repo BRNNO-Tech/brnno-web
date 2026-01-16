@@ -111,6 +111,7 @@ export default function AddServiceButton() {
                 step="0.5"
                 min="0"
                 placeholder="2.0"
+                inputMode="decimal"
               />
             </div>
           </div>

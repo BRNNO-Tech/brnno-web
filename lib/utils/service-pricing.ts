@@ -23,12 +23,24 @@ export function getServicePrice(
   }
 
   // Get variation for vehicle type
-  const variation = service.variations?.[vehicleType]
+  const variations = service.variations || {}
+  const variation = variations[vehicleType]
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[getServicePrice] Looking for vehicleType:', vehicleType)
+    console.log('[getServicePrice] Available variations keys:', Object.keys(variations))
+    console.log('[getServicePrice] Variation found:', variation)
+  }
+  
   if (variation && variation.enabled) {
     return variation.price
   }
 
   // Fallback to base price if variation not found or disabled
+  if (process.env.NODE_ENV === 'development' && !variation) {
+    console.warn(`[getServicePrice] No variation found for '${vehicleType}'. Using base price.`)
+  }
+  
   return service.base_price || service.price || 0
 }
 
@@ -46,12 +58,24 @@ export function getServiceDuration(
   }
 
   // Get variation for vehicle type
-  const variation = service.variations?.[vehicleType]
+  const variations = service.variations || {}
+  const variation = variations[vehicleType]
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[getServiceDuration] Looking for vehicleType:', vehicleType)
+    console.log('[getServiceDuration] Available variations keys:', Object.keys(variations))
+    console.log('[getServiceDuration] Variation found:', variation)
+  }
+  
   if (variation && variation.enabled) {
     return variation.duration
   }
 
   // Fallback to base duration if variation not found or disabled
+  if (process.env.NODE_ENV === 'development' && !variation) {
+    console.warn(`[getServiceDuration] No variation found for '${vehicleType}'. Using base duration.`)
+  }
+  
   return service.base_duration || service.estimated_duration || 120
 }
 

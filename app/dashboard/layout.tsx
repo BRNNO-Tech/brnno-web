@@ -78,7 +78,6 @@ const navigation: NavigationEntry[] = [
       { name: "Recovery Command Center", href: "/dashboard/leads", icon: Target, requiredFeature: "limited_lead_recovery" },
       { name: "Leads Inbox", href: "/dashboard/leads/inbox", icon: Inbox, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
       { name: "Auto Follow-Up", href: "/dashboard/leads/sequences", icon: PlayCircle, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" },
-      // { name: "Scripts", href: "/dashboard/leads/scripts", icon: FileCode, requiredFeature: "lead_recovery_dashboard", requiredTier: "pro" }, // Hidden - may revisit later
     ],
   },
   {
@@ -116,10 +115,13 @@ function Sidebar({
   onMobileClose?: () => void
 }) {
   const pathname = usePathname()
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  // Default to expanded for LEAD RECOVERY group so it's visible
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
+    'LEAD RECOVERY': false, // false = expanded
+  })
   const [businessName, setBusinessName] = useState<string>('Business')
   const [unreadCount, setUnreadCount] = useState<number>(0)
-  const { can } = useFeatureGate()
+  const { can, tier } = useFeatureGate()
 
   useEffect(() => {
     async function loadBusiness() {
@@ -142,23 +144,46 @@ function Sidebar({
       return
     }
 
+    let isMounted = true
+
     async function loadUnreadCount() {
       try {
         const count = await getUnreadLeadsCount()
-        setUnreadCount(count)
+        // Only update if component is still mounted
+        if (isMounted) {
+          setUnreadCount(count)
+        }
       } catch (error) {
         console.error('Error loading unread count:', error)
       }
     }
 
+    // Initial load
     loadUnreadCount()
 
-    // Refresh count every 30 seconds
-    const interval = setInterval(loadUnreadCount, 30000)
+    // Refresh count every 30 seconds (optimized: only when tab is visible)
+    const interval = setInterval(() => {
+      // Only refresh if tab is visible (saves resources when tab is in background)
+      if (document.visibilityState === 'visible') {
+        loadUnreadCount()
+      }
+    }, 30000)
 
-    return () => clearInterval(interval)
+    // Also refresh when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadUnreadCount()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]) // Only depend on pathname, check can() inside
+  }, []) // Removed pathname dependency - no need to refetch on route change
 
   async function handleLogout() {
     // Use server action for proper cookie handling
@@ -298,10 +323,13 @@ function Sidebar({
                     const Icon = subItem.icon as React.ComponentType<{ className?: string }> | undefined
                     const isActive = pathname === subItem.href || (subItem.href !== '/dashboard' && pathname?.startsWith(subItem.href))
 
-                    // Hide items that require features the user doesn't have
-                    if (subItem.requiredFeature && !can(subItem.requiredFeature)) {
-                      return null
-                    }
+                    // Check if user has access to this item
+                    const hasFeatureAccess = subItem.requiredFeature ? can(subItem.requiredFeature) : true
+                    const hasTierAccess = subItem.requiredTier 
+                      ? (subItem.requiredTier === 'pro' && (tier === 'pro' || tier === 'fleet')) || 
+                        (subItem.requiredTier === 'fleet' && tier === 'fleet')
+                      : true
+                    const hasAccess = hasFeatureAccess && hasTierAccess
 
                     if (!Icon) return null
 
@@ -314,7 +342,8 @@ function Sidebar({
                           "group flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition",
                           "hover:bg-zinc-100/50 dark:hover:bg-white/5",
                           isActive &&
-                          "bg-gradient-to-r from-violet-500/15 to-transparent ring-1 ring-violet-500/25"
+                          "bg-gradient-to-r from-violet-500/15 to-transparent ring-1 ring-violet-500/25",
+                          !hasAccess && "opacity-60"
                         )}
                       >
                         <span className="flex items-center gap-3">
@@ -322,29 +351,33 @@ function Sidebar({
                             className={cn(
                               "grid h-9 w-9 place-items-center rounded-xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-white/5",
                               isActive &&
-                              "border-violet-500/25 dark:border-violet-500/25 bg-violet-500/10 dark:bg-violet-500/10 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
+                              "border-violet-500/25 dark:border-violet-500/25 bg-violet-500/10 dark:bg-violet-500/10 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]",
+                              !hasAccess && "opacity-50"
                             )}
                           >
                             <Icon className={cn("h-4 w-4 text-zinc-700 dark:text-white/70", isActive && "text-violet-600 dark:text-violet-300")} />
                           </span>
                           <span className={cn("text-zinc-700 dark:text-white/75", isActive && "text-zinc-900 dark:text-white")}>{subItem.name}</span>
                         </span>
-                        {/* Show unread count badge for Leads Inbox */}
-                        {subItem.href === '/dashboard/leads/inbox' && unreadCount > 0 && (
-                          <span className="rounded-full bg-violet-500 text-white px-2 py-0.5 text-xs font-semibold min-w-[20px] text-center">
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                          </span>
-                        )}
-                        {subItem.badge && (
-                          <span className="rounded-full bg-amber-500/15 dark:bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
-                            {subItem.badge}
-                          </span>
-                        )}
-                        {subItem.requiredTier && !can(subItem.requiredFeature || '') && (
-                          <span className="rounded-full bg-blue-500/15 dark:bg-blue-500/15 px-2 py-0.5 text-xs text-blue-700 dark:text-blue-300">
-                            {subItem.requiredTier.toUpperCase()}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-2">
+                          {/* Show unread count badge for Leads Inbox */}
+                          {subItem.href === '/dashboard/leads/inbox' && unreadCount > 0 && (
+                            <span className="rounded-full bg-violet-500 text-white px-2 py-0.5 text-xs font-semibold min-w-[20px] text-center">
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                          )}
+                          {subItem.badge && (
+                            <span className="rounded-full bg-amber-500/15 dark:bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
+                              {subItem.badge}
+                            </span>
+                          )}
+                          {/* Show upgrade badge if user doesn't have access */}
+                          {!hasAccess && (
+                            <span className="rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 dark:from-amber-500/15 dark:to-orange-500/15 border border-amber-500/30 dark:border-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                              {subItem.requiredTier ? `Upgrade to ${subItem.requiredTier.toUpperCase()}` : 'Upgrade'}
+                            </span>
+                          )}
+                        </span>
                       </Link>
                     )
                   })}

@@ -313,7 +313,7 @@ export async function getClient(id: string) {
   try {
     const result = await supabase
       .from('invoices')
-      .select('id, total, status, created_at, due_date')
+      .select('id, total, status, created_at')
       .eq('client_id', id)
       .eq('business_id', businessId)
       .order('created_at', { ascending: false })
@@ -321,16 +321,51 @@ export async function getClient(id: string) {
     invoices = result.data
     invoicesError = result.error
     
+    // Early check: if we got data (even empty array), ignore any error completely
+    // Supabase sometimes returns empty error objects when query succeeds
+    if (invoices !== null && invoices !== undefined) {
+      invoicesError = null
+      // Skip all error processing if we have data
+    } else if (invoicesError) {
+      // Only process error if we don't have data AND we have an error
+      // Check if error is truly empty (no enumerable properties and no message/code)
+      if (typeof invoicesError === 'object' && invoicesError !== null) {
+        const errorKeys = Object.keys(invoicesError)
+        const hasEnumerableProps = errorKeys.length > 0
+        
+        // Check for non-enumerable properties that might exist
+        const hasMessage = 'message' in invoicesError && (invoicesError as any).message
+        const hasCode = 'code' in invoicesError && (invoicesError as any).code
+        const hasDetails = 'details' in invoicesError && (invoicesError as any).details
+        const hasHint = 'hint' in invoicesError && (invoicesError as any).hint
+        
+        // If error object is empty and has no meaningful properties, treat as false positive
+        if (!hasEnumerableProps && !hasMessage && !hasCode && !hasDetails && !hasHint) {
+          invoicesError = null
+        }
+      } else if (invoicesError instanceof Error) {
+        // For Error instances, check if message exists
+        if (!invoicesError.message || invoicesError.message.trim().length === 0) {
+          invoicesError = null
+        }
+      }
+    }
+    
     // Only log if there's a real error with meaningful content
     // Ignore empty error objects (false positives from Supabase)
-    if (invoicesError) {
+    // Skip entirely if we already cleared the error (we have data)
+    if (!invoicesError) {
+      // Error was cleared because we have data, skip all processing
+    } else if (invoicesError) {
       // Check if error object has any meaningful properties
       let hasRealError = false
       let errorMessage: string | null = null
       let errorCode: string | null = null
       
       if (invoicesError instanceof Error) {
+        // Error instances have non-enumerable properties, extract them explicitly
         errorMessage = invoicesError.message || null
+        errorCode = (invoicesError as any).code || (invoicesError as any).statusCode || null
         hasRealError = !!errorMessage && errorMessage.trim().length > 0
       } else if (typeof invoicesError === 'object' && invoicesError !== null) {
         // Check if object has any enumerable properties
@@ -338,39 +373,81 @@ export async function getClient(id: string) {
         if (keys.length === 0) {
           // Empty object - definitely a false positive
           hasRealError = false
+          invoicesError = null // Clear the error immediately
         } else {
-          errorMessage = (invoicesError as any).message || null
-          errorCode = (invoicesError as any).code || null
+          // Extract properties that might be non-enumerable
+          errorMessage = (invoicesError as any).message || 
+                        (invoicesError as any).error?.message || 
+                        (invoicesError as any).msg || 
+                        null
+          errorCode = (invoicesError as any).code || 
+                     (invoicesError as any).statusCode || 
+                     (invoicesError as any).error?.code || 
+                     null
+          
+          // Also check for Supabase-specific error properties
+          const details = (invoicesError as any).details || null
+          const hint = (invoicesError as any).hint || null
           
           // Check if we have meaningful error content
           const hasMessage = Boolean(errorMessage && String(errorMessage).trim().length > 0)
           const hasCode = Boolean(errorCode && String(errorCode).trim().length > 0)
-          hasRealError = hasMessage || hasCode
+          const hasDetails = Boolean(details && String(details).trim().length > 0)
+          const hasHint = Boolean(hint && String(hint).trim().length > 0)
+          hasRealError = hasMessage || hasCode || hasDetails || hasHint
+          
+          // If object only has empty/undefined values, treat as false positive
+          if (!hasRealError) {
+            const hasAnyValue = keys.some(key => {
+              const value = (invoicesError as any)[key]
+              return value !== null && value !== undefined && value !== ''
+            })
+            if (!hasAnyValue) {
+              hasRealError = false
+              invoicesError = null // Clear the error
+            }
+          }
         }
       }
       
       // Only log if we have a real error with meaningful content
       if (hasRealError) {
-        const errorInfo: any = {}
+        // Extract all possible error properties directly from the error object
+        const details = (invoicesError as any).details || null
+        const hint = (invoicesError as any).hint || null
         
-        // Only add clientId and businessId if they're defined
-        if (id) {
-          errorInfo.clientId = id
-        }
-        if (businessId) {
-          errorInfo.businessId = businessId
-        }
+        // Extract all error properties and build error info
+        const errorInfo: any = {}
+        let hasAnyErrorInfo = false
+        
+        if (id) errorInfo.clientId = id
+        if (businessId) errorInfo.businessId = businessId
         
         if (errorCode && String(errorCode).trim().length > 0) {
           errorInfo.code = errorCode
+          hasAnyErrorInfo = true
         }
         if (errorMessage && String(errorMessage).trim().length > 0) {
           errorInfo.message = errorMessage
+          hasAnyErrorInfo = true
+        }
+        if (details && String(details).trim().length > 0) {
+          errorInfo.details = details
+          hasAnyErrorInfo = true
+        }
+        if (hint && String(hint).trim().length > 0) {
+          errorInfo.hint = hint
+          hasAnyErrorInfo = true
         }
         
-        // Only log if errorInfo has at least one meaningful property
-        if (Object.keys(errorInfo).length > 0) {
+        // Only log if we have meaningful error information (not just IDs)
+        if (hasAnyErrorInfo) {
+          // Explicitly log the fields we extracted
           console.error('Invoice query error:', errorInfo)
+        } else {
+          // No meaningful error details found, treat as false positive
+          // Don't log empty objects
+          invoicesError = null
         }
       } else {
         // If no meaningful error, treat as no error (likely false positive)
@@ -386,7 +463,8 @@ export async function getClient(id: string) {
     invoicesError = catchError as any
   }
   
-  // If we have data, clear any error (likely false positive)
+  // Final check: if we have data, clear any error (likely false positive)
+  // This is redundant but ensures we never have an error when we have data
   if (invoices) {
     invoicesError = null
   }

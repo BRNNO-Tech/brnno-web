@@ -39,16 +39,17 @@ export default function AddCustomerButton() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      setOpen(isOpen)
-      if (!isOpen) formRef.current?.reset()
-    }}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          New Customer
-        </Button>
-      </DialogTrigger>
+    <div suppressHydrationWarning>
+      <Dialog open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen)
+        if (!isOpen) formRef.current?.reset()
+      }}>
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            New Customer
+          </Button>
+        </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Customer</DialogTitle>
@@ -107,5 +108,6 @@ export default function AddCustomerButton() {
         </form>
       </DialogContent>
     </Dialog>
+    </div>
   )
 }

@@ -8,27 +8,50 @@ export async function checkFeature(feature: string): Promise<boolean> {
   const business = await getBusiness()
   if (!business) return false
   
-  const tier = getTierFromBusiness(business)
+  // Get user email for admin bypass check
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userEmail = user?.email || null
+  
+  const tier = getTierFromBusiness(business, userEmail)
   return hasFeature(tier, feature)
 }
 
 export async function getCurrentTier(): Promise<Tier> {
   const business = await getBusiness()
   if (!business) return null
-  return getTierFromBusiness(business)
+  
+  // Get user email for admin bypass check
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userEmail = user?.email || null
+  
+  return getTierFromBusiness(business, userEmail)
 }
 
 export async function getMaxTeamSizeForCurrentBusiness(): Promise<number> {
   const business = await getBusiness()
   if (!business) return 0
-  const tier = getTierFromBusiness(business)
+  
+  // Get user email for admin bypass check
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userEmail = user?.email || null
+  
+  const tier = getTierFromBusiness(business, userEmail)
   return getMaxTeamSize(tier)
 }
 
 export async function getMaxLeadsForCurrentBusiness(): Promise<number> {
   const business = await getBusiness()
   if (!business) return 0
-  const tier = getTierFromBusiness(business)
+  
+  // Get user email for admin bypass check
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userEmail = user?.email || null
+  
+  const tier = getTierFromBusiness(business, userEmail)
   return getMaxLeads(tier)
 }
 
@@ -36,7 +59,13 @@ export async function canAddMoreLeads(): Promise<{ canAdd: boolean; currentCount
   const business = await getBusiness()
   if (!business) return { canAdd: false, currentCount: 0, maxLeads: 0 }
   
-  const tier = getTierFromBusiness(business)
+  // Get user email for admin bypass check
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { canAdd: false, currentCount: 0, maxLeads: 0 }
+  
+  const userEmail = user.email || null
+  const tier = getTierFromBusiness(business, userEmail)
   const maxLeads = getMaxLeads(tier)
   
   // Unlimited for Pro and Fleet
@@ -45,10 +74,6 @@ export async function canAddMoreLeads(): Promise<{ canAdd: boolean; currentCount
   }
   
   // Count current leads
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { canAdd: false, currentCount: 0, maxLeads }
-  
   const { count } = await supabase
     .from('leads')
     .select('*', { count: 'exact', head: true })

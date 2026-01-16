@@ -48,14 +48,14 @@ export async function POST(request: NextRequest) {
     if (!finalServiceName || !finalServicePrice) {
       const { data: service } = await supabase
         .from('services')
-        .select('name, price')
+        .select('name, price, base_price')
         .eq('id', serviceId)
         .eq('business_id', businessId)
         .single()
 
       if (service) {
         finalServiceName = service.name
-        finalServicePrice = service.price
+        finalServicePrice = service.base_price || service.price || 0
       }
     }
 
@@ -69,7 +69,9 @@ export async function POST(request: NextRequest) {
     let limitWarning = null
     if (business) {
       const { getTierFromBusiness, getMaxLeads } = await import('@/lib/permissions')
-      const tier = getTierFromBusiness(business)
+      // Get user email for admin bypass (from request body)
+      const userEmail = email ? email.trim() : null
+      const tier = getTierFromBusiness(business, userEmail)
       const maxLeads = getMaxLeads(tier)
       
       if (maxLeads > 0) {

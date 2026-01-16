@@ -175,7 +175,7 @@ export async function createLead(formData: FormData) {
   }
 
   // Check lead limit for Starter plan
-  const tier = getTierFromBusiness(business)
+  const tier = getTierFromBusiness(business, user.email || null)
   const maxLeads = getMaxLeads(tier)
   
   if (maxLeads > 0) {
@@ -592,9 +592,10 @@ export async function getUnreadLeadsCount() {
 
     if (!businessId) return 0
 
+    // Optimized: Use count query without selecting all columns
     const { count, error } = await supabase
       .from('leads')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('business_id', businessId)
       .is('viewed_at', null)
       .neq('status', 'lost')

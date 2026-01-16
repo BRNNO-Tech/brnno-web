@@ -1,12 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { CardShell } from '@/components/ui/card-shell'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -26,6 +21,7 @@ import {
   XCircle,
   Car,
   Truck,
+  User,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -45,11 +41,11 @@ type Job = {
 
 type Invoice = {
   id: string
-  invoice_number: string | null
+  invoice_number?: string | null  // Optional - column doesn't exist in database
   total: number
   status: string
   created_at: string
-  due_date: string | null
+  due_date?: string | null  // Optional - column doesn't exist in database
 }
 
 type Client = {
@@ -105,15 +101,20 @@ export default function ClientDetailView({ client }: { client: Client }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header with Back Button */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          <Link href="/dashboard/customers">
+            <button className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm px-4 py-2 text-sm text-zinc-700 dark:text-white/80 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
+          </Link>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">{client.name}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white">
+                {client.name}
+              </h1>
               {client.stats.isRepeatClient && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
@@ -121,43 +122,48 @@ export default function ClientDetailView({ client }: { client: Client }) {
                 </Badge>
               )}
             </div>
-            <p className="text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-sm text-zinc-600 dark:text-white/55">
               Client since {new Date(client.created_at).toLocaleDateString()}
-              {timeSinceCreated > 0 && ` (${timeSinceCreated} day${timeSinceCreated !== 1 ? 's' : ''} ago)`}
+              {timeSinceCreated > 0 && ` • ${timeSinceCreated} day${timeSinceCreated !== 1 ? 's' : ''} ago`}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEditingClient(true)}>
+        <div className="mt-4 md:mt-0 flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setEditingClient(true)}
+            className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-sm"
+          >
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          <Button variant="destructive" onClick={handleDelete}>
+          <Button 
+            variant="destructive" 
+            onClick={handleDelete}
+            className="rounded-2xl"
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column - Client Info */}
-        <div className="space-y-6 lg:col-span-1">
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Main Details */}
+        <div className="md:col-span-2 space-y-6">
           {/* Contact Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <CardShell title="Contact Information" subtitle="Customer contact details">
+            <div className="space-y-4">
               {client.phone && (
                 <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-zinc-600" />
+                  <Phone className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                   <div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    <p className="text-xs text-zinc-600 dark:text-white/45 mb-1">
                       Phone
                     </p>
                     <a
                       href={`tel:${client.phone}`}
-                      className="font-medium hover:underline"
+                      className="text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
                     >
                       {client.phone}
                     </a>
@@ -167,122 +173,116 @@ export default function ClientDetailView({ client }: { client: Client }) {
 
               {client.email && (
                 <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-zinc-600" />
+                  <Mail className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                   <div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                    <p className="text-xs text-zinc-600 dark:text-white/45 mb-1">
                       Email
                     </p>
                     <a
                       href={`mailto:${client.email}`}
-                      className="font-medium hover:underline"
+                      className="text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
                     >
                       {client.email}
                     </a>
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CardShell>
 
           {/* Client Statistics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Client Statistics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Total Jobs
-                </span>
+          <CardShell title="Client Statistics" subtitle="Performance metrics and revenue">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4">
+                <p className="text-xs text-zinc-600 dark:text-white/45 mb-1">Total Jobs</p>
                 <div className="flex items-center gap-2">
-                  <Briefcase className="h-4 w-4" />
-                  <span className="font-semibold">{client.stats.totalJobs}</span>
+                  <Briefcase className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-white">
+                    {client.stats.totalJobs}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Completed Jobs
-                </span>
+              <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4">
+                <p className="text-xs text-zinc-600 dark:text-white/45 mb-1">Completed Jobs</p>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="font-semibold">{client.stats.completedJobs}</span>
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-white">
+                    {client.stats.completedJobs}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Total Revenue
-                </span>
+              <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4">
+                <p className="text-xs text-zinc-600 dark:text-white/45 mb-1">Total Revenue</p>
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-green-600" />
-                  <span className="font-semibold text-green-600">
+                  <span className="text-sm font-semibold text-green-600">
                     ${client.stats.totalRevenue.toFixed(2)}
                   </span>
                 </div>
               </div>
 
-              {client.stats.outstandingBalance > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Outstanding Balance
-                  </span>
+              {client.stats.outstandingBalance > 0 ? (
+                <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4">
+                  <p className="text-xs text-zinc-600 dark:text-white/45 mb-1">Outstanding Balance</p>
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4 text-red-600" />
-                    <span className="font-semibold text-red-600">
+                    <span className="text-sm font-semibold text-red-600">
                       ${client.stats.outstandingBalance.toFixed(2)}
                     </span>
                   </div>
                 </div>
-              )}
-
-              {client.stats.averageJobValue > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Average Job Value
-                  </span>
-                  <span className="font-semibold">
+              ) : client.stats.averageJobValue > 0 ? (
+                <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4">
+                  <p className="text-xs text-zinc-600 dark:text-white/45 mb-1">Average Job Value</p>
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-white">
                     ${client.stats.averageJobValue.toFixed(2)}
                   </span>
                 </div>
-              )}
+              ) : null}
 
               {client.stats.lastJobDate && (
-                <div>
-                  <p className="mb-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    Last Job
-                  </p>
-                  <p className="text-sm font-medium">
-                    {new Date(client.stats.lastJobDate).toLocaleDateString()}
-                  </p>
+                <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4 col-span-2">
+                  <p className="text-xs text-zinc-600 dark:text-white/45 mb-1">Last Job</p>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
+                      {new Date(client.stats.lastJobDate).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CardShell>
 
           {/* Notes */}
           {client.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap text-sm">{client.notes}</p>
-              </CardContent>
-            </Card>
+            <CardShell title="Notes" subtitle="Internal notes and information">
+              <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                  <p className="text-xs font-medium text-zinc-600 dark:text-white/45">Client Notes</p>
+                </div>
+                <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                  {client.notes}
+                </p>
+              </div>
+            </CardShell>
           )}
         </div>
 
-        {/* Right Column - Jobs & Invoices */}
-        <div className="space-y-6 lg:col-span-2">
+        {/* Sidebar */}
+        <div className="space-y-6">
           {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
+          <CardShell title="Quick Actions" subtitle="Common actions">
+            <div className="flex flex-wrap gap-2">
               {client.phone && (
-                <Button variant="outline" asChild>
+                <Button 
+                  variant="outline" 
+                  asChild
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5"
+                >
                   <a href={`tel:${client.phone}`}>
                     <Phone className="mr-2 h-4 w-4" />
                     Call
@@ -290,7 +290,11 @@ export default function ClientDetailView({ client }: { client: Client }) {
                 </Button>
               )}
               {client.phone && (
-                <Button variant="outline" asChild>
+                <Button 
+                  variant="outline" 
+                  asChild
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5"
+                >
                   <a href={`sms:${client.phone}`}>
                     <Mail className="mr-2 h-4 w-4" />
                     Text
@@ -298,218 +302,215 @@ export default function ClientDetailView({ client }: { client: Client }) {
                 </Button>
               )}
               {client.email && (
-                <Button variant="outline" asChild>
+                <Button 
+                  variant="outline" 
+                  asChild
+                  className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5"
+                >
                   <a href={`mailto:${client.email}`}>
                     <Mail className="mr-2 h-4 w-4" />
                     Email
                   </a>
                 </Button>
               )}
-              <Button variant="outline" asChild>
+              <Button 
+                variant="outline" 
+                asChild
+                className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5"
+              >
                 <Link href={`/dashboard/jobs?client=${client.id}`}>
                   <Plus className="mr-2 h-4 w-4" />
                   New Job
                 </Link>
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </CardShell>
 
           {/* Vehicles */}
           {client.vehicles && client.vehicles.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Car className="h-5 w-5" />
-                  Vehicles ({client.vehicles.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {client.vehicles.map((vehicle, index) => (
-                    <div
-                      key={index}
-                      className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 bg-zinc-50 dark:bg-zinc-900"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                            <Car className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                              {vehicle.year ? `${vehicle.year} ` : ''}{vehicle.make} {vehicle.model}
-                            </h4>
-                            {vehicle.color && (
-                              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                                {vehicle.color}
-                              </p>
-                            )}
-                          </div>
+            <CardShell 
+              title={`Vehicles (${client.vehicles.length})`} 
+              subtitle="Customer vehicles and assets"
+            >
+              <div className="space-y-3">
+                {client.vehicles.map((vehicle, index) => (
+                  <div
+                    key={index}
+                    className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                          <Car className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         </div>
-                        <Badge variant="secondary">
-                          {vehicle.jobCount} {vehicle.jobCount === 1 ? 'job' : 'jobs'}
-                        </Badge>
+                        <div>
+                          <h4 className="text-sm font-semibold text-zinc-900 dark:text-white">
+                            {vehicle.year ? `${vehicle.year} ` : ''}{vehicle.make} {vehicle.model}
+                          </h4>
+                          {vehicle.color && (
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                              {vehicle.color}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
-                        {vehicle.licensePlate && (
-                          <div>
-                            <span className="text-zinc-600 dark:text-zinc-400">License:</span>{' '}
-                            <span className="font-medium">{vehicle.licensePlate}</span>
-                          </div>
-                        )}
-                        {vehicle.vin && (
-                          <div>
-                            <span className="text-zinc-600 dark:text-zinc-400">VIN:</span>{' '}
-                            <span className="font-medium font-mono text-xs">{vehicle.vin}</span>
-                          </div>
-                        )}
-                        {vehicle.lastServiceDate && (
-                          <div className="col-span-2">
-                            <span className="text-zinc-600 dark:text-zinc-400">Last Service:</span>{' '}
-                            <span className="font-medium">
-                              {new Date(vehicle.lastServiceDate).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {vehicle.jobCount} {vehicle.jobCount === 1 ? 'job' : 'jobs'}
+                      </Badge>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                      {vehicle.licensePlate && (
+                        <div>
+                          <span className="text-zinc-600 dark:text-zinc-400">License:</span>{' '}
+                          <span className="font-medium text-zinc-900 dark:text-white">{vehicle.licensePlate}</span>
+                        </div>
+                      )}
+                      {vehicle.vin && (
+                        <div>
+                          <span className="text-zinc-600 dark:text-zinc-400">VIN:</span>{' '}
+                          <span className="font-medium font-mono text-zinc-900 dark:text-white">{vehicle.vin}</span>
+                        </div>
+                      )}
+                      {vehicle.lastServiceDate && (
+                        <div className="col-span-2">
+                          <span className="text-zinc-600 dark:text-zinc-400">Last Service:</span>{' '}
+                          <span className="font-medium text-zinc-900 dark:text-white">
+                            {new Date(vehicle.lastServiceDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardShell>
           )}
 
           {/* Job History */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Job History ({client.jobs.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {client.jobs.length > 0 ? (
-                <div className="space-y-4">
-                  {client.jobs.map((job) => (
-                    <Link
-                      key={job.id}
-                      href={`/dashboard/jobs/${job.id}`}
-                      className="block rounded-lg border p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-semibold">{job.title}</h4>
-                            <Badge
-                              variant={
-                                job.status === 'completed'
-                                  ? 'default'
-                                  : job.status === 'cancelled'
-                                    ? 'destructive'
-                                    : 'secondary'
-                              }
-                              className="capitalize"
-                            >
-                              {job.status.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
-                            {job.scheduled_date && (
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(job.scheduled_date).toLocaleDateString()}
-                              </div>
-                            )}
-                            {job.estimated_cost && (
-                              <div className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                ${job.estimated_cost.toFixed(2)}
-                              </div>
-                            )}
-                            {job.estimated_duration && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {job.estimated_duration % 60 === 0
-                                  ? `${job.estimated_duration / 60} ${job.estimated_duration / 60 === 1 ? 'hr' : 'hrs'}`
-                                  : `${(job.estimated_duration / 60).toFixed(1)} hrs`}
-                              </div>
-                            )}
-                          </div>
+          <CardShell title={`Job History (${client.jobs.length})`} subtitle="All jobs for this customer">
+            {client.jobs.length > 0 ? (
+              <div className="space-y-3">
+                {client.jobs.map((job) => (
+                  <Link
+                    key={job.id}
+                    href={`/dashboard/jobs/${job.id}`}
+                    className="block rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="text-sm font-semibold text-zinc-900 dark:text-white">{job.title}</h4>
+                          <Badge
+                            variant={
+                              job.status === 'completed'
+                                ? 'default'
+                                : job.status === 'cancelled'
+                                  ? 'destructive'
+                                  : 'secondary'
+                            }
+                            className="capitalize text-xs"
+                          >
+                            {job.status.replace('_', ' ')}
+                          </Badge>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="py-8 text-center text-sm text-zinc-600 dark:text-zinc-400">
-                  No jobs yet. Create the first job for this client!
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Invoice History */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoice History ({client.invoices.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {client.invoices.length > 0 ? (
-                <div className="space-y-4">
-                  {client.invoices.map((invoice) => (
-                    <div
-                      key={invoice.id}
-                      className="block rounded-lg border p-4"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-semibold">
-                              {invoice.invoice_number || `Invoice #${invoice.id.slice(0, 8)}`}
-                            </h4>
-                            <Badge
-                              variant={
-                                invoice.status === 'paid'
-                                  ? 'default'
-                                  : invoice.status === 'overdue'
-                                    ? 'destructive'
-                                    : 'secondary'
-                              }
-                              className="capitalize"
-                            >
-                              {invoice.status}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3" />
-                              ${invoice.total.toFixed(2)}
-                            </div>
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-600 dark:text-zinc-400">
+                          {job.scheduled_date && (
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {new Date(invoice.created_at).toLocaleDateString()}
+                              {new Date(job.scheduled_date).toLocaleDateString()}
                             </div>
-                            {invoice.due_date && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Due: {new Date(invoice.due_date).toLocaleDateString()}
-                              </div>
-                            )}
-                          </div>
+                          )}
+                          {job.estimated_cost && (
+                            <div className="flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              ${job.estimated_cost.toFixed(2)}
+                            </div>
+                          )}
+                          {job.estimated_duration && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {job.estimated_duration % 60 === 0
+                                ? `${job.estimated_duration / 60} ${job.estimated_duration / 60 === 1 ? 'hr' : 'hrs'}`
+                                : `${(job.estimated_duration / 60).toFixed(1)} hrs`}
+                            </div>
+                          )}
                         </div>
-                        {invoice.status === 'paid' ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-yellow-600" />
-                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="py-8 text-center text-sm text-zinc-600 dark:text-zinc-400">
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-8 text-center">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  No jobs yet. Create the first job for this client!
+                </p>
+              </div>
+            )}
+          </CardShell>
+
+          {/* Invoice History */}
+          <CardShell title={`Invoice History (${client.invoices.length})`} subtitle="All invoices for this customer">
+            {client.invoices.length > 0 ? (
+              <div className="space-y-3">
+                {client.invoices.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-4"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="text-sm font-semibold text-zinc-900 dark:text-white">
+                            {invoice.invoice_number || `Invoice #${invoice.id.slice(0, 8)}`}
+                          </h4>
+                          <Badge
+                            variant={
+                              invoice.status === 'paid'
+                                ? 'default'
+                                : invoice.status === 'overdue'
+                                  ? 'destructive'
+                                  : 'secondary'
+                            }
+                            className="capitalize text-xs"
+                          >
+                            {invoice.status}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-600 dark:text-zinc-400">
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" />
+                            ${invoice.total.toFixed(2)}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(invoice.created_at).toLocaleDateString()}
+                          </div>
+                          {invoice.due_date && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              Due: {new Date(invoice.due_date).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {invoice.status === 'paid' ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-yellow-600" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-zinc-50/50 dark:bg-black/20 p-8 text-center">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   No invoices yet. Create the first invoice for this client!
                 </p>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </CardShell>
         </div>
       </div>
 

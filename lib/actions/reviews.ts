@@ -197,11 +197,11 @@ export async function getReviewStats() {
   const delayText = delayHours === 1 ? '1 hour' : `${delayHours} hours`
   const delay = `${delayText} after job completion`
 
-  // For now, we don't have actual reviews stored, so use mock stats
+  // For now, we don't have actual reviews stored, so return 0
   // In the future, you could integrate with Google Reviews API or store reviews
   return {
-    avgRating: 4.8, // Would come from actual reviews
-    totalReviews: 126, // Would come from actual reviews
+    avgRating: 0, // Would come from actual reviews
+    totalReviews: 0, // Would come from actual reviews
     requestsSent,
     pendingRequests,
     channels: "SMS + Email", // Could be configurable

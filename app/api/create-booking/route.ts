@@ -263,8 +263,8 @@ export async function POST(request: NextRequest) {
         },
         service: {
           name: service.name,
-          price: service.price,
-          duration_minutes: service.duration_minutes
+          price: body.totalPrice || service.price || 0,
+          duration_minutes: service.duration_minutes || service.base_duration || service.estimated_duration || 60
         },
         customer: {
           name: customer.name,
@@ -282,7 +282,13 @@ export async function POST(request: NextRequest) {
       }
 
       // Send email confirmation (existing)
-      await sendBookingConfirmation(bookingData)
+      try {
+        await sendBookingConfirmation(bookingData)
+        console.log('Booking confirmation email sent successfully')
+      } catch (emailError) {
+        console.error('Failed to send booking confirmation email:', emailError)
+        // Don't fail the booking if email fails
+      }
 
       // Send SMS confirmation (new) - only if customer has phone
       // Note: SMS consent is required in the booking form, so we can safely send

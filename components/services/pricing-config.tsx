@@ -40,25 +40,26 @@ export default function PricingConfig({ data, onChange }: PricingConfigProps) {
   useEffect(() => {
     if (isVariable && data.pricing_model === 'flat') {
       // Switching from flat to variable: auto-fill variations with base values
+      const baseDuration = data.base_duration || 120 // in minutes
       const newVariations: Record<VehicleType, VehicleVariation> = {
         coupe: {
           price: data.base_price || 0,
-          duration: data.base_duration || 120,
+          duration: baseDuration,
           enabled: true,
         },
         sedan: {
           price: data.base_price || 0,
-          duration: data.base_duration || 120,
+          duration: baseDuration,
           enabled: true,
         },
         suv: {
           price: Math.round((data.base_price || 0) * 1.15), // ~15% more
-          duration: (data.base_duration || 120) + 30, // 30 min more
+          duration: baseDuration + 30, // 30 min more (0.5 hours)
           enabled: true,
         },
         truck: {
           price: Math.round((data.base_price || 0) * 1.3), // ~30% more
-          duration: (data.base_duration || 120) + 60, // 60 min more
+          duration: baseDuration + 60, // 60 min more (1 hour)
           enabled: true,
         },
       }
@@ -82,8 +83,10 @@ export default function PricingConfig({ data, onChange }: PricingConfigProps) {
   }
 
   // Helper to update a specific vehicle row
-  const updateTier = (typeId: VehicleType, field: 'price' | 'duration', value: string) => {
-    const numValue = Number(value) || 0
+  const updateTier = (typeId: VehicleType, field: 'price' | 'duration', value: string | number) => {
+    // For duration, value is already in minutes (converted from hours in the onChange handler)
+    // For price, value is a string that needs to be parsed
+    const numValue = typeof value === 'number' ? value : Number(value) || 0
     const currentVariations = data.variations || {}
     const currentTier = currentVariations[typeId] || {
       price: data.base_price || 0,
@@ -164,23 +167,40 @@ export default function PricingConfig({ data, onChange }: PricingConfigProps) {
           </div>
           <div>
             <Label htmlFor="base_duration" className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-              Duration (min)
+              Duration (hours)
             </Label>
             <div className="relative">
               <Clock size={16} className="absolute left-3 top-3 text-zinc-400" />
               <Input
                 id="base_duration"
                 type="number"
+                step="0.5"
                 min="0"
                 className="w-full pl-8"
-                placeholder="Minutes"
-                value={data.base_duration || ''}
-                onChange={(e) =>
+                placeholder="2.0"
+                inputMode="decimal"
+                value={data.base_duration ? (data.base_duration / 60).toFixed(1) : ''}
+                onChange={(e) => {
+                  const hours = parseFloat(e.target.value) || 0
+                  // Convert hours to minutes for storage (round to nearest minute)
+                  const minutes = Math.round(hours * 60)
                   onChange({
                     ...data,
-                    base_duration: Number(e.target.value) || 0,
+                    base_duration: minutes,
                   })
-                }
+                }}
+                onBlur={(e) => {
+                  // Format to 1 decimal place on blur (e.g., 2.0, 2.5)
+                  const hours = parseFloat(e.target.value) || 0
+                  const formatted = hours.toFixed(1)
+                  if (e.target.value !== formatted) {
+                    const minutes = Math.round(parseFloat(formatted) * 60)
+                    onChange({
+                      ...data,
+                      base_duration: minutes,
+                    })
+                  }
+                }}
               />
             </div>
           </div>
@@ -195,7 +215,7 @@ export default function PricingConfig({ data, onChange }: PricingConfigProps) {
               <tr>
                 <th className="p-3 font-medium">Vehicle Size</th>
                 <th className="p-3 font-medium">Price</th>
-                <th className="p-3 font-medium">Duration (Min)</th>
+                <th className="p-3 font-medium">Duration (Hours)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -230,13 +250,29 @@ export default function PricingConfig({ data, onChange }: PricingConfigProps) {
                       <div className="relative">
                         <Input
                           type="number"
+                          step="0.5"
                           min="0"
                           className="w-20 p-1 pr-8 text-right"
-                          placeholder="120"
-                          value={variation.duration || ''}
-                          onChange={(e) => updateTier(type.id, 'duration', e.target.value)}
+                          placeholder="2.0"
+                          inputMode="decimal"
+                          value={variation.duration ? (variation.duration / 60).toFixed(1) : ''}
+                          onChange={(e) => {
+                            const hours = parseFloat(e.target.value) || 0
+                            // Convert hours to minutes for storage (round to nearest minute)
+                            const minutes = Math.round(hours * 60)
+                            updateTier(type.id, 'duration', minutes)
+                          }}
+                          onBlur={(e) => {
+                            // Format to 1 decimal place on blur (e.g., 2.0, 2.5)
+                            const hours = parseFloat(e.target.value) || 0
+                            const formatted = hours.toFixed(1)
+                            if (e.target.value !== formatted) {
+                              const minutes = Math.round(parseFloat(formatted) * 60)
+                              updateTier(type.id, 'duration', minutes)
+                            }
+                          }}
                         />
-                        <span className="absolute right-2 top-1.5 text-zinc-400 text-xs">min</span>
+                        <span className="absolute right-2 top-1.5 text-zinc-400 text-xs">hrs</span>
                       </div>
                     </td>
                   </tr>

@@ -108,6 +108,7 @@ export default function EditServiceDialog({
                 min="0"
                 defaultValue={service.duration_minutes ? (service.duration_minutes / 60).toFixed(1) : ''}
                 placeholder="2.0"
+                inputMode="decimal"
               />
             </div>
           </div>

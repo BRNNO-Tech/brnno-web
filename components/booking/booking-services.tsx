@@ -127,11 +127,14 @@ export function BookingServices({
                   const price = vehicleType 
                     ? getServicePrice(service as any, vehicleType)
                     : getStartingPrice(service as any)
-                  const duration = vehicleType
+                  const durationMinutes = vehicleType
                     ? getServiceDuration(service as any, vehicleType)
                     : (service.estimated_duration || service.base_duration || 120)
                   const isVariable = isVariablePricing(service as any)
                   const showStartingAt = isVariable && !vehicleType
+                  
+                  // Convert minutes to hours for display
+                  const durationHours = durationMinutes / 60
                   
                   return (
                     <div className="flex items-center gap-4 text-sm font-semibold">
@@ -141,10 +144,15 @@ export function BookingServices({
                           {showStartingAt ? 'Starting at ' : ''}${price.toFixed(2)}
                         </span>
                       </div>
-                      {duration && (
+                      {durationMinutes && (
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                           <Clock className="h-4 w-4" />
-                          <span>{duration} min</span>
+                          <span>
+                            {durationHours % 1 === 0 
+                              ? durationHours.toFixed(0) 
+                              : durationHours.toFixed(1)
+                            } {durationHours === 1 ? 'hour' : 'hours'}
+                          </span>
                         </div>
                       )}
                     </div>

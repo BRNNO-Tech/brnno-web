@@ -9,7 +9,12 @@ import { LeadsRecoveryCommandCenter } from '@/components/leads/recovery-command-
 
 export default async function BookingsPage() {
   const business = await getBusiness()
-  const tier = business ? getTierFromBusiness(business) : null
+  // Get user email for admin bypass
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const userEmail = user?.email || null
+  const tier = business ? getTierFromBusiness(business, userEmail) : null
   const canUseAutomation = await canUseFullAutomation()
   const maxLeads = await getMaxLeadsForCurrentBusiness()
   const leadLimitInfo = await canAddMoreLeads()

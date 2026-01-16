@@ -34,27 +34,57 @@ type BookingEmailData = {
 export async function sendBookingConfirmation(booking: BookingEmailData) {
   // If no API key, log and return (for dev/mock mode)
   if (!resend) {
-    console.log('RESEND_API_KEY not set. Skipping email sending.')
-    console.log('Would send to customer:', booking.customer.email)
-    console.log('Would send to business:', booking.business.email)
-    return
+    console.warn('⚠️ RESEND_API_KEY not set. Skipping email sending.')
+    console.warn('Would send to customer:', booking.customer.email)
+    console.warn('Would send to business:', booking.business.email)
+    throw new Error('RESEND_API_KEY not configured. Cannot send booking confirmation emails.')
+  }
+
+  // Validate required fields
+  if (!booking.customer.email) {
+    console.error('Cannot send email: customer email is missing')
+    throw new Error('Customer email is required to send booking confirmation')
+  }
+  if (!booking.business.email) {
+    console.error('Cannot send email: business email is missing')
+    throw new Error('Business email is required to send booking confirmation')
   }
 
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'bookings@resend.dev'
 
   // Format date and time
-  const appointmentDate = new Date(booking.scheduledDate)
+  // Combine scheduledDate (YYYY-MM-DD) and scheduledTime (HH:MM) into a proper date
+  let appointmentDate: Date
+  if (booking.scheduledDate && booking.scheduledTime) {
+    // scheduledDate is "2024-01-15", scheduledTime is "14:00"
+    appointmentDate = new Date(`${booking.scheduledDate}T${booking.scheduledTime}`)
+  } else if (booking.scheduledDate) {
+    // Fallback to just the date
+    appointmentDate = new Date(booking.scheduledDate)
+  } else {
+    // Last resort: use current date
+    appointmentDate = new Date()
+  }
+
+  // Validate the date
+  if (isNaN(appointmentDate.getTime())) {
+    console.error('Invalid date format:', { scheduledDate: booking.scheduledDate, scheduledTime: booking.scheduledTime })
+    appointmentDate = new Date() // Fallback to current date
+  }
+
   const formattedDate = appointmentDate.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   })
-  const formattedTime = appointmentDate.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  })
+  const formattedTime = booking.scheduledTime 
+    ? booking.scheduledTime // Use the time string directly if available
+    : appointmentDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
 
   // Format address
   const fullAddress = booking.address 
@@ -85,7 +115,12 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
   }
 
   // Format duration
-  const durationText = booking.service.duration_minutes
+  const durationMinutes = booking.service.duration_minutes || 60
+  const durationHours = Math.floor(durationMinutes / 60)
+  const durationMins = durationMinutes % 60
+  const durationText = durationHours > 0 
+    ? `${durationHours} ${durationHours === 1 ? 'hour' : 'hours'}${durationMins > 0 ? ` ${durationMins} ${durationMins === 1 ? 'minute' : 'minutes'}` : ''}`
+    : `${durationMins} ${durationMins === 1 ? 'minute' : 'minutes'}`
     ? booking.service.duration_minutes >= 60
       ? `${Math.floor(booking.service.duration_minutes / 60)} ${Math.floor(booking.service.duration_minutes / 60) === 1 ? 'hour' : 'hours'}${booking.service.duration_minutes % 60 > 0 ? ` ${booking.service.duration_minutes % 60} minutes` : ''}`
       : `${booking.service.duration_minutes} minutes`
@@ -239,7 +274,18 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
     console.log('Booking emails sent successfully')
   } catch (error) {
     console.error('Error sending booking emails:', error)
-    // Don't throw error to avoid failing the booking process
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error('Email error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      })
+    } else {
+      console.error('Email error (non-Error object):', JSON.stringify(error, null, 2))
+    }
+    // Re-throw the error so the caller can handle it
+    throw error
   }
 }
 

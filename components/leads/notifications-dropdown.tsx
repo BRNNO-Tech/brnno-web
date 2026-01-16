@@ -176,6 +176,7 @@ export function NotificationsDropdown() {
           variant="ghost"
           size="icon"
           className="relative rounded-2xl border border-zinc-200/50 dark:border-white/10 bg-white/50 dark:bg-white/5 text-zinc-600 dark:text-white/70 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
+          suppressHydrationWarning
         >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
