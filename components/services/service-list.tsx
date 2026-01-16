@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { deleteService } from '@/lib/actions/services';
+import { getFeatureLabel } from '@/lib/utils/feature-labels';
 import { toast } from 'sonner';
 
 interface ServiceListProps {
@@ -152,7 +153,7 @@ export default function ServiceList({ services: initialServices }: ServiceListPr
                       {service.whats_included.slice(0, 3).map((item, index) => (
                         <li key={index} className="flex items-start gap-2 text-sm">
                           <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                          <span className="line-clamp-1">{item}</span>
+                          <span className="line-clamp-1">{getFeatureLabel(item)}</span>
                         </li>
                       ))}
                       {service.whats_included.length > 3 && (

@@ -14,7 +14,7 @@ import { getAvailableTimeSlots, checkTimeSlotAvailability } from '@/lib/actions/
 import AssetDetailsForm from './asset-details-form'
 import { DEFAULT_INDUSTRY } from '@/lib/config/industry-assets'
 import VehicleSelector from './vehicle-selector'
-import { calculateTotals, formatDuration, formatDurationHours } from '@/lib/utils/booking-utils'
+import { calculateTotals, formatDuration, formatDurationHours, mapVehicleTypeToPricingKey } from '@/lib/utils/booking-utils'
 import { Service } from '@/types'
 
 type Business = {
@@ -109,7 +109,8 @@ export default function BookingForm({
   const today = new Date().toISOString().split('T')[0]
 
   // Calculate totals in real-time (runs on every render)
-  // Use the mapped size from assetDetails if available, otherwise use vehicleType directly
+  // Use the mapped size from assetDetails if available, otherwise map vehicleType to pricing key
+  // The VehicleSelector should set assetDetails.size correctly (van -> truck), but we ensure it here too
   const vehicleSizeForPricing = formData.assetDetails?.size || formData.vehicleType
   
   // Debug logging (remove in production)
@@ -133,9 +134,12 @@ export default function BookingForm({
     is_popular: service.is_popular ?? false,
   } as Service
 
+  // Map vehicle size to pricing key for calculation (handles van -> truck, etc.)
+  const pricingKey = mapVehicleTypeToPricingKey(vehicleSizeForPricing)
+  
   const totals = calculateTotals(
     serviceForCalculation,
-    vehicleSizeForPricing as 'sedan' | 'suv' | 'truck' | 'coupe' | null,
+    pricingKey,
     formData.selectedAddons
   )
 

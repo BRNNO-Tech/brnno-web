@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Phone, Mail, MapPin, Star, Clock, DollarSign, Check } from 'lucide-react'
 import { getStartingPrice, isVariablePricing } from '@/lib/utils/service-pricing'
+import { getFeatureLabel } from '@/lib/utils/feature-labels'
 import Image from 'next/image'
 
 type Business = {
@@ -189,7 +190,7 @@ export default function BookingLanding({
                           {service.whats_included.slice(0, 3).map((item, index) => (
                             <li key={index} className="flex items-start gap-2 text-sm">
                               <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                              <span className="line-clamp-1">{item}</span>
+                              <span className="line-clamp-1">{getFeatureLabel(item)}</span>
                             </li>
                           ))}
                           {service.whats_included.length > 3 && (

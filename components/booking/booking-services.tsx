@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Check, Clock, DollarSign, Star } from 'lucide-react';
 import { getStartingPrice, isVariablePricing, getServicePrice, getServiceDuration } from '@/lib/utils/service-pricing';
+import { getFeatureLabel } from '@/lib/utils/feature-labels';
 import type { VehicleType } from '@/components/services/pricing-config';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -171,7 +172,7 @@ export function BookingServices({
                       {service.whats_included.map((item, index) => (
                         <li key={index} className="flex items-start gap-2 text-sm">
                           <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                          <span>{item}</span>
+                          <span>{getFeatureLabel(item)}</span>
                         </li>
                       ))}
                     </ul>
