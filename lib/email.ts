@@ -121,10 +121,6 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
   const durationText = durationHours > 0 
     ? `${durationHours} ${durationHours === 1 ? 'hour' : 'hours'}${durationMins > 0 ? ` ${durationMins} ${durationMins === 1 ? 'minute' : 'minutes'}` : ''}`
     : `${durationMins} ${durationMins === 1 ? 'minute' : 'minutes'}`
-    ? booking.service.duration_minutes >= 60
-      ? `${Math.floor(booking.service.duration_minutes / 60)} ${Math.floor(booking.service.duration_minutes / 60) === 1 ? 'hour' : 'hours'}${booking.service.duration_minutes % 60 > 0 ? ` ${booking.service.duration_minutes % 60} minutes` : ''}`
-      : `${booking.service.duration_minutes} minutes`
-    : null
 
   try {
     // Email to customer
