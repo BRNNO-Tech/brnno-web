@@ -156,6 +156,8 @@ export default function SignupPage() {
     const supabase = createClient()
 
     try {
+      console.log('Starting free trial flow...')
+      
       // Create auth account first
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
@@ -168,11 +170,34 @@ export default function SignupPage() {
         },
       })
 
-      if (signUpError) throw signUpError
-      if (!data.user) throw new Error('Failed to create account')
+      if (signUpError) {
+        console.error('Sign up error:', signUpError)
+        throw signUpError
+      }
+      if (!data.user) {
+        console.error('No user returned from signup')
+        throw new Error('Failed to create account')
+      }
+      
+      console.log('User created:', data.user.id)
 
       // Clear demo mode cookie when user successfully signs up
       document.cookie = 'demo-mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax'
+
+      // Sign in the user immediately so session is established for API call
+      console.log('Attempting to sign in user...')
+      const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      })
+
+      if (signInError) {
+        // If sign in fails (e.g., email confirmation required), we'll still try the API
+        // but the API should handle this case
+        console.warn('Sign in failed, continuing with trial creation:', signInError)
+      } else {
+        console.log('User signed in successfully')
+      }
 
       // Track subscription selection
       if (signupLeadId) {
@@ -185,47 +210,60 @@ export default function SignupPage() {
       }
 
       // Start free trial
+      const trialPayload = {
+        planId: formData.selectedPlan,
+        billingPeriod: formData.billingPeriod,
+        teamSize: formData.teamSize || (formData.selectedPlan === 'starter' ? 1 : (formData.selectedPlan === 'pro' ? 2 : 3)),
+        email: formData.email,
+        businessName: formData.businessName,
+        userId: data.user.id,
+        signupLeadId: signupLeadId,
+        signupData: {
+          name: formData.name,
+          email: formData.email,
+          businessName: formData.businessName,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+          subdomain: formData.subdomain,
+          description: formData.description,
+        },
+      }
+      
+      console.log('Calling /api/start-trial with payload:', { ...trialPayload, signupData: '...' })
+      
       const response = await fetch('/api/start-trial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planId: formData.selectedPlan,
-          billingPeriod: formData.billingPeriod,
-          teamSize: formData.teamSize || (formData.selectedPlan === 'starter' ? 1 : (formData.selectedPlan === 'pro' ? 2 : 3)),
-          email: formData.email,
-          businessName: formData.businessName,
-          userId: data.user.id,
-          signupLeadId: signupLeadId,
-          signupData: {
-            name: formData.name,
-            email: formData.email,
-            businessName: formData.businessName,
-            phone: formData.phone,
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-            zip: formData.zip,
-            subdomain: formData.subdomain,
-            description: formData.description,
-          },
-        }),
+        body: JSON.stringify(trialPayload),
       })
+      
+      console.log('API response status:', response.status)
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to start free trial')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Trial API error:', errorData)
+        throw new Error(errorData.error || 'Failed to start free trial')
       }
 
       const result = await response.json()
+      console.log('Trial started successfully:', result)
       
-      // Sign in the user
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      })
+      // If we didn't sign in earlier (e.g., email confirmation required), try again
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        })
 
-      if (signInError) {
-        throw new Error(`Failed to sign in: ${signInError.message}`)
+        if (signInError) {
+          // If still can't sign in, might need email confirmation
+          // Redirect to a page that explains this
+          throw new Error(`Account created but sign in failed. Please check your email for confirmation or try logging in.`)
+        }
       }
 
       // Redirect to dashboard

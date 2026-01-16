@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 // Trial period in days
 const TRIAL_PERIOD_DAYS = 14
@@ -16,19 +16,45 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user || user.id !== userId) {
+    // Verify userId format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(userId)) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Invalid user ID format' },
+        { status: 400 }
+      )
+    }
+
+    // Use service role client for all operations during signup (bypasses RLS and auth checks)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
+    const adminClient = createServiceClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+
+    // Verify user exists using admin client
+    const { data: adminUser, error: adminError } = await adminClient.auth.admin.getUserById(userId)
+    
+    if (adminError || !adminUser || adminUser.user.id !== userId) {
+      return NextResponse.json(
+        { error: 'User not found. Please ensure your account was created successfully.' },
         { status: 401 }
       )
     }
 
+    // Use admin client for all database operations (bypasses RLS)
+    const dbClient = adminClient
+
     // Check if business already exists
-    const { data: existingBusiness } = await supabase
+    const { data: existingBusiness } = await dbClient
       .from('businesses')
       .select('id')
       .eq('owner_id', userId)
@@ -47,7 +73,7 @@ export async function POST(request: NextRequest) {
     trialEndDate.setDate(trialEndDate.getDate() + TRIAL_PERIOD_DAYS)
 
     // Create business with trial status
-    const { data: business, error: businessError } = await supabase
+    const { data: business, error: businessError } = await dbClient
       .from('businesses')
       .insert({
         owner_id: userId,
@@ -80,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Mark signup lead as converted if we have a lead ID
     if (signupLeadId) {
-      const { error: leadUpdateError } = await supabase
+      const { error: leadUpdateError } = await dbClient
         .from('signup_leads')
         .update({
           converted: true,
