@@ -64,9 +64,9 @@ export async function getLeadReportsData(days: number = 30): Promise<ReportsData
         { date: '2024-01-05', revenue: 410.01 },
       ],
       channelConversions: [
-        { channel: 'online_booking', leads: 2, bookings: 1, revenue: 299.99 },
-        { channel: 'referral', leads: 1, bookings: 0, revenue: 0 },
-        { channel: 'website', leads: 1, bookings: 0, revenue: 0 },
+        { channel: 'online_booking', sent: 2, replied: 1, booked: 1, revenue: 299.99 },
+        { channel: 'referral', sent: 1, replied: 0, booked: 0, revenue: 0 },
+        { channel: 'website', sent: 1, replied: 0, booked: 0, revenue: 0 },
       ],
       funnelData: [
         { stage: 'New Leads', count: 2 },
