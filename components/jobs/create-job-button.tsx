@@ -44,6 +44,17 @@ export default function CreateJobButton() {
     
     const formData = new FormData(e.currentTarget)
     
+    // Convert datetime-local to UTC ISO string on the client side
+    // This ensures the timezone conversion happens in the user's browser, not on the server
+    const scheduledDateInput = formData.get('scheduled_date') as string | null
+    if (scheduledDateInput) {
+      // datetime-local gives us local time in the user's timezone
+      // Create a Date object from it (this will be in the user's local timezone)
+      const localDate = new Date(scheduledDateInput)
+      // Convert to ISO string (UTC) for storage
+      formData.set('scheduled_date', localDate.toISOString())
+    }
+    
     try {
       await addJob(formData)
       formRef.current?.reset()

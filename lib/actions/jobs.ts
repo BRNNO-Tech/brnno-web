@@ -40,23 +40,9 @@ export async function addJob(formData: FormData) {
   const supabase = await createClient()
   const businessId = await getBusinessId()
 
-  // Convert datetime-local value to ISO string
-  // datetime-local format: "YYYY-MM-DDTHH:mm" (no timezone)
-  // We need to treat it as local time and convert to UTC properly
-  let scheduledDate: string | null = null
-  const scheduledDateInput = formData.get('scheduled_date') as string | null
-  if (scheduledDateInput) {
-    // datetime-local gives us local time (YYYY-MM-DDTHH:mm)
-    // Parse the string manually to ensure it's treated as local time
-    const [datePart, timePart] = scheduledDateInput.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hours, minutes] = timePart.split(':').map(Number)
-    
-    // Create a Date object in local timezone
-    const localDate = new Date(year, month - 1, day, hours, minutes)
-    // Convert to ISO string (UTC) for storage
-    scheduledDate = localDate.toISOString()
-  }
+  // The scheduled_date should already be in ISO format (UTC) from the client
+  // The client-side code converts datetime-local to UTC before sending
+  const scheduledDate = formData.get('scheduled_date') as string | null
 
   // Convert hours to minutes for storage
   const durationHours = formData.get('estimated_duration') ? parseFloat(formData.get('estimated_duration') as string) : null
@@ -131,23 +117,9 @@ export async function updateJobStatus(id: string, status: 'scheduled' | 'in_prog
 export async function updateJob(id: string, formData: FormData) {
   const supabase = await createClient()
 
-  // Convert datetime-local value to ISO string
-  // datetime-local format: "YYYY-MM-DDTHH:mm" (no timezone)
-  // We need to treat it as local time and convert to UTC properly
-  let scheduledDate: string | null = null
-  const scheduledDateInput = formData.get('scheduled_date') as string | null
-  if (scheduledDateInput) {
-    // datetime-local gives us local time (YYYY-MM-DDTHH:mm)
-    // Parse the string manually to ensure it's treated as local time
-    const [datePart, timePart] = scheduledDateInput.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hours, minutes] = timePart.split(':').map(Number)
-    
-    // Create a Date object in local timezone
-    const localDate = new Date(year, month - 1, day, hours, minutes)
-    // Convert to ISO string (UTC) for storage
-    scheduledDate = localDate.toISOString()
-  }
+  // The scheduled_date should already be in ISO format (UTC) from the client
+  // The client-side code converts datetime-local to UTC before sending
+  const scheduledDate = formData.get('scheduled_date') as string | null
 
   const jobData = {
     client_id: formData.get('client_id') as string || null,
