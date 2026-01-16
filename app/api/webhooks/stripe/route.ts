@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { getInitialConditionConfig } from '@/lib/utils/default-settings'
 import { createClient } from '@supabase/supabase-js'
 
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -117,6 +118,9 @@ export async function POST(request: NextRequest) {
             .single()
 
           if (!existingBusiness) {
+            // Get smart condition config based on business location (state)
+            const conditionConfig = getInitialConditionConfig(signupData.state || null)
+            
             // Create business record with all signup data
             const { error: businessError } = await supabase
               .from('businesses')
@@ -139,6 +143,7 @@ export async function POST(request: NextRequest) {
                 subscription_started_at: new Date().toISOString(),
                 subscription_ends_at: new Date((subscription as any).current_period_end * 1000).toISOString(),
                 team_size: teamSize,
+                condition_config: conditionConfig, // Smart onboarding: region-specific defaults
               })
 
             if (businessError) {

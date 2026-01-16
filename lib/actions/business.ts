@@ -97,10 +97,10 @@ export async function getBusiness() {
     return null
   }
 
-  // Include subscription fields needed for permissions checks
+  // Include subscription fields needed for permissions checks and condition config
   const { data: business, error: businessError } = await supabase
     .from('businesses')
-    .select('id, name, owner_id, created_at, subscription_plan, subscription_status')
+    .select('id, name, owner_id, created_at, subscription_plan, subscription_status, condition_config')
     .eq('owner_id', user.id)
     .single()
 
@@ -237,6 +237,48 @@ export async function uploadBusinessLogo(file: File) {
 /**
  * Updates brand settings for a business
  */
+export async function updateConditionConfig(config: {
+  enabled: boolean
+  tiers: Array<{
+    id: string
+    label: string
+    description: string
+    markup_percent: number
+  }>
+}) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    throw new Error('Not authenticated')
+  }
+
+  const { data: business, error: businessError } = await supabase
+    .from('businesses')
+    .select('id')
+    .eq('owner_id', user.id)
+    .single()
+
+  if (businessError || !business) {
+    throw new Error('Business not found')
+  }
+
+  const { error: updateError } = await supabase
+    .from('businesses')
+    .update({ condition_config: config })
+    .eq('id', business.id)
+
+  if (updateError) {
+    throw new Error(`Failed to update condition config: ${updateError.message}`)
+  }
+
+  revalidatePath('/dashboard/settings')
+  return { success: true }
+}
+
 export async function updateBrandSettings(brandData: {
   logo_url?: string | null
   accent_color?: string | null

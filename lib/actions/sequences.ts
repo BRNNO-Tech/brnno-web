@@ -53,6 +53,13 @@ async function getBusinessId() {
 }
 
 export async function getSequences(): Promise<Sequence[]> {
+  // Check if in demo mode
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  if (await isDemoMode()) {
+    // Return empty array for demo mode (sequences are optional)
+    return []
+  }
+
   try {
     const supabase = await createClient()
     const businessId = await getBusinessId()

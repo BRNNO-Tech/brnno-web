@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Calendar, Clock, DollarSign, ChevronRight, User, MapPin, Car, Mail, Phone, MessageSquare, Check, ChevronLeft, Star } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, DollarSign, ChevronRight, User, MapPin, Car, Mail, Phone, MessageSquare, Check, ChevronLeft, Star, Siren } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getAvailableTimeSlots, checkTimeSlotAvailability } from '@/lib/actions/schedule'
@@ -24,6 +24,15 @@ type Business = {
   subdomain: string
   stripe_account_id?: string | null
   industry?: string
+  condition_config?: {
+    enabled: boolean
+    tiers: Array<{
+      id: string
+      label: string
+      description: string
+      markup_percent: number
+    }>
+  } | null
 }
 
 // Extended Service type for booking form that allows nullable fields from API
@@ -95,6 +104,9 @@ export default function BookingForm({
     selectedAddons: [] as any[],
     vehicleType: null as string | null,
     vehicleColor: null as string | null,
+    condition: (business.condition_config?.enabled && business.condition_config.tiers && business.condition_config.tiers.length > 0) 
+      ? (business.condition_config.tiers[0].id || 'clean')
+      : 'clean', // Default to first tier or 'clean' if condition pricing disabled
   })
 
   const [addons, setAddons] = useState<any[]>([])
@@ -138,10 +150,15 @@ export default function BookingForm({
   // Map vehicle size to pricing key for calculation (handles van -> truck, etc.)
   const pricingKey = mapVehicleTypeToPricingKey(vehicleSizeForPricing)
   
+  // Get condition config from business, or use default if not configured
+  const conditionConfig = business.condition_config || null
+  
   const totals = calculateTotals(
     serviceForCalculation,
     pricingKey,
-    formData.selectedAddons
+    formData.selectedAddons,
+    formData.condition,
+    conditionConfig
   )
 
   // Load available time slots when date is selected
@@ -539,7 +556,7 @@ export default function BookingForm({
 
       // Always redirect to checkout - let checkout page handle payment/no-payment
       // Save booking data to sessionStorage and redirect to checkout
-      // Use the calculated totals which include vehicle size adjustments and addons
+      // Use the calculated totals which include vehicle size adjustments, condition fees, and addons
       const bookingData = {
         businessId: business.id,
         leadId, // Include leadId for tracking
@@ -547,7 +564,7 @@ export default function BookingForm({
           id: service.id,
           name: service.name,
           description: service.description,
-          price: totals.price, // Use calculated total price (includes vehicle size adjustments)
+          price: totals.price, // Use calculated total price (includes vehicle size adjustments, condition fees, and addons)
           base_price: service.base_price || service.price || 0, // Keep base price for reference
           duration_minutes: totals.duration, // Use calculated total duration
           base_duration: service.base_duration || service.estimated_duration || service.duration_minutes || 60, // Keep base duration for reference
@@ -555,8 +572,9 @@ export default function BookingForm({
           variations: service.variations,
         },
         addons: formData.selectedAddons,
-        totalPrice: totals.price, // Total including vehicle adjustments and addons
+        totalPrice: totals.price, // Total including vehicle adjustments, condition fees, and addons
         vehicleSize: vehicleSizeForPricing, // Store vehicle size for reference
+        condition: formData.condition, // Store condition for reference
         customer: {
           name: formData.name.trim(),
           email: formData.email.trim(),
@@ -716,7 +734,7 @@ export default function BookingForm({
                 </div>
 
                 {/* Real-time Summary (only show if vehicle or add-ons selected) - Show on all steps after vehicle selection */}
-                {(vehicleSizeForPricing || formData.selectedAddons.length > 0) && !quote && currentStep >= 2 && (
+                {(vehicleSizeForPricing || formData.selectedAddons.length > 0 || formData.condition !== 'clean') && !quote && currentStep >= 2 && (
                   <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <p className="text-xs font-semibold text-blue-900 dark:text-blue-200 mb-2 uppercase tracking-wide">
                       Booking Summary
@@ -725,32 +743,23 @@ export default function BookingForm({
                       {/* Base Service */}
                       <div className="flex justify-between">
                         <span className="text-zinc-600 dark:text-zinc-400">{service.name}</span>
-                        <span className="font-medium">${(service.base_price || service.price || 0).toFixed(2)}</span>
+                        <span className="font-medium">${(totals.breakdown?.base || service.base_price || service.price || 0).toFixed(2)}</span>
                       </div>
                       
-                      {/* Vehicle Adjustment - Always show if vehicle selected and service has variable pricing */}
-                      {vehicleSizeForPricing && service.pricing_model === 'variable' && (
-                        (() => {
-                          const basePrice = service.base_price || service.price || 0
-                          const baseDuration = service.base_duration || service.estimated_duration || service.duration_minutes || 60
-                          const addonsPrice = formData.selectedAddons.reduce((sum, a) => sum + (a.price || 0), 0)
-                          const addonsDuration = formData.selectedAddons.reduce((sum, a) => sum + (a.duration_minutes || a.duration || 0), 0)
-                          const priceDiff = totals.price - basePrice - addonsPrice
-                          const durationDiff = totals.duration - baseDuration - addonsDuration
-                          
-                          // Always show vehicle adjustment if vehicle is selected and service has variable pricing
-                          return (
-                            <div className="flex justify-between text-blue-600 dark:text-blue-400">
-                              <span>Vehicle ({vehicleSizeForPricing})</span>
-                              <span>
-                                {priceDiff !== 0 && `${priceDiff > 0 ? '+' : ''}$${Math.abs(priceDiff).toFixed(2)}`}
-                                {priceDiff !== 0 && durationDiff !== 0 && ' • '}
-                                {durationDiff !== 0 && `${durationDiff > 0 ? '+' : ''}${formatDuration(Math.abs(durationDiff))}`}
-                                {priceDiff === 0 && durationDiff === 0 && 'No change'}
-                              </span>
-                            </div>
-                          )
-                        })()
+                      {/* Vehicle Adjustment - Show if vehicle selected and service has variable pricing */}
+                      {totals.breakdown?.sizeFee !== undefined && totals.breakdown.sizeFee !== 0 && (
+                        <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                          <span>Vehicle Size ({vehicleSizeForPricing})</span>
+                          <span>+${totals.breakdown.sizeFee.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {/* Condition Fee - Show if condition is not 'clean' */}
+                      {totals.breakdown?.conditionFee !== undefined && totals.breakdown.conditionFee !== 0 && (
+                        <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                          <span>Condition Fee</span>
+                          <span>+${totals.breakdown.conditionFee.toFixed(2)}</span>
+                        </div>
                       )}
                       
                       {/* Add-ons */}
@@ -776,6 +785,14 @@ export default function BookingForm({
                           {formatDuration(totals.duration)}
                         </span>
                       </div>
+                      
+                      {/* Safety Net Note */}
+                      {(formData.condition === 'heavy' || formData.condition === 'extreme') && (
+                        <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-800 dark:text-amber-200">
+                          <p className="font-medium mb-1">📋 Estimate Note:</p>
+                          <p>This is an estimate based on the condition selected. If the vehicle requires significantly more work (e.g., undeclared sand or mold), the final invoice may be adjusted upon inspection.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -915,6 +932,103 @@ export default function BookingForm({
                     asset_model: formData.assetDetails.model || undefined,
                   }}
                 />
+
+                {/* Condition Selector - Only show if enabled in business config */}
+                {business.condition_config?.enabled && business.condition_config.tiers && business.condition_config.tiers.length > 0 && (
+                  <div className="mt-6">
+                    <Label className="mb-3 block text-base font-semibold">Vehicle Condition</Label>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                      Select the condition that best describes your vehicle to get an accurate price estimate.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {business.condition_config.tiers.map((tier, index) => {
+                        // Map tier to icon and colors based on markup percentage
+                        const getTierStyle = (markup: number) => {
+                          if (markup === 0) {
+                            return {
+                              icon: Check,
+                              color: 'text-green-700',
+                              bg: 'bg-green-50',
+                              border: 'border-green-300',
+                              darkBg: 'dark:bg-green-900/20',
+                              darkBorder: 'dark:border-green-800'
+                            }
+                          } else if (markup <= 0.15) {
+                            return {
+                              icon: Car,
+                              color: 'text-blue-700',
+                              bg: 'bg-blue-50',
+                              border: 'border-blue-300',
+                              darkBg: 'dark:bg-blue-900/20',
+                              darkBorder: 'dark:border-blue-800'
+                            }
+                          } else if (markup <= 0.25) {
+                            return {
+                              icon: Car,
+                              color: 'text-amber-700',
+                              bg: 'bg-amber-50',
+                              border: 'border-amber-300',
+                              darkBg: 'dark:bg-amber-900/20',
+                              darkBorder: 'dark:border-amber-800'
+                            }
+                          } else {
+                            return {
+                              icon: Siren,
+                              color: 'text-red-700',
+                              bg: 'bg-red-50',
+                              border: 'border-red-300',
+                              darkBg: 'dark:bg-red-900/20',
+                              darkBorder: 'dark:border-red-800'
+                            }
+                          }
+                        }
+                        
+                        const style = getTierStyle(tier.markup_percent)
+                        const Icon = style.icon
+                        const isSelected = formData.condition === tier.id
+                        
+                        return (
+                          <label
+                            key={tier.id || index}
+                            className="relative cursor-pointer"
+                          >
+                            <input
+                              type="radio"
+                              name="vehicle_condition"
+                              value={tier.id}
+                              checked={isSelected}
+                              onChange={(e) => setFormData({ ...formData, condition: e.target.value as any })}
+                              className="peer sr-only"
+                            />
+                            <div className={`p-4 border-2 rounded-lg transition-all hover:border-opacity-80 ${
+                              isSelected
+                                ? `${style.border} ${style.bg} ${style.darkBg} ${style.darkBorder} border-opacity-100`
+                                : 'border-zinc-300 dark:border-zinc-600 hover:border-blue-400'
+                            }`}>
+                              <div className="flex items-start gap-3">
+                                <Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${isSelected ? style.color : 'text-zinc-500 dark:text-zinc-400'}`} />
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <p className={`font-medium text-sm ${isSelected ? style.color : 'text-zinc-900 dark:text-zinc-50'}`}>
+                                      {tier.label}
+                                    </p>
+                                    {tier.markup_percent > 0 && (
+                                      <span className={`text-xs font-semibold ${isSelected ? style.color : 'text-zinc-500 dark:text-zinc-400'}`}>
+                                        +{Math.round(tier.markup_percent * 100)}%
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-zinc-600 dark:text-zinc-400">{tier.description}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {error && (
                   <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                 )}
@@ -1505,34 +1619,7 @@ export default function BookingForm({
                         </div>
                       )}
 
-                      {/* Condition */}
-                      <div>
-                        <Label className="mb-3 block">Condition</Label>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {[
-                            { label: 'Normal', value: 'normal', description: 'Regular maintenance' },
-                            { label: 'Very Dirty', value: 'very_dirty', description: 'Needs deep clean' },
-                            { label: 'Needs Extra Care', value: 'extra_care', description: 'Heavy soiling/stains' },
-                          ].map((condition) => (
-                            <label
-                              key={condition.value}
-                              className="relative cursor-pointer"
-                            >
-                              <input
-                                type="radio"
-                                name="asset_condition"
-                                value={condition.value}
-                                defaultChecked={condition.value === 'normal'}
-                                className="peer sr-only"
-                              />
-                              <div className="p-4 border-2 border-zinc-300 dark:border-zinc-600 rounded-lg peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-950 transition-all hover:border-blue-400">
-                                <p className="font-medium text-sm mb-1">{condition.label}</p>
-                                <p className="text-xs text-zinc-600 dark:text-zinc-400">{condition.description}</p>
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
+                      {/* Condition removed - now in Step 2 */}
                     </div>
                   ) : (
                     <AssetDetailsForm

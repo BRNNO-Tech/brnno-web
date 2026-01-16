@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { getInitialConditionConfig } from '@/lib/utils/default-settings'
 
 // Trial period in days
 const TRIAL_PERIOD_DAYS = 14
@@ -72,6 +73,9 @@ export async function POST(request: NextRequest) {
     const trialEndDate = new Date()
     trialEndDate.setDate(trialEndDate.getDate() + TRIAL_PERIOD_DAYS)
 
+    // Get smart condition config based on business location (state)
+    const conditionConfig = getInitialConditionConfig(signupData?.state || null)
+
     // Create business with trial status
     const { data: business, error: businessError } = await dbClient
       .from('businesses')
@@ -92,6 +96,7 @@ export async function POST(request: NextRequest) {
         subscription_started_at: trialStartDate.toISOString(),
         subscription_ends_at: trialEndDate.toISOString(),
         team_size: teamSize || (planId === 'starter' ? 1 : (planId === 'pro' ? 2 : 3)),
+        condition_config: conditionConfig, // Smart onboarding: region-specific defaults
       })
       .select()
       .single()

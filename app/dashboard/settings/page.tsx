@@ -21,9 +21,13 @@ import { getBusinessHours, updateBusinessHours } from '@/lib/actions/schedule'
 import { createStripeConnectAccount } from '@/lib/actions/stripe-connect'
 import { updateSMSSettings } from '@/lib/actions/sms-settings'
 import { generateAPIKeyForBusiness, addWebhookEndpoint, removeWebhookEndpoint, testWebhookEndpoint } from '@/lib/actions/integrations'
+import { updateConditionConfig } from '@/lib/actions/business'
+import { getCurrentTier } from '@/lib/actions/permissions'
+import { isAdminEmail } from '@/lib/permissions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import ConditionSettings from '@/components/settings/condition-settings'
 // import AutoAssignmentSettings from '@/components/settings/auto-assignment-settings' // Hidden - on back burner
 
 // Brand Settings Form Component
@@ -266,6 +270,8 @@ export default function SettingsPage() {
   const [surgeApiKey, setSurgeApiKey] = useState('')
   const [surgeAccountId, setSurgeAccountId] = useState('')
   const [twilioAccountSid, setTwilioAccountSid] = useState('')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [currentTier, setCurrentTier] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -377,6 +383,20 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadBusiness()
+  }, [])
+
+  // Get user email to check if admin and current tier
+  useEffect(() => {
+    async function getUserEmailAndTier() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setUserEmail(user?.email || null)
+      
+      // Get current tier
+      const tier = await getCurrentTier()
+      setCurrentTier(tier)
+    }
+    getUserEmailAndTier()
   }, [])
 
   // Initialize SMS provider settings when business loads
@@ -614,17 +634,24 @@ export default function SettingsPage() {
       )}
 
       <Tabs defaultValue="business" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="business">Business Profile</TabsTrigger>
-          <TabsTrigger value="brand">Brand</TabsTrigger>
-          <TabsTrigger value="schedule">Schedule Settings</TabsTrigger>
-          <TabsTrigger value="channels">Channels</TabsTrigger>
-          {/* <TabsTrigger value="auto-assignment">Auto-Assignment</TabsTrigger> */} {/* Hidden - on back burner */}
-          <TabsTrigger value="reviews">Review Automation</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="account">Account</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0 scroll-smooth">
+          <TabsList className="inline-flex w-full min-w-full h-auto sm:h-10 gap-1">
+            <TabsTrigger value="business" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Business</TabsTrigger>
+            <TabsTrigger value="brand" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Brand</TabsTrigger>
+            <TabsTrigger value="schedule" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Schedule</TabsTrigger>
+            <TabsTrigger value="pricing" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Pricing</TabsTrigger>
+            {isAdminEmail(userEmail) && (
+              <TabsTrigger value="channels" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Channels</TabsTrigger>
+            )}
+            {/* <TabsTrigger value="auto-assignment">Auto-Assignment</TabsTrigger> */} {/* Hidden - on back burner */}
+            <TabsTrigger value="reviews" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Reviews</TabsTrigger>
+            <TabsTrigger value="payments" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Payments</TabsTrigger>
+            {currentTier === 'fleet' && (
+              <TabsTrigger value="integrations" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Integrations</TabsTrigger>
+            )}
+            <TabsTrigger value="account" className="flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3">Account</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Business Profile Tab */}
         <TabsContent value="business">
@@ -959,8 +986,18 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Channels Settings Tab */}
-        <TabsContent value="channels">
+        {/* Condition Pricing Tab */}
+        <TabsContent value="pricing">
+          <ConditionSettings
+            initialConfig={business?.condition_config || null}
+            onSave={updateConditionConfig}
+            loading={loading}
+          />
+        </TabsContent>
+
+        {/* Channels Settings Tab - Admin Only */}
+        {isAdminEmail(userEmail) && (
+          <TabsContent value="channels">
           <div className="space-y-6">
             {/* SMS Channel */}
             <Card>
@@ -1229,7 +1266,8 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+          </TabsContent>
+        )}
 
         {/* Auto-Assignment Tab - Hidden - on back burner */}
         {/* <TabsContent value="auto-assignment">
@@ -1376,8 +1414,9 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Integrations Tab */}
-        <TabsContent value="integrations">
+        {/* Integrations Tab - Fleet Tier Only */}
+        {currentTier === 'fleet' && (
+          <TabsContent value="integrations">
           <div className="space-y-6">
             {/* API Keys Section */}
             <Card>
@@ -1789,7 +1828,8 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+          </TabsContent>
+        )}
 
         {/* Account Tab */}
         <TabsContent value="account">

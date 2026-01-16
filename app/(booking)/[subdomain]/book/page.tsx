@@ -27,7 +27,7 @@ async function getBusiness(subdomain: string) {
 
   const { data: business, error } = await supabase
     .from('businesses')
-    .select('*')
+    .select('*, condition_config')
     .eq('subdomain', subdomain)
     .single()
 

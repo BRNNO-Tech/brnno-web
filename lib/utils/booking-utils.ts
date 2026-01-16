@@ -30,18 +30,37 @@ export function mapVehicleTypeToPricingKey(vehicleType: string | null | undefine
 interface BookingTotals {
   price: number
   duration: number
+  breakdown?: {
+    base: number
+    sizeFee?: number
+    conditionFee?: number
+    addons: number
+  }
 }
 
 /**
- * Calculates the final total price and estimated duration.
+ * Calculates the final total price and estimated duration using ADDITIVE percentage logic.
+ * Formula: Base + (Base × Size%) + (Base × Condition%) + Addons
  * @param service - The full service object from DB
  * @param vehicleType - ID of selected vehicle (e.g., 'truck')
  * @param selectedAddons - List of full addon objects selected
+ * @param condition - Vehicle condition ID (from business's condition config)
+ * @param conditionConfig - Business's condition configuration (null if disabled or not configured)
  */
 export function calculateTotals(
   service: Service | null,
   vehicleType: VehicleType | null,
-  selectedAddons: ServiceAddon[] = []
+  selectedAddons: ServiceAddon[] = [],
+  condition: string | null = null,
+  conditionConfig: {
+    enabled: boolean
+    tiers: Array<{
+      id: string
+      label: string
+      description: string
+      markup_percent: number
+    }>
+  } | null = null
 ): BookingTotals {
   console.log('--- DEBUG PRICING ---')
   
@@ -51,65 +70,88 @@ export function calculateTotals(
   }
 
   // 1. Start with base values
-  let finalPrice = Number(service.base_price || service.price || 0)
-  let finalDuration = Number(service.base_duration || service.estimated_duration || service.duration_minutes || 60)
+  const basePrice = Number(service.base_price || service.price || 0)
+  const baseDuration = Number(service.base_duration || service.estimated_duration || service.duration_minutes || 60)
 
   console.log('1. Pricing Model:', service.pricing_model)
   console.log('2. Selected Vehicle ID:', vehicleType)
-  console.log('3. Available Variations:', service.variations ? Object.keys(service.variations) : 'NONE')
-  console.log('4. Full Variations Object:', service.variations)
-  console.log('5. Base Price:', finalPrice)
-  console.log('6. Base Duration:', finalDuration)
+  console.log('3. Condition:', condition)
+  console.log('4. Base Price:', basePrice)
+  console.log('5. Base Duration:', baseDuration)
 
-  // 2. Apply Vehicle Variable Logic
-  // CHECK 1: Is the model variable?
-  if (service.pricing_model === 'variable') {
-    // CHECK 2: Do we have a vehicle selected?
-    if (vehicleType) {
-      // Map vehicle type to pricing key (handles van -> truck, etc.)
-      const pricingKey = mapVehicleTypeToPricingKey(vehicleType)
-      const variations = service.variations || {}
-      const tier = pricingKey ? variations[pricingKey as keyof typeof variations] : undefined
-      
-      // CHECK 3: Did we actually find the tier?
-      if (tier && pricingKey) {
-        console.log(`✅ MATCH FOUND! Using tier: ${pricingKey} (from vehicleType: ${vehicleType})`, tier)
-        if (tier.enabled) {
-          finalPrice = Number(tier.price)
-          finalDuration = Number(tier.duration)
-          console.log(`✅ Tier enabled. Price: ${finalPrice}, Duration: ${finalDuration}`)
-        } else {
-          console.warn(`⚠️ Tier found but DISABLED. Using base price.`)
-        }
-      } else {
-        console.error(`❌ MISMATCH: Vehicle type '${vehicleType}' mapped to pricing key '${pricingKey}', but that key does not exist in 'service.variations'.`)
-        console.error(`   Available keys:`, Object.keys(variations))
-        console.error(`   Looking for key:`, pricingKey)
-        console.error(`   Original vehicleType:`, vehicleType)
-      }
+  // 2. Calculate Vehicle Size Markup (if variable pricing)
+  let sizeMarkup = 0
+  let sizeFee = 0
+  let finalPrice = basePrice
+  let finalDuration = baseDuration
+
+  if (service.pricing_model === 'variable' && vehicleType) {
+    // Map vehicle type to pricing key (handles van -> truck, etc.)
+    const pricingKey = mapVehicleTypeToPricingKey(vehicleType)
+    const variations = service.variations || {}
+    const tier = pricingKey ? variations[pricingKey as keyof typeof variations] : undefined
+    
+    if (tier && pricingKey && tier.enabled) {
+      // For variable pricing, the tier price IS the base price for that vehicle
+      // But we need to calculate the markup percentage for display
+      const tierPrice = Number(tier.price)
+      const tierDuration = Number(tier.duration)
+      sizeFee = tierPrice - basePrice
+      sizeMarkup = basePrice > 0 ? (sizeFee / basePrice) : 0
+      finalPrice = tierPrice
+      finalDuration = tierDuration
+      console.log(`✅ Vehicle tier: ${pricingKey}, Price: ${tierPrice}, Size Fee: ${sizeFee}`)
     } else {
-      console.warn('⚠️ No vehicle selected yet.')
+      console.log('ℹ️ Using base price (no vehicle tier or tier disabled)')
     }
-  } else {
-    console.log('ℹ️ Using Flat Rate (pricing_model is not "variable")')
   }
 
-  // 3. Stack the Add-ons
-  // We loop through every selected add-on and stack the numbers
+  // 3. Calculate Condition Markup (ADDITIVE - percentage off base price)
+  // Use business's custom condition config if available, otherwise skip
+  let conditionFee = 0
+  if (condition && conditionConfig?.enabled && conditionConfig.tiers) {
+    const tier = conditionConfig.tiers.find(t => t.id === condition)
+    if (tier) {
+      conditionFee = basePrice * tier.markup_percent
+      finalPrice += conditionFee
+      console.log(`✅ Condition: ${tier.label}, Markup: ${(tier.markup_percent * 100).toFixed(0)}%, Fee: $${conditionFee.toFixed(2)}`)
+    }
+  }
+
+  // 4. Add Add-ons (flat fees)
+  let addonsTotal = 0
+  let addonsDuration = 0
   selectedAddons.forEach((addon) => {
     const addonPrice = Number(addon.price || 0)
     const addonDuration = Number(addon.duration_minutes || addon.duration || 0)
-    finalPrice += addonPrice
-    finalDuration += addonDuration
+    addonsTotal += addonPrice
+    addonsDuration += addonDuration
     console.log(`   + Addon: ${addon.name} (+$${addonPrice}, +${addonDuration}m)`)
   })
+  finalPrice += addonsTotal
+  finalDuration += addonsDuration
 
-  console.log('-> FINAL CALCULATED:', { price: finalPrice, duration: finalDuration })
+  console.log('-> FINAL CALCULATED:', { 
+    price: finalPrice, 
+    duration: finalDuration,
+    breakdown: {
+      base: basePrice,
+      sizeFee,
+      conditionFee,
+      addons: addonsTotal
+    }
+  })
   console.log('--- END DEBUG PRICING ---')
 
   return {
     price: Math.max(0, finalPrice), // Ensure non-negative
     duration: Math.max(0, finalDuration), // Ensure non-negative
+    breakdown: {
+      base: basePrice,
+      sizeFee: sizeFee !== 0 ? sizeFee : undefined,
+      conditionFee: conditionFee !== 0 ? conditionFee : undefined,
+      addons: addonsTotal
+    }
   }
 }
 

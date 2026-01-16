@@ -611,6 +611,17 @@ export async function deleteLead(id: string) {
 }
 
 export async function getUnreadLeadsCount() {
+  // Check if in demo mode
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  const { getMockLeads } = await import('@/lib/demo/mock-data')
+  
+  if (await isDemoMode()) {
+    // Count unread leads in mock data (mock leads don't have viewed_at, so count all non-lost/non-booked)
+    const leads = getMockLeads()
+    const unreadCount = leads.filter(l => l.status !== 'lost' && l.status !== 'booked').length
+    return unreadCount
+  }
+
   try {
     const supabase = await createClient()
     const businessId = await getBusinessId()

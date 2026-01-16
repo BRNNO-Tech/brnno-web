@@ -80,7 +80,7 @@ const ADMIN_EMAILS = [
 ] as const
 
 // Helper to check if email is an admin email
-function isAdminEmail(email: string | null | undefined): boolean {
+export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false
   return ADMIN_EMAILS.includes(email.toLowerCase() as any)
 }

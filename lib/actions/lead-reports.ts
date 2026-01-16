@@ -1,21 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-
-async function getBusinessId() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
-  const { data: business, error } = await supabase
-    .from('businesses')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single()
-
-  if (error || !business) throw new Error('Business not found')
-  return business.id
-}
+import { getBusinessId } from './utils'
 
 export interface RevenueDataPoint {
   date: string
@@ -63,6 +49,40 @@ function isTableMissingError(error: any): boolean {
 }
 
 export async function getLeadReportsData(days: number = 30): Promise<ReportsData> {
+  // Check if in demo mode
+  const { isDemoMode } = await import('@/lib/demo/utils')
+  if (await isDemoMode()) {
+    // Return mock reports data
+    return {
+      recoveredRevenue30d: 1249.97,
+      recoveredRevenueTrend: 15.5,
+      revenueOverTime: [
+        { date: '2024-01-01', revenue: 299.99 },
+        { date: '2024-01-02', revenue: 89.99 },
+        { date: '2024-01-03', revenue: 149.99 },
+        { date: '2024-01-04', revenue: 299.99 },
+        { date: '2024-01-05', revenue: 410.01 },
+      ],
+      channelConversions: [
+        { channel: 'online_booking', leads: 2, bookings: 1, revenue: 299.99 },
+        { channel: 'referral', leads: 1, bookings: 0, revenue: 0 },
+        { channel: 'website', leads: 1, bookings: 0, revenue: 0 },
+      ],
+      funnelData: [
+        { stage: 'New Leads', count: 2 },
+        { stage: 'Contacted', count: 2 },
+        { stage: 'Quoted', count: 1 },
+        { stage: 'Booked', count: 1 },
+      ],
+      topSequences: [],
+      speedToLeadDistribution: [
+        { range: '0-1h', count: 1 },
+        { range: '1-24h', count: 1 },
+        { range: '24h+', count: 0 },
+      ],
+    }
+  }
+
   try {
     const supabase = await createClient()
     const businessId = await getBusinessId()
