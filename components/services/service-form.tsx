@@ -169,13 +169,21 @@ export function ServiceForm({ service, mode }: ServiceFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !pricingData.base_price) {
+    // Validate name
+    if (!name.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    // Validate variable pricing if enabled
-    if (pricingData.pricing_model === 'variable') {
+    // Validate pricing based on model
+    if (pricingData.pricing_model === 'flat') {
+      // For flat pricing, require base_price
+      if (!pricingData.base_price || pricingData.base_price <= 0) {
+        toast.error('Please enter a valid price');
+        return;
+      }
+    } else if (pricingData.pricing_model === 'variable') {
+      // For variable pricing, validate variations instead
       const hasValidVariation = Object.values(pricingData.variations || {}).some(
         (v) => v.enabled && v.price > 0 && v.duration > 0
       );
