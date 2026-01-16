@@ -223,10 +223,12 @@ export async function getBusinessReviewSettings() {
 
   try {
     const business = await getBusiness()
+    // Type assertion for properties that may not be in the base type
+    const businessWithFields = business as any
     return {
-      review_automation_enabled: business?.review_automation_enabled || false,
-      review_delay_hours: business?.review_delay_hours || 24,
-      google_review_link: business?.google_review_link || null,
+      review_automation_enabled: businessWithFields?.review_automation_enabled || false,
+      review_delay_hours: businessWithFields?.review_delay_hours || 24,
+      google_review_link: businessWithFields?.google_review_link || null,
     }
   } catch (error) {
     return {
