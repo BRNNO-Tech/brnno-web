@@ -15,6 +15,7 @@ import AssetDetailsForm from './asset-details-form'
 import { DEFAULT_INDUSTRY } from '@/lib/config/industry-assets'
 import VehicleSelector from './vehicle-selector'
 import { calculateTotals, formatDuration, formatDurationHours, mapVehicleTypeToPricingKey } from '@/lib/utils/booking-utils'
+import { getFeatureLabel } from '@/lib/utils/feature-labels'
 import { Service } from '@/types'
 
 type Business = {
@@ -783,7 +784,7 @@ export default function BookingForm({
                       {service.whats_included.map((item: string, idx: number) => (
                         <div key={idx} className="flex items-start gap-2 text-sm">
                           <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                          <span className="text-zinc-700 dark:text-zinc-300">{item}</span>
+                          <span className="text-zinc-700 dark:text-zinc-300">{getFeatureLabel(item)}</span>
                         </div>
                       ))}
                     </div>
