@@ -1688,6 +1688,7 @@ export default function BookingForm({
           </div>
         </div>
       </div>
+      </div>
     </div>
   )
 }
