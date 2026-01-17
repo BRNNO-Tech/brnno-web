@@ -278,11 +278,59 @@ export async function updateConditionConfig(config: {
   revalidatePath('/dashboard/settings')
 }
 
+export async function uploadBookingBanner(file: File) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    throw new Error('Not authenticated')
+  }
+
+  const { data: business, error: businessError } = await supabase
+    .from('businesses')
+    .select('id')
+    .eq('owner_id', user.id)
+    .single()
+
+  if (businessError || !business) {
+    throw new Error('Business not found')
+  }
+
+  // Get file extension
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${business.id}/banner-${Date.now()}.${fileExt}`
+  const filePath = `booking-banners/${fileName}`
+
+  // Upload to Supabase Storage
+  const { error: uploadError } = await supabase.storage
+    .from('booking-banners')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    })
+
+  if (uploadError) {
+    console.error('Banner upload error:', uploadError)
+    throw new Error(`Failed to upload banner: ${uploadError.message}`)
+  }
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from('booking-banners')
+    .getPublicUrl(filePath)
+
+  return publicUrl
+}
+
 export async function updateBrandSettings(brandData: {
   logo_url?: string | null
   accent_color?: string | null
   sender_name?: string | null
   default_tone?: 'friendly' | 'premium' | 'direct' | null
+  booking_banner_url?: string | null
 }) {
   const supabase = await createClient()
 

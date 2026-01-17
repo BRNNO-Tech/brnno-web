@@ -21,6 +21,7 @@ type Business = {
   subdomain: string
   stripe_account_id?: string | null
   industry?: string
+  booking_banner_url?: string | null
 }
 
 export default function CheckoutForm({ business }: { business: Business }) {
@@ -62,8 +63,18 @@ export default function CheckoutForm({ business }: { business: Business }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
-      <header className="bg-white dark:bg-zinc-900 border-b shadow-sm">
-        <div className="max-w-4xl mx-auto px-6 py-6">
+      {/* Booking Banner */}
+      {business.booking_banner_url && (
+        <div className="w-full relative">
+          <img 
+            src={business.booking_banner_url} 
+            alt={`${business.name} banner`}
+            className="w-full h-80 object-cover"
+          />
+          {/* Header - Glassmorphic (overlay on banner) */}
+          <header className="absolute bottom-0 left-0 right-0 backdrop-blur-xl border-t border-white/30 dark:border-zinc-700/30 shadow-lg">
+            <div className="max-w-4xl mx-auto px-6 py-6">
+              <div className="bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md rounded-t-2xl p-6 border-t border-l border-r border-white/30 dark:border-zinc-700/30 shadow-xl">
           <button
             onClick={() => router.back()}
             className="inline-flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 mb-4"
@@ -75,8 +86,30 @@ export default function CheckoutForm({ business }: { business: Business }) {
           <p className="text-zinc-600 dark:text-zinc-400">
             Complete your booking with {business.name}
           </p>
+              </div>
+            </div>
+          </header>
         </div>
-      </header>
+      )}
+      
+      {/* Header - No Banner */}
+      {!business.booking_banner_url && (
+        <header className="bg-white/80 dark:bg-zinc-900/80 border-b backdrop-blur-xl border-white/20 dark:border-zinc-700/50 shadow-lg">
+          <div className="max-w-4xl mx-auto px-6 py-6">
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 mb-4"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to booking
+            </button>
+            <h1 className="text-3xl font-bold">Checkout</h1>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              Complete your booking with {business.name}
+            </p>
+          </div>
+        </header>
+      )}
 
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="grid gap-8 lg:grid-cols-3">

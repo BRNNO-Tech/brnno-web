@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
-import { getBusiness, saveBusiness, uploadBusinessLogo, updateBrandSettings } from '@/lib/actions/business'
+import { getBusiness, saveBusiness } from '@/lib/actions/business'
 import { sendTestEmail, sendTestSMS } from '@/lib/actions/channels'
 import { getBusinessHours, updateBusinessHours } from '@/lib/actions/schedule'
 import { createStripeConnectAccount } from '@/lib/actions/stripe-connect'
@@ -44,6 +44,8 @@ function BrandSettingsForm({
 }) {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null)
   const [accentColor, setAccentColor] = useState(business?.accent_color || '#6366f1')
   const [accentColorText, setAccentColorText] = useState(business?.accent_color || '#6366f1')
   const [senderName, setSenderName] = useState(business?.sender_name || business?.name || '')
@@ -55,6 +57,7 @@ function BrandSettingsForm({
       setAccentColorText(business.accent_color || '#6366f1')
       setSenderName(business.sender_name || business.name || '')
       setDefaultTone(business.default_tone || 'friendly')
+      setBannerPreview(business.booking_banner_url || null)
     }
   }, [business])
 
@@ -66,6 +69,19 @@ function BrandSettingsForm({
       const reader = new FileReader()
       reader.onloadend = () => {
         setLogoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setBannerFile(file)
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setBannerPreview(reader.result as string)
       }
       reader.readAsDataURL(file)
     }
@@ -92,27 +108,81 @@ function BrandSettingsForm({
 
     try {
       let logoUrl = business?.logo_url || null
+      let bannerUrl = business?.booking_banner_url || null
 
       // Upload logo if a new file was selected
       if (logoFile) {
         try {
-          logoUrl = await uploadBusinessLogo(logoFile)
+          const formData = new FormData()
+          formData.append('file', logoFile)
+          
+          const response = await fetch('/api/upload-logo', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to upload logo')
+          }
+
+          const data = await response.json()
+          logoUrl = data.url
           toast.success('Logo uploaded successfully')
         } catch (error) {
           console.error('Error uploading logo:', error)
-          toast.error('Failed to upload logo. Please try again.')
+          toast.error(error instanceof Error ? error.message : 'Failed to upload logo. Please try again.')
           setLoading(false)
           return
         }
       }
 
-      // Update brand settings
-      await updateBrandSettings({
-        logo_url: logoUrl,
-        accent_color: accentColor,
-        sender_name: senderName || null,
-        default_tone: defaultTone,
+      // Upload booking banner if a new file was selected
+      if (bannerFile) {
+        try {
+          const formData = new FormData()
+          formData.append('file', bannerFile)
+          
+          const response = await fetch('/api/upload-booking-banner', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to upload banner')
+          }
+
+          const data = await response.json()
+          bannerUrl = data.url
+          toast.success('Booking banner uploaded successfully')
+        } catch (error) {
+          console.error('Error uploading booking banner:', error)
+          toast.error(error instanceof Error ? error.message : 'Failed to upload booking banner. Please try again.')
+          setLoading(false)
+          return
+        }
+      }
+
+      // Update brand settings via API route
+      const updateResponse = await fetch('/api/update-brand-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          logo_url: logoUrl,
+          accent_color: accentColor,
+          sender_name: senderName || null,
+          default_tone: defaultTone,
+          booking_banner_url: bannerUrl,
+        }),
       })
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json()
+        throw new Error(errorData.error || 'Failed to update brand settings')
+      }
 
       // Reload business data
       const updatedBusiness = await getBusiness()
@@ -123,6 +193,11 @@ function BrandSettingsForm({
       toast.success('Brand settings saved successfully!')
       setLogoFile(null)
       setLogoPreview(null)
+      setBannerFile(null)
+      // Keep banner preview if banner was uploaded
+      if (!bannerFile) {
+        setBannerPreview(bannerUrl)
+      }
     } catch (error) {
       console.error('Error saving brand settings:', error)
       toast.error('Failed to save brand settings. Please try again.')
@@ -160,6 +235,68 @@ function BrandSettingsForm({
             <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
               Recommended: 200x200px, PNG or JPG
             </p>
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Booking Banner Upload */}
+      <div>
+        <Label>Booking Page Banner</Label>
+        <p className="mt-1 mb-2 text-sm text-zinc-600 dark:text-zinc-400">
+          Add a custom header image to your booking pages (optional)
+        </p>
+        <div className="mt-2">
+          {bannerPreview ? (
+            <div className="mb-4">
+              <img 
+                src={bannerPreview} 
+                alt="Booking banner preview" 
+                className="w-full h-48 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
+              />
+            </div>
+          ) : (
+            <div className="mb-4 h-48 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center bg-zinc-50 dark:bg-zinc-900">
+              <span className="text-sm text-zinc-500">No banner image</span>
+            </div>
+          )}
+          <div>
+            <Input
+              type="file"
+              accept="image/*"
+              className="text-sm"
+              onChange={handleBannerChange}
+            />
+            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+              Recommended: 1200x300px or wider, JPG or PNG. This appears at the top of your booking pages.
+            </p>
+            {bannerPreview && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={async () => {
+                  try {
+                    await updateBrandSettings({
+                      booking_banner_url: null,
+                    })
+                    setBannerPreview(null)
+                    setBannerFile(null)
+                    const updatedBusiness = await getBusiness()
+                    if (updatedBusiness) {
+                      onBusinessUpdate(updatedBusiness)
+                    }
+                    toast.success('Banner removed successfully')
+                  } catch (error) {
+                    toast.error('Failed to remove banner')
+                  }
+                }}
+              >
+                Remove Banner
+              </Button>
+            )}
           </div>
         </div>
       </div>

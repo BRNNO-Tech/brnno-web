@@ -24,6 +24,7 @@ type Business = {
   subdomain: string
   stripe_account_id?: string | null
   industry?: string
+  booking_banner_url?: string | null
   condition_config?: {
     enabled: boolean
     tiers: Array<{
@@ -599,8 +600,20 @@ export default function BookingForm({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950 py-6 sm:py-12 pb-24 sm:pb-12">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
+      {/* Booking Banner */}
+      {business.booking_banner_url && (
+        <div className="w-full">
+          <img 
+            src={business.booking_banner_url} 
+            alt={`${business.name} banner`}
+            className="w-full h-64 object-cover"
+          />
+        </div>
+      )}
+      
+      <div className="py-6 sm:py-12 pb-24 sm:pb-12">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
         <button
           onClick={() => router.back()}
           className="inline-flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 mb-6 transition-colors"
@@ -645,20 +658,17 @@ export default function BookingForm({
           <CardContent>
             {/* Enhanced Service Details Card - Matches Service List Format */}
             <div className="mb-6 bg-card rounded-lg border overflow-hidden">
-              {/* Service Image/Icon */}
-              <div className="relative h-48 bg-muted">
-                {service.image_url ? (
+              {/* Service Image */}
+              {service.image_url && (
+                <div className="relative h-48 bg-muted">
                   <Image
                     src={service.image_url}
                     alt={service.name}
                     fill
                     className="object-cover"
                   />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-6xl">{service.icon || '✨'}</div>
-                  </div>
-                )}
+                </div>
+              )}
                 
                 {/* Popular Badge */}
                 {!quote && service.is_popular && (

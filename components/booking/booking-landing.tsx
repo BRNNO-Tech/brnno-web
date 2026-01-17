@@ -19,6 +19,7 @@ type Business = {
   city: string | null
   state: string | null
   description: string | null
+  booking_banner_url?: string | null
 }
 
 type Service = {
@@ -45,47 +46,103 @@ export default function BookingLanding({
 }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950">
-      {/* Header */}
-      <header className="bg-white dark:bg-zinc-900 border-b shadow-sm">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <h1 className="text-4xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
-            {business.name}
-          </h1>
-          {business.description && (
-            <p className="text-lg text-zinc-600 dark:text-zinc-400">
-              {business.description}
-            </p>
-          )}
+      {/* Booking Banner */}
+      {business.booking_banner_url && (
+        <div className="w-full relative">
+          <img 
+            src={business.booking_banner_url} 
+            alt={`${business.name} banner`}
+            className="w-full h-80 object-cover"
+          />
+          {/* Header - Glassmorphic (overlay on banner) */}
+          <header className="absolute bottom-0 left-0 right-0 backdrop-blur-xl border-t border-white/30 dark:border-zinc-700/30 shadow-lg">
+            <div className="max-w-6xl mx-auto px-6 py-6">
+              <div className="bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md rounded-t-2xl p-6 border-t border-l border-r border-white/30 dark:border-zinc-700/30 shadow-xl">
+            <h1 className="text-4xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
+              {business.name}
+            </h1>
+            {business.description && (
+              <p className="text-lg text-zinc-600 dark:text-zinc-400">
+                {business.description}
+              </p>
+            )}
 
-          {/* Contact Info */}
-          <div className="flex flex-wrap gap-6 mt-6 text-sm">
-            {business.phone && (
-              <a
-                href={`tel:${business.phone}`}
-                className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-              >
-                <Phone className="h-4 w-4" />
-                {business.phone}
-              </a>
-            )}
-            {business.email && (
-              <a
-                href={`mailto:${business.email}`}
-                className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-              >
-                <Mail className="h-4 w-4" />
-                {business.email}
-              </a>
-            )}
-            {business.city && business.state && (
-              <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
-                <MapPin className="h-4 w-4" />
-                {business.city}, {business.state}
+            {/* Contact Info */}
+            <div className="flex flex-wrap gap-6 mt-6 text-sm">
+              {business.phone && (
+                <a
+                  href={`tel:${business.phone}`}
+                  className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  <Phone className="h-4 w-4" />
+                  {business.phone}
+                </a>
+              )}
+              {business.email && (
+                <a
+                  href={`mailto:${business.email}`}
+                  className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  <Mail className="h-4 w-4" />
+                  {business.email}
+                </a>
+              )}
+              {business.city && business.state && (
+                <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+                  <MapPin className="h-4 w-4" />
+                  {business.city}, {business.state}
+                </div>
+              )}
+            </div>
               </div>
-            )}
-          </div>
+            </div>
+          </header>
         </div>
-      </header>
+      )}
+      
+      {/* Header - No Banner */}
+      {!business.booking_banner_url && (
+        <header className="bg-white/80 dark:bg-zinc-900/80 border-b backdrop-blur-xl border-white/20 dark:border-zinc-700/50 shadow-lg">
+          <div className="max-w-6xl mx-auto px-6 py-8">
+            <h1 className="text-4xl font-bold mb-2 text-zinc-900 dark:text-zinc-50">
+              {business.name}
+            </h1>
+            {business.description && (
+              <p className="text-lg text-zinc-600 dark:text-zinc-400">
+                {business.description}
+              </p>
+            )}
+
+            {/* Contact Info */}
+            <div className="flex flex-wrap gap-6 mt-6 text-sm">
+              {business.phone && (
+                <a
+                  href={`tel:${business.phone}`}
+                  className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  <Phone className="h-4 w-4" />
+                  {business.phone}
+                </a>
+              )}
+              {business.email && (
+                <a
+                  href={`mailto:${business.email}`}
+                  className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                >
+                  <Mail className="h-4 w-4" />
+                  {business.email}
+                </a>
+              )}
+              {business.city && business.state && (
+                <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400">
+                  <MapPin className="h-4 w-4" />
+                  {business.city}, {business.state}
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+      )}
 
       {/* Services */}
       <main className="max-w-6xl mx-auto px-6 py-12">
@@ -122,28 +179,24 @@ export default function BookingLanding({
                   className="bg-card rounded-lg border overflow-hidden hover:shadow-lg transition-shadow"
                 >
                   {/* Service Image */}
-                  <div className="relative h-48 bg-muted">
-                    {service.image_url ? (
+                  {service.image_url && (
+                    <div className="relative h-48 bg-muted">
                       <Image
                         src={service.image_url}
                         alt={service.name}
                         fill
                         className="object-cover"
                       />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-6xl">{service.icon || '✨'}</div>
-                      </div>
-                    )}
-
-                    {/* Popular Badge */}
-                    {service.is_popular && (
-                      <Badge className="absolute top-3 right-3 bg-amber-500 hover:bg-amber-600">
-                        <Star className="h-3 w-3 mr-1" />
-                        Popular
-                      </Badge>
-                    )}
-                  </div>
+                      
+                      {/* Popular Badge */}
+                      {service.is_popular && (
+                        <Badge className="absolute top-3 right-3 bg-amber-500 hover:bg-amber-600">
+                          <Star className="h-3 w-3 mr-1" />
+                          Popular
+                        </Badge>
+                      )}
+                    </div>
+                  )}
 
                   {/* Service Content */}
                   <CardContent className="p-6 space-y-4">

@@ -80,19 +80,16 @@ export function BookingServices({
               )}
             >
               {/* Service Image */}
-              <div className="relative h-40 bg-muted">
-                {service.image_url ? (
+              {service.image_url && (
+                <div className="relative h-40 bg-muted">
                   <Image
                     src={service.image_url}
                     alt={service.name}
                     fill
                     className="object-cover"
                   />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-5xl">{service.icon || '✨'}</div>
-                  </div>
-                )}
+                </div>
+              )}
                 
                 {/* Popular Badge */}
                 {service.is_popular && (
