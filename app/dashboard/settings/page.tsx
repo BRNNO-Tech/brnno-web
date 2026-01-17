@@ -279,9 +279,21 @@ function BrandSettingsForm({
                 className="mt-2"
                 onClick={async () => {
                   try {
-                    await updateBrandSettings({
-                      booking_banner_url: null,
+                    const response = await fetch('/api/update-brand-settings', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        booking_banner_url: null,
+                      }),
                     })
+
+                    if (!response.ok) {
+                      const errorData = await response.json()
+                      throw new Error(errorData.error || 'Failed to remove banner')
+                    }
+
                     setBannerPreview(null)
                     setBannerFile(null)
                     const updatedBusiness = await getBusiness()
@@ -290,7 +302,7 @@ function BrandSettingsForm({
                     }
                     toast.success('Banner removed successfully')
                   } catch (error) {
-                    toast.error('Failed to remove banner')
+                    toast.error(error instanceof Error ? error.message : 'Failed to remove banner')
                   }
                 }}
               >
