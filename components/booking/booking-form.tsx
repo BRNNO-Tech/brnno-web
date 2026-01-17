@@ -667,23 +667,22 @@ export default function BookingForm({
                     fill
                     className="object-cover"
                   />
+                  
+                  {/* Popular Badge */}
+                  {!quote && service.is_popular && (
+                    <div className="absolute top-3 right-3 bg-amber-500 text-amber-900 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                      <Star className="h-3 w-3" />
+                      POPULAR
+                    </div>
+                  )}
+                  
+                  {quote && (
+                    <div className="absolute top-3 right-3 bg-green-500 text-green-900 text-xs font-bold px-3 py-1 rounded-full">
+                      QUOTE
+                    </div>
+                  )}
                 </div>
               )}
-                
-                {/* Popular Badge */}
-                {!quote && service.is_popular && (
-                  <div className="absolute top-3 right-3 bg-amber-500 text-amber-900 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                    <Star className="h-3 w-3" />
-                    POPULAR
-                  </div>
-                )}
-                
-                {quote && (
-                  <div className="absolute top-3 right-3 bg-green-500 text-green-900 text-xs font-bold px-3 py-1 rounded-full">
-                    QUOTE
-                  </div>
-                )}
-              </div>
 
               {/* Service Content */}
               <div className="p-6 space-y-4">
