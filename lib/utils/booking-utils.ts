@@ -40,7 +40,8 @@ interface BookingTotals {
 
 /**
  * Calculates the final total price and estimated duration using ADDITIVE percentage logic.
- * Formula: Base + (Base × Size%) + (Base × Condition%) + Addons
+ * Formula: Base + (Base × Size%) + (FinalPrice × Condition%) + Addons
+ * Note: Condition percentage is calculated on the final price after vehicle size adjustments
  * @param service - The full service object from DB
  * @param vehicleType - ID of selected vehicle (e.g., 'truck')
  * @param selectedAddons - List of full addon objects selected
@@ -106,15 +107,23 @@ export function calculateTotals(
     }
   }
 
-  // 3. Calculate Condition Markup (ADDITIVE - percentage off base price)
+  // 3. Calculate Condition Markup (ADDITIVE - percentage off final price after vehicle size adjustments)
   // Use business's custom condition config if available, otherwise skip
   let conditionFee = 0
   if (condition && conditionConfig?.enabled && conditionConfig.tiers) {
     const tier = conditionConfig.tiers.find(t => t.id === condition)
     if (tier) {
-      conditionFee = basePrice * tier.markup_percent
+      // Calculate condition fee on final price (after vehicle size adjustments)
+      // This ensures larger vehicles pay proportionally more for condition fees
+      conditionFee = finalPrice * tier.markup_percent
       finalPrice += conditionFee
       console.log(`✅ Condition: ${tier.label}, Markup: ${(tier.markup_percent * 100).toFixed(0)}%, Fee: $${conditionFee.toFixed(2)}`)
+    } else {
+      console.log(`⚠️ Condition tier not found: ${condition}`)
+    }
+  } else {
+    if (condition) {
+      console.log(`⚠️ Condition config not enabled or missing: enabled=${conditionConfig?.enabled}, tiers=${conditionConfig?.tiers?.length || 0}`)
     }
   }
 

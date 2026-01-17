@@ -3,11 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getBusinessId } from './utils'
+import { calculateTotals, mapVehicleTypeToPricingKey } from '@/lib/utils/booking-utils'
+import type { Service } from '@/types'
 
 // Quick Quote Functions
 type QuickQuoteData = {
-  vehicleType: 'sedan' | 'suv' | 'truck'
-  vehicleCondition: 'normal' | 'dirty' | 'very_dirty'
+  vehicleType: 'sedan' | 'suv' | 'truck' | 'van' | 'coupe'
+  vehicleCondition: string // Condition ID from business config (e.g., 'clean', 'moderate', 'heavy', 'extreme')
   services: string[] // Array of service IDs
   customerName?: string
   customerPhone?: string
@@ -20,18 +22,19 @@ export async function createQuickQuote(data: QuickQuoteData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   
+  // Get business with condition config
   const { data: business } = await supabase
     .from('businesses')
-    .select('id')
+    .select('id, condition_config')
     .eq('owner_id', user.id)
     .single()
   
   if (!business) throw new Error('No business found')
   
-  // Get services to calculate price
+  // Get full service data (needed for variable pricing)
   const { data: services } = await supabase
     .from('services')
-    .select('id, name, price')
+    .select('*')
     .in('id', data.services)
     .eq('business_id', business.id)
   
@@ -39,24 +42,33 @@ export async function createQuickQuote(data: QuickQuoteData) {
     throw new Error('No services selected')
   }
   
-  // Calculate total price
-  let totalPrice = services.reduce((sum, s) => sum + (s.price || 0), 0)
+  // Calculate total price using same logic as booking flow
+  let totalPrice = 0
+  let totalDuration = 0
   
-  // Apply vehicle type multiplier
-  const vehicleMultiplier = {
-    sedan: 1.0,
-    suv: 1.2,
-    truck: 1.3
-  }
-  totalPrice *= vehicleMultiplier[data.vehicleType]
+  const conditionConfig = business.condition_config as {
+    enabled: boolean
+    tiers: Array<{
+      id: string
+      label: string
+      description: string
+      markup_percent: number
+    }>
+  } | null
   
-  // Apply condition multiplier
-  const conditionMultiplier = {
-    normal: 1.0,
-    dirty: 1.15,
-    very_dirty: 1.3
-  }
-  totalPrice *= conditionMultiplier[data.vehicleCondition]
+  // Calculate totals for each service (same as booking)
+  services.forEach((service: any) => {
+    const totals = calculateTotals(
+      service as Service,
+      mapVehicleTypeToPricingKey(data.vehicleType),
+      [], // No add-ons for quick quote
+      data.vehicleCondition,
+      conditionConfig
+    )
+    
+    totalPrice += totals.price
+    totalDuration += totals.duration
+  })
   
   // Generate unique quote code with collision checking
   let quoteCode: string
@@ -136,6 +148,15 @@ export async function createQuoteForLead(
   const supabase = await createClient()
   const businessId = await getBusinessId()
 
+  // Get business with condition config
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('id, condition_config')
+    .eq('id', businessId)
+    .single()
+  
+  if (!business) throw new Error('Business not found')
+
   // Get lead info to populate quote
   const { data: lead } = await supabase
     .from('leads')
@@ -146,35 +167,52 @@ export async function createQuoteForLead(
 
   if (!lead) throw new Error('Lead not found')
   
-  // Get services to calculate price
-  const { data: services } = await supabase
-    .from('services')
-    .select('id, name, base_price')
-    .in('id', data.services.length > 0 ? data.services : (lead.interested_in_service_id ? [lead.interested_in_service_id] : []))
-    .eq('business_id', businessId)
+  // Get full service data (needed for variable pricing)
+  const serviceIds = data.services.length > 0 
+    ? data.services 
+    : (lead.interested_in_service_id ? [lead.interested_in_service_id] : [])
   
-  if (!services || services.length === 0) {
+  if (serviceIds.length === 0) {
     throw new Error('No services selected')
   }
   
-  // Calculate total price
-  let totalPrice = services.reduce((sum, s) => sum + (s.base_price || 0), 0)
+  const { data: services } = await supabase
+    .from('services')
+    .select('*')
+    .in('id', serviceIds)
+    .eq('business_id', businessId)
   
-  // Apply vehicle type multiplier
-  const vehicleMultiplier = {
-    sedan: 1.0,
-    suv: 1.2,
-    truck: 1.3
+  if (!services || services.length === 0) {
+    throw new Error('No services found')
   }
-  totalPrice *= vehicleMultiplier[data.vehicleType]
   
-  // Apply condition multiplier
-  const conditionMultiplier = {
-    normal: 1.0,
-    dirty: 1.15,
-    very_dirty: 1.3
-  }
-  totalPrice *= conditionMultiplier[data.vehicleCondition]
+  // Calculate total price using same logic as booking flow
+  let totalPrice = 0
+  let totalDuration = 0
+  
+  const conditionConfig = business.condition_config as {
+    enabled: boolean
+    tiers: Array<{
+      id: string
+      label: string
+      description: string
+      markup_percent: number
+    }>
+  } | null
+  
+  // Calculate totals for each service (same as booking)
+  services.forEach((service: any) => {
+    const totals = calculateTotals(
+      service as Service,
+      mapVehicleTypeToPricingKey(data.vehicleType),
+      [], // No add-ons for quick quote
+      data.vehicleCondition,
+      conditionConfig
+    )
+    
+    totalPrice += totals.price
+    totalDuration += totals.duration
+  })
   
   // Generate unique quote code
   let quoteCode = Math.random().toString(36).substring(2, 8).toUpperCase()

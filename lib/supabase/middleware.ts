@@ -1,6 +1,23 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Helper function to get the appropriate login URL based on domain
+function getLoginUrl(request: NextRequest): URL {
+  const host = request.headers.get('host') || ''
+  
+  // If on app.brnno.io, redirect to app.brnno.io/login
+  if (host === 'app.brnno.io' || host.startsWith('app.brnno.io:')) {
+    const protocol = request.nextUrl.protocol
+    const port = host.includes(':') ? `:${host.split(':')[1]}` : ''
+    return new URL(`${protocol}//app.brnno.io${port}/login`)
+  }
+  
+  // Otherwise, use relative redirect
+  const url = request.nextUrl.clone()
+  url.pathname = '/login'
+  return url
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -53,6 +70,10 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Get host for domain-aware routing
+  const host = request.headers.get('host') || ''
+  const isAppDomain = host === 'app.brnno.io' || host.startsWith('app.brnno.io:')
+
   // Allow access to auth routes without authentication
   const isAuthRoute =
     request.nextUrl.pathname.startsWith('/login') ||
@@ -87,12 +108,13 @@ export async function updateSession(request: NextRequest) {
   const isQuoteRoute = pathname.startsWith('/q/')
 
   // Public routes that don't require authentication
+  // On app.brnno.io, root is treated as login (handled in main middleware)
   const isPublicRoute =
     isAuthRoute ||
     isBookingRoute ||
     isDemoRoute ||
     isQuoteRoute ||
-    pathname === '/' ||
+    (!isAppDomain && pathname === '/') || // Only allow root on marketing domain
     pathname === '/landing' ||
     pathname === '/contact' ||
     pathname === '/add-ons' ||
@@ -104,10 +126,8 @@ export async function updateSession(request: NextRequest) {
     if (isDemoMode) {
       // Continue with demo mode
     } else {
-      // Redirect to login if not in demo mode
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
+      // Redirect to login - use domain-aware redirect
+      return NextResponse.redirect(getLoginUrl(request))
     }
   }
 

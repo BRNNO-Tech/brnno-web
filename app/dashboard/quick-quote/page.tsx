@@ -1,6 +1,7 @@
 import QuickQuoteForm from '@/components/quotes/quick-quote-form'
 import RecentQuotes from '@/components/quotes/recent-quotes'
 import { getQuickQuotes } from '@/lib/actions/quotes'
+import { getBusiness } from '@/lib/actions/business'
 import { CardShell } from '@/components/ui/card-shell'
 import { GlowBG } from '@/components/ui/glow-bg'
 
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function QuickQuotePage() {
   const quotes = await getQuickQuotes()
+  const business = await getBusiness()
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-100 dark:from-[#07070A] dark:via-[#07070A] dark:to-[#0a0a0d] text-zinc-900 dark:text-white -m-4 sm:-m-6">
@@ -30,7 +32,7 @@ export default async function QuickQuotePage() {
           <div className="space-y-6">
             {/* Quote Generator */}
             <CardShell title="Generate Quote" subtitle="Create and share quotes instantly">
-              <QuickQuoteForm />
+              <QuickQuoteForm business={business} />
             </CardShell>
             
             {/* Recent Quotes */}

@@ -7,33 +7,68 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createQuickQuote } from '@/lib/actions/quotes'
 import { getServices } from '@/lib/actions/services'
+import { calculateTotals, mapVehicleTypeToPricingKey } from '@/lib/utils/booking-utils'
 import { Sparkles, Copy, Check } from 'lucide-react'
+import type { Service } from '@/types'
 
-export default function QuickQuoteForm() {
+type Business = {
+  id: string
+  condition_config?: {
+    enabled: boolean
+    tiers: Array<{
+      id: string
+      label: string
+      description: string
+      markup_percent: number
+    }>
+  } | null
+} | null
+
+export default function QuickQuoteForm({ business }: { business: Business }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [services, setServices] = useState<any[]>([])
+  const [services, setServices] = useState<Service[]>([])
   const [generatedQuote, setGeneratedQuote] = useState<any>(null)
   const [copied, setCopied] = useState(false)
   
+  // Get condition config or use defaults
+  const conditionConfig = business?.condition_config
+  const conditionTiers = conditionConfig?.enabled && conditionConfig.tiers && conditionConfig.tiers.length > 0
+    ? conditionConfig.tiers 
+    : [
+        { id: 'clean', label: 'Normal', markup_percent: 0 },
+        { id: 'moderate', label: 'Dirty', markup_percent: 0.15 },
+        { id: 'heavy', label: 'Very Dirty', markup_percent: 0.25 }
+      ]
+  
+  // Default to first tier
+  const defaultCondition = conditionTiers[0]?.id || 'clean'
+  
   const [formData, setFormData] = useState({
-    vehicleType: 'sedan' as 'sedan' | 'suv' | 'truck',
-    vehicleCondition: 'normal' as 'normal' | 'dirty' | 'very_dirty',
+    vehicleType: 'sedan' as 'sedan' | 'suv' | 'truck' | 'van' | 'coupe',
+    vehicleCondition: defaultCondition,
     selectedServices: [] as string[],
     customerName: '',
     customerPhone: '',
     customerEmail: '',
   })
   
+  // Update condition if business config changes
+  useEffect(() => {
+    if (conditionTiers.length > 0 && !conditionTiers.find(t => t.id === formData.vehicleCondition)) {
+      setFormData(prev => ({ ...prev, vehicleCondition: defaultCondition }))
+    }
+  }, [conditionTiers, defaultCondition, formData.vehicleCondition])
+  
   // Load services
   useEffect(() => {
     async function loadServices() {
       try {
         const servicesData = await getServices()
-        // Filter active services and sort by price
+        // Filter active services and sort by base_price (or price as fallback)
         const activeServices = servicesData
           .filter((s: any) => s.is_active !== false) // Include services where is_active is not explicitly false
-          .sort((a: any, b: any) => (a.price || 0) - (b.price || 0))
+          .sort((a: any, b: any) => (a.base_price || a.price || 0) - (b.base_price || b.price || 0))
         setServices(activeServices)
       } catch (error) {
         console.error('Error loading services:', error)
@@ -44,31 +79,32 @@ export default function QuickQuoteForm() {
     loadServices()
   }, [])
   
-  // Calculate estimated price
+  // Calculate estimated price using same logic as booking
   const calculatePrice = () => {
-    const selectedServiceObjs = services.filter(s => 
-      formData.selectedServices.includes(s.id)
-    )
+    if (formData.selectedServices.length === 0) return 0
     
-    let total = selectedServiceObjs.reduce((sum, s) => sum + (s.price || 0), 0)
+    // For multiple services, sum their individual totals
+    let totalPrice = 0
+    let totalDuration = 0
     
-    // Vehicle type multiplier
-    const vehicleMultiplier = {
-      sedan: 1.0,
-      suv: 1.2,
-      truck: 1.3
-    }
-    total *= vehicleMultiplier[formData.vehicleType]
+    formData.selectedServices.forEach(serviceId => {
+      const service = services.find(s => s.id === serviceId)
+      if (!service) return
+      
+      // Use calculateTotals for each service (same as booking flow)
+      const totals = calculateTotals(
+        service,
+        mapVehicleTypeToPricingKey(formData.vehicleType),
+        [], // No add-ons for quick quote (keep it simple)
+        formData.vehicleCondition,
+        conditionConfig || null
+      )
+      
+      totalPrice += totals.price
+      totalDuration += totals.duration
+    })
     
-    // Condition multiplier
-    const conditionMultiplier = {
-      normal: 1.0,
-      dirty: 1.15,
-      very_dirty: 1.3
-    }
-    total *= conditionMultiplier[formData.vehicleCondition]
-    
-    return Math.round(total * 100) / 100
+    return Math.round(totalPrice * 100) / 100
   }
   
   const estimatedPrice = calculatePrice()
@@ -155,7 +191,7 @@ export default function QuickQuoteForm() {
           {[
             { value: 'sedan', label: 'Sedan', icon: '🚗' },
             { value: 'suv', label: 'SUV', icon: '🚙' },
-            { value: 'truck', label: 'Truck', icon: '🚚' },
+            { value: 'truck', label: 'Truck/Van', icon: '🚚' },
           ].map((type) => (
             <label key={type.value} className="relative cursor-pointer">
               <input
@@ -178,27 +214,28 @@ export default function QuickQuoteForm() {
       {/* Condition */}
       <div>
         <Label className="mb-3 block">Condition *</Label>
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { value: 'normal', label: 'Normal', mult: '1x' },
-            { value: 'dirty', label: 'Dirty', mult: '1.15x' },
-            { value: 'very_dirty', label: 'Very Dirty', mult: '1.3x' },
-          ].map((cond) => (
-            <label key={cond.value} className="relative cursor-pointer">
-              <input
-                type="radio"
-                name="condition"
-                value={cond.value}
-                checked={formData.vehicleCondition === cond.value}
-                onChange={(e) => setFormData({ ...formData, vehicleCondition: e.target.value as any })}
-                className="peer sr-only"
-              />
-              <div className="p-4 border-2 border-zinc-300 dark:border-zinc-600 rounded-lg peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-950 transition-all text-center">
-                <p className="font-medium text-sm mb-1">{cond.label}</p>
-                <p className="text-xs text-zinc-600 dark:text-zinc-400">{cond.mult} price</p>
-              </div>
-            </label>
-          ))}
+        <div className={`grid gap-3 ${conditionTiers.length === 3 ? 'grid-cols-3' : conditionTiers.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
+          {conditionTiers.map((tier) => {
+            const markupPercent = (tier.markup_percent * 100).toFixed(0)
+            const mult = tier.markup_percent === 0 ? 'Base' : `+${markupPercent}%`
+            
+            return (
+              <label key={tier.id} className="relative cursor-pointer">
+                <input
+                  type="radio"
+                  name="condition"
+                  value={tier.id}
+                  checked={formData.vehicleCondition === tier.id}
+                  onChange={(e) => setFormData({ ...formData, vehicleCondition: e.target.value })}
+                  className="peer sr-only"
+                />
+                <div className="p-4 border-2 border-zinc-300 dark:border-zinc-600 rounded-lg peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-950 transition-all text-center">
+                  <p className="font-medium text-sm mb-1">{tier.label}</p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400">{mult}</p>
+                </div>
+              </label>
+            )
+          })}
         </div>
       </div>
       
@@ -239,7 +276,12 @@ export default function QuickQuoteForm() {
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
                   <h4 className="font-semibold">{service.name}</h4>
-                  <span className="font-bold text-green-600">${service.price?.toFixed(2)}</span>
+                  <span className="font-bold text-green-600">
+                    ${(service.base_price || service.price || 0).toFixed(2)}
+                    {service.pricing_model === 'variable' && (
+                      <span className="text-xs text-zinc-500 ml-1">(varies)</span>
+                    )}
+                  </span>
                 </div>
                 {service.description && (
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">{service.description}</p>
@@ -288,16 +330,64 @@ export default function QuickQuoteForm() {
       </div>
       
       {/* Price Preview */}
-      {formData.selectedServices.length > 0 && (
-        <div className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-semibold">Estimated Price:</span>
-            <span className="text-3xl font-bold text-green-600">
-              ${estimatedPrice.toFixed(2)}
-            </span>
+      {formData.selectedServices.length > 0 && (() => {
+        // Calculate breakdown for display
+        let baseTotal = 0
+        let sizeFeeTotal = 0
+        let conditionFeeTotal = 0
+        
+        formData.selectedServices.forEach(serviceId => {
+          const service = services.find(s => s.id === serviceId)
+          if (!service) return
+          
+          const totals = calculateTotals(
+            service,
+            mapVehicleTypeToPricingKey(formData.vehicleType),
+            [],
+            formData.vehicleCondition,
+            conditionConfig || null
+          )
+          
+          baseTotal += totals.breakdown?.base || 0
+          sizeFeeTotal += totals.breakdown?.sizeFee || 0
+          conditionFeeTotal += totals.breakdown?.conditionFee || 0
+        })
+        
+        const hasAdjustments = sizeFeeTotal > 0 || conditionFeeTotal > 0
+        
+        return (
+          <div className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-semibold">Estimated Price:</span>
+              <span className="text-3xl font-bold text-green-600">
+                ${estimatedPrice.toFixed(2)}
+              </span>
+            </div>
+            
+            {/* Breakdown (only show if there are adjustments) */}
+            {hasAdjustments && (
+              <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 space-y-1 text-sm">
+                <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
+                  <span>Base Services</span>
+                  <span>${baseTotal.toFixed(2)}</span>
+                </div>
+                {sizeFeeTotal > 0 && (
+                  <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                    <span>Vehicle Size ({formData.vehicleType})</span>
+                    <span>+${sizeFeeTotal.toFixed(2)}</span>
+                  </div>
+                )}
+                {conditionFeeTotal > 0 && (
+                  <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                    <span>Condition Fee</span>
+                    <span>+${conditionFeeTotal.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )
+      })()}
       
       {/* Submit */}
       <Button 
