@@ -88,24 +88,23 @@ export function BookingServices({
                     fill
                     className="object-cover"
                   />
+                  
+                  {/* Popular Badge */}
+                  {service.is_popular && (
+                    <Badge className="absolute top-3 right-3 bg-amber-500 hover:bg-amber-600">
+                      <Star className="h-3 w-3 mr-1 fill-current" />
+                      Most Popular
+                    </Badge>
+                  )}
+
+                  {/* Selected Indicator */}
+                  {isSelected && (
+                    <div className="absolute top-3 left-3 bg-primary text-primary-foreground rounded-full p-1">
+                      <Check className="h-4 w-4" />
+                    </div>
+                  )}
                 </div>
               )}
-                
-                {/* Popular Badge */}
-                {service.is_popular && (
-                  <Badge className="absolute top-3 right-3 bg-amber-500 hover:bg-amber-600">
-                    <Star className="h-3 w-3 mr-1 fill-current" />
-                    Most Popular
-                  </Badge>
-                )}
-
-                {/* Selected Indicator */}
-                {isSelected && (
-                  <div className="absolute top-3 left-3 bg-primary text-primary-foreground rounded-full p-1">
-                    <Check className="h-4 w-4" />
-                  </div>
-                )}
-              </div>
 
               {/* Service Content */}
               <div className="p-5 space-y-3">
