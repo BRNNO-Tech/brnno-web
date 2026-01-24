@@ -124,7 +124,38 @@ export async function POST(request: NextRequest) {
       clientId = newClient.id
     }
 
-    // 2. Create job
+    // 2. Apply discount if discount code was used (calculate finalPrice before creating job)
+    let finalPrice = service.price
+    if (discountCode && discountPercent) {
+      const discountAmount = (service.price * discountPercent) / 100
+      finalPrice = Math.max(0, service.price - discountAmount)
+      
+      // Increment discount code usage count
+      if (discountCode) {
+        await supabase.rpc('increment_discount_code_usage', {
+          p_business_id: businessId,
+          p_code: discountCode.toUpperCase()
+        }).catch(async () => {
+          // Fallback if RPC doesn't exist - use direct update
+          const { data: codeData } = await supabase
+            .from('discount_codes')
+            .select('usage_count')
+            .eq('business_id', businessId)
+            .eq('code', discountCode.toUpperCase())
+            .single()
+          
+          if (codeData) {
+            await supabase
+              .from('discount_codes')
+              .update({ usage_count: (codeData.usage_count || 0) + 1 })
+              .eq('business_id', businessId)
+              .eq('code', discountCode.toUpperCase())
+          }
+        })
+      }
+    }
+
+    // 3. Create job
     console.log('[create-booking] Creating job for business:', businessId)
     // Use the calculated duration from booking form (includes add-ons)
     // The booking form already calculates: base duration + add-on durations
@@ -172,37 +203,6 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('[create-booking] Job created successfully:', job.id)
-
-    // 3. Apply discount if discount code was used
-    let finalPrice = service.price
-    if (discountCode && discountPercent) {
-      const discountAmount = (service.price * discountPercent) / 100
-      finalPrice = Math.max(0, service.price - discountAmount)
-      
-      // Increment discount code usage count
-      if (discountCode) {
-        await supabase.rpc('increment_discount_code_usage', {
-          p_business_id: businessId,
-          p_code: discountCode.toUpperCase()
-        }).catch(async () => {
-          // Fallback if RPC doesn't exist - use direct update
-          const { data: codeData } = await supabase
-            .from('discount_codes')
-            .select('usage_count')
-            .eq('business_id', businessId)
-            .eq('code', discountCode.toUpperCase())
-            .single()
-          
-          if (codeData) {
-            await supabase
-              .from('discount_codes')
-              .update({ usage_count: (codeData.usage_count || 0) + 1 })
-              .eq('business_id', businessId)
-              .eq('code', discountCode.toUpperCase())
-          }
-        })
-      }
-    }
 
     // 4. Create invoice (marked as paid if real payment, unpaid if mock)
     const mockMode = process.env.NEXT_PUBLIC_MOCK_PAYMENTS === 'true'
