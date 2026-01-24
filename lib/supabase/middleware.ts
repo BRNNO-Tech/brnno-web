@@ -100,6 +100,11 @@ export async function updateSession(request: NextRequest) {
   // Allow public booking API routes (lead capture, booking flow)
   const isBookingApiRoute = pathname.startsWith('/api/booking')
 
+  // Allow public booking-related APIs that live outside /api/booking
+  const isPublicApiRoute =
+    pathname === '/api/validate-discount-code' ||
+    pathname === '/api/create-booking'
+
   // Allow demo mode route
   const isDemoRoute = pathname.startsWith('/demo')
 
@@ -116,6 +121,7 @@ export async function updateSession(request: NextRequest) {
     isAuthRoute ||
     isBookingRoute ||
     isBookingApiRoute ||
+    isPublicApiRoute ||
     isDemoRoute ||
     isQuoteRoute ||
     (!isAppDomain && pathname === '/') || // Only allow root on marketing domain

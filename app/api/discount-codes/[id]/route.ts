@@ -9,7 +9,7 @@ export async function PUT(
   try {
     const { createServerClient } = await import('@supabase/ssr')
     const { cookies } = await import('next/headers')
-    
+
     const cookieStore = await cookies()
     const clientSupabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,7 +24,7 @@ export async function PUT(
     )
 
     const { data: { user }, error: authError } = await clientSupabase.auth.getUser()
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -44,11 +44,22 @@ export async function PUT(
     // Verify user owns the business that owns this discount code
     const { data: discountCode } = await supabase
       .from('discount_codes')
-      .select('business_id, businesses!inner(owner_id)')
+      .select('business_id')
       .eq('id', id)
       .single()
 
-    if (!discountCode || (discountCode.businesses as any).owner_id !== user.id) {
+    if (!discountCode) {
+      return NextResponse.json({ error: 'Discount code not found' }, { status: 404 })
+    }
+
+    const { data: business } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('id', discountCode.business_id)
+      .eq('owner_id', user.id)
+      .single()
+
+    if (!business) {
       return NextResponse.json({ error: 'Discount code not found' }, { status: 404 })
     }
 
@@ -83,7 +94,7 @@ export async function DELETE(
   try {
     const { createServerClient } = await import('@supabase/ssr')
     const { cookies } = await import('next/headers')
-    
+
     const cookieStore = await cookies()
     const clientSupabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,7 +109,7 @@ export async function DELETE(
     )
 
     const { data: { user }, error: authError } = await clientSupabase.auth.getUser()
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -117,11 +128,22 @@ export async function DELETE(
     // Verify user owns the business
     const { data: discountCode } = await supabase
       .from('discount_codes')
-      .select('business_id, businesses!inner(owner_id)')
+      .select('business_id')
       .eq('id', id)
       .single()
 
-    if (!discountCode || (discountCode.businesses as any).owner_id !== user.id) {
+    if (!discountCode) {
+      return NextResponse.json({ error: 'Discount code not found' }, { status: 404 })
+    }
+
+    const { data: business } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('id', discountCode.business_id)
+      .eq('owner_id', user.id)
+      .single()
+
+    if (!business) {
       return NextResponse.json({ error: 'Discount code not found' }, { status: 404 })
     }
 
