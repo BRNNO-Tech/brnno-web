@@ -132,10 +132,16 @@ export async function POST(request: NextRequest) {
       
       // Increment discount code usage count
       if (discountCode) {
-        await supabase.rpc('increment_discount_code_usage', {
-          p_business_id: businessId,
-          p_code: discountCode.toUpperCase()
-        }).catch(async () => {
+        try {
+          const { error: rpcError } = await supabase.rpc('increment_discount_code_usage', {
+            p_business_id: businessId,
+            p_code: discountCode.toUpperCase()
+          })
+          
+          if (rpcError) {
+            throw rpcError
+          }
+        } catch (error) {
           // Fallback if RPC doesn't exist - use direct update
           const { data: codeData } = await supabase
             .from('discount_codes')
@@ -151,7 +157,7 @@ export async function POST(request: NextRequest) {
               .eq('business_id', businessId)
               .eq('code', discountCode.toUpperCase())
           }
-        })
+        }
       }
     }
 
