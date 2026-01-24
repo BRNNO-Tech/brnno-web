@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizePhoneNumber } from '@/lib/utils/phone'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -12,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (!businessId || !serviceId) {
       return NextResponse.json(
         { error: 'Missing required fields: businessId and serviceId are required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -30,7 +40,7 @@ export async function POST(request: NextRequest) {
           error: 'Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY environment variable',
           hint: 'Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables'
         },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
@@ -77,16 +87,6 @@ export async function POST(request: NextRequest) {
       if (maxLeads > 0) {
         const { count } = await supabase
           .from('leads')
-
-        const corsHeaders = {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        }
-
-        export async function OPTIONS() {
-          return new NextResponse(null, { status: 204, headers: corsHeaders })
-        }
           .select('*', { count: 'exact', head: true })
           .eq('business_id', businessId)
 
@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    { status: 400, headers: corsHeaders }
     let score = 0
     if (finalServicePrice) {
       if (finalServicePrice >= 1000) score += 25
@@ -116,7 +115,6 @@ export async function POST(request: NextRequest) {
 
     // Normalize phone number to E.164 format
     const normalizedPhone = normalizePhoneNumber(phone)
-    { status: 500, headers: corsHeaders }
     // Create lead with minimal info
     // Note: sms_consent column may not exist yet - handle gracefully
     const leadInsertData: any = {
@@ -185,14 +183,14 @@ export async function POST(request: NextRequest) {
                 details: retryError.details
               }
             },
-            { status: 500 }
+            { status: 500, headers: corsHeaders }
           )
         }
 
         return NextResponse.json({
           lead: leadRetry,
           warning: limitWarning || 'Note: SMS consent column not found in database. Please run the migration: database/add_sms_consent_to_leads.sql'
-        })
+        }, { headers: corsHeaders })
       }
 
       return NextResponse.json(
@@ -205,7 +203,7 @@ export async function POST(request: NextRequest) {
             details: error.details
           }
         },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
@@ -224,7 +222,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       lead,
       warning: limitWarning || undefined
-    })
+    }, { headers: corsHeaders })
   } catch (err: any) {
     console.error('Error in create-lead API:', err)
     const errorMessage = err.message || 'Internal server error'
@@ -236,7 +234,7 @@ export async function POST(request: NextRequest) {
           stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         }
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
