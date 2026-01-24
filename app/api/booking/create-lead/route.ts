@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         hasServiceKey: !!supabaseServiceKey
       })
       return NextResponse.json(
-        { 
+        {
           error: 'Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY environment variable',
           hint: 'Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables'
         },
@@ -73,13 +73,23 @@ export async function POST(request: NextRequest) {
       const userEmail = email ? email.trim() : null
       const tier = getTierFromBusiness(business, userEmail)
       const maxLeads = getMaxLeads(tier)
-      
+
       if (maxLeads > 0) {
         const { count } = await supabase
           .from('leads')
+
+        const corsHeaders = {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+
+        export async function OPTIONS() {
+          return new NextResponse(null, { status: 204, headers: corsHeaders })
+        }
           .select('*', { count: 'exact', head: true })
           .eq('business_id', businessId)
-        
+
         const currentCount = count || 0
         if (currentCount >= maxLeads) {
           // Still allow booking leads but add warning
@@ -88,7 +98,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Simple score calculation (hot/warm/cold)
+    { status: 400, headers: corsHeaders }
     let score = 0
     if (finalServicePrice) {
       if (finalServicePrice >= 1000) score += 25
@@ -106,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     // Normalize phone number to E.164 format
     const normalizedPhone = normalizePhoneNumber(phone)
-
+    { status: 500, headers: corsHeaders }
     // Create lead with minimal info
     // Note: sms_consent column may not exist yet - handle gracefully
     const leadInsertData: any = {
@@ -144,29 +154,29 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating lead:', JSON.stringify(error, null, 2))
-      
+
       // If error is about sms_consent column not existing, retry without it
       // Check for PostgREST error (PGRST204) or PostgreSQL error (42703) or message contains sms_consent
-      const isSmsConsentError = 
-        error.code === 'PGRST204' || 
-        error.code === '42703' || 
+      const isSmsConsentError =
+        error.code === 'PGRST204' ||
+        error.code === '42703' ||
         error.message?.includes('sms_consent') ||
         error.message?.includes("Could not find the 'sms_consent' column")
-      
+
       if (isSmsConsentError) {
         console.log('sms_consent column not found, retrying without it...')
         const leadInsertDataWithoutConsent = { ...leadInsertData }
         delete leadInsertDataWithoutConsent.sms_consent
-        
+
         const { data: leadRetry, error: retryError } = await supabase
           .from('leads')
           .insert(leadInsertDataWithoutConsent)
           .select()
           .single()
-        
+
         if (retryError) {
           return NextResponse.json(
-            { 
+            {
               error: retryError.message || 'Failed to create lead',
               details: {
                 message: retryError.message,
@@ -178,15 +188,15 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           )
         }
-        
-        return NextResponse.json({ 
+
+        return NextResponse.json({
           lead: leadRetry,
           warning: limitWarning || 'Note: SMS consent column not found in database. Please run the migration: database/add_sms_consent_to_leads.sql'
         })
       }
-      
+
       return NextResponse.json(
-        { 
+        {
           error: error.message || 'Failed to create lead',
           details: {
             message: error.message,
@@ -211,7 +221,7 @@ export async function POST(request: NextRequest) {
       console.error('Error enrolling lead in sequences:', error)
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       lead,
       warning: limitWarning || undefined
     })
@@ -219,7 +229,7 @@ export async function POST(request: NextRequest) {
     console.error('Error in create-lead API:', err)
     const errorMessage = err.message || 'Internal server error'
     return NextResponse.json(
-      { 
+      {
         error: errorMessage,
         details: {
           message: err.message,

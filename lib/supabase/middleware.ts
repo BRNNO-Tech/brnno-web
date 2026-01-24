@@ -4,14 +4,14 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Helper function to get the appropriate login URL based on domain
 function getLoginUrl(request: NextRequest): URL {
   const host = request.headers.get('host') || ''
-  
+
   // If on app.brnno.io, redirect to app.brnno.io/login
   if (host === 'app.brnno.io' || host.startsWith('app.brnno.io:')) {
     const protocol = request.nextUrl.protocol
     const port = host.includes(':') ? `:${host.split(':')[1]}` : ''
     return new URL(`${protocol}//app.brnno.io${port}/login`)
   }
-  
+
   // Otherwise, use relative redirect
   const url = request.nextUrl.clone()
   url.pathname = '/login'
@@ -97,6 +97,9 @@ export async function updateSession(request: NextRequest) {
     pathname !== '/' &&
     !pathname.includes('.')
 
+  // Allow public booking API routes (lead capture, booking flow)
+  const isBookingApiRoute = pathname.startsWith('/api/booking')
+
   // Allow demo mode route
   const isDemoRoute = pathname.startsWith('/demo')
 
@@ -112,6 +115,7 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute =
     isAuthRoute ||
     isBookingRoute ||
+    isBookingApiRoute ||
     isDemoRoute ||
     isQuoteRoute ||
     (!isAppDomain && pathname === '/') || // Only allow root on marketing domain
@@ -153,9 +157,9 @@ export async function updateSession(request: NextRequest) {
     // Use RPC function to bypass RLS
     const { data: workerData } = await supabase
       .rpc('check_team_member_by_email', { check_email: user.email || '' })
-    
+
     const worker = workerData && workerData.length > 0 ? workerData[0] : null
-    
+
     url.pathname = worker ? '/worker' : '/dashboard'
     return NextResponse.redirect(url)
   }
@@ -165,9 +169,9 @@ export async function updateSession(request: NextRequest) {
     // Check if user is a worker
     const { data: workerData } = await supabase
       .rpc('check_team_member_by_email', { check_email: user.email || '' })
-    
+
     const worker = workerData && workerData.length > 0 ? workerData[0] : null
-    
+
     if (worker && worker.user_id) {
       const url = request.nextUrl.clone()
       url.pathname = '/worker'
@@ -180,9 +184,9 @@ export async function updateSession(request: NextRequest) {
     // Check if user is a worker
     const { data: workerData } = await supabase
       .rpc('check_team_member_by_email', { check_email: user.email || '' })
-    
+
     const worker = workerData && workerData.length > 0 ? workerData[0] : null
-    
+
     if (!worker || !worker.user_id) {
       const url = request.nextUrl.clone()
       url.pathname = '/dashboard'
@@ -198,10 +202,10 @@ export async function updateSession(request: NextRequest) {
         .select('subscription_plan, subscription_status')
         .eq('owner_id', user.id)
         .single()
-      
+
       const tier = business?.subscription_plan?.toLowerCase()
       const isActive = business?.subscription_status === 'active' || business?.subscription_status === 'trialing'
-      
+
       // Only Pro and Fleet plans can access team management
       if (!isActive || (tier !== 'pro' && tier !== 'fleet')) {
         const url = request.nextUrl.clone()

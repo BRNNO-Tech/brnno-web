@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -9,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!leadId || !step) {
       return NextResponse.json(
         { error: 'Missing required fields' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -21,7 +31,7 @@ export async function POST(request: NextRequest) {
       console.error('Missing Supabase service role key')
       return NextResponse.json(
         { error: 'Server configuration error' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
@@ -74,16 +84,16 @@ export async function POST(request: NextRequest) {
       console.error('Error updating lead:', error)
       return NextResponse.json(
         { error: 'Failed to update lead' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: corsHeaders })
   } catch (err) {
     console.error('Error in update-lead API:', err)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
