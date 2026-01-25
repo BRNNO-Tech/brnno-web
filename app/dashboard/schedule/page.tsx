@@ -14,7 +14,7 @@ export default async function SchedulePage() {
 
   let jobs = []
   let timeBlocks = []
-  let teamMembers = []
+  let teamMembers: any[] = []
   let businessId = ''
 
   try {
