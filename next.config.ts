@@ -5,11 +5,8 @@ const nextConfig: NextConfig = {
   // Optimize for Vercel deployment
   output: undefined, // Let Vercel handle the output
 
-  serverActions: {
-    bodySizeLimit: '2mb'
-  },
-
   // Note: File uploads are handled via API routes (/api/upload-*) which don't have the 1MB Server Actions limit
+  // Server Actions body size limit is handled by Next.js 16 automatically
 
   // Configure image domains for Next.js Image component
   images: {
