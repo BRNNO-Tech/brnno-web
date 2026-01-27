@@ -189,12 +189,14 @@ export async function sendTestSMS(phoneNumber?: string) {
     // Check if business has their own Twilio subaccount (AI Auto Lead - auto-setup)
     const { getTwilioCredentials } = await import('./twilio-subaccounts')
     const subaccountCreds = await getTwilioCredentials()
+    let isUsingSubaccount = false
 
     if (subaccountCreds) {
       // Use business's own Twilio subaccount (from AI Auto Lead)
       config.twilioAccountSid = subaccountCreds.accountSid
       config.twilioAuthToken = subaccountCreds.authToken
       config.twilioPhoneNumber = subaccountCreds.phoneNumber
+      isUsingSubaccount = true
 
       console.log('[sendTestSMS] Using business Twilio subaccount (AI Auto Lead)')
 
@@ -242,7 +244,7 @@ export async function sendTestSMS(phoneNumber?: string) {
   }
 
   // Decrement SMS credits for AI Auto Lead users (subaccount)
-  if (smsProvider === 'twilio' && subaccountCreds) {
+  if (smsProvider === 'twilio' && isUsingSubaccount) {
     const { decrementSMSCredits } = await import('./sms-credits')
     await decrementSMSCredits(business.id, 1)
   }
