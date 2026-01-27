@@ -63,18 +63,34 @@ export function StepEditor({ step, stepIndex, onUpdate, onClose }: StepEditorPro
               </div>
             )}
 
+            {/* AI Mode Info Banner */}
+            <div className="rounded-lg border border-purple-500/20 dark:border-purple-500/30 bg-purple-500/10 dark:bg-purple-500/15 p-3">
+              <div className="flex items-start gap-2">
+                <span className="text-lg">✨</span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                    AI-Powered Messages
+                  </p>
+                  <p className="text-xs text-purple-800 dark:text-purple-200 mt-1">
+                    Your messages will be personalized by AI based on the lead's inquiry, vehicle, and conversation history.
+                    The template below is used as a fallback if AI fails.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="message">Message Template *</Label>
+              <Label htmlFor="message">Fallback Template</Label>
               <Textarea
                 id="message"
                 value={step.message_template}
                 onChange={(e) => onUpdate({ message_template: e.target.value })}
-                placeholder={`Type your ${step.step_type === 'send_sms' ? 'SMS' : 'email'} message here...`}
+                placeholder={`Type your ${step.step_type === 'send_sms' ? 'SMS' : 'email'} fallback message here...`}
                 className="mt-1 min-h-[120px] font-mono text-sm"
                 rows={6}
               />
               <p className="mt-1 text-xs text-zinc-600 dark:text-white/55">
-                {step.step_type === 'send_sms' && 'Keep SMS messages under 160 characters for best delivery'}
+                {step.step_type === 'send_sms' && 'This template is used only if AI generation fails. AI will generate personalized messages automatically.'}
               </p>
             </div>
 

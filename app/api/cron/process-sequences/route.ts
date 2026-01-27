@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
         // Check if step should be executed now
         const shouldExecute = await shouldExecuteStep(enrollment, step, supabase)
-        
+
         if (!shouldExecute) {
           continue
         }
@@ -105,7 +105,7 @@ async function shouldExecuteStep(enrollment: any, step: any, supabase: any): Pro
     const enrolledAt = new Date(enrollment.enrolled_at)
     const delayMs = getDelayInMs(step.delay_value, step.delay_unit)
     const executeAt = new Date(enrolledAt.getTime() + delayMs)
-    
+
     return new Date() >= executeAt
   }
 
@@ -122,13 +122,13 @@ async function shouldExecuteStep(enrollment: any, step: any, supabase: any): Pro
 
 function getDelayInMs(value: number | null, unit: string | null): number {
   if (!value) return 0
-  
+
   const multipliers: Record<string, number> = {
     minutes: 60 * 1000,
     hours: 60 * 60 * 1000,
     days: 24 * 60 * 60 * 1000,
   }
-  
+
   return value * (multipliers[unit || 'hours'] || multipliers.hours)
 }
 
@@ -136,18 +136,56 @@ async function executeMessageStep(enrollment: any, step: any, supabase: any) {
   const lead = enrollment.lead
   if (!lead) return
 
-  // Replace template variables
-  let message = step.message_template
-  message = message.replace(/{name}/g, lead.name || 'there')
-  message = message.replace(/{service}/g, lead.interested_in_service_name || 'service')
+  const { getBusiness } = await import('@/lib/actions/business')
+  const business = await getBusiness()
+  if (!business) return
+
+  // Determine message type based on step order
+  const messageTypes: Array<'initial' | 'followup_1' | 'followup_2' | 'final'> = [
+    'initial',
+    'followup_1',
+    'followup_2',
+    'final'
+  ]
+  const messageType = messageTypes[Math.min(enrollment.current_step_order, 3)]
+
+  // Get previous messages sent to this lead
+  const { data: previousExecutions } = await supabase
+    .from('sequence_step_executions')
+    .select('message_sent')
+    .eq('enrollment_id', enrollment.id)
+    .not('message_sent', 'is', null)
+    .order('created_at', { ascending: true })
+
+  const previousMessages = previousExecutions?.map((e: any) => e.message_sent) || []
+
+  // Generate AI message
+  let message: string
+  try {
+    const { generateAIMessage } = await import('@/lib/ai/generate-message')
+
+    message = await generateAIMessage({
+      leadName: lead.name || 'there',
+      leadMessage: lead.message || lead.notes,
+      serviceInterested: lead.interested_in_service_name,
+      vehicleInfo: lead.vehicle_info || `${lead.vehicle_year || ''} ${lead.vehicle_make || ''} ${lead.vehicle_model || ''}`.trim(),
+      quoteAmount: lead.estimated_value,
+      businessName: business.name,
+      businessTone: (business as any).default_tone || 'friendly',
+      messageType,
+      previousMessages
+    })
+  } catch (error) {
+    console.error('AI generation failed, using template:', error)
+    // Fallback to template if AI fails
+    message = step.message_template
+    message = message.replace(/{name}/g, lead.name || 'there')
+    message = message.replace(/{service}/g, lead.interested_in_service_name || 'service')
+  }
 
   if (step.step_type === 'send_sms' && lead.phone) {
     // Import SMS sending function
     const { sendSMS } = await import('@/lib/sms/providers')
-    const { getBusiness } = await import('@/lib/actions/business')
-    
-    const business = await getBusiness()
-    if (!business) return
 
     // Type assertion for SMS-related properties that may not be in the base type
     const businessWithSMS = business as any
@@ -155,7 +193,7 @@ async function executeMessageStep(enrollment: any, step: any, supabase: any) {
     // Determine SMS provider and build config
     const smsProvider = businessWithSMS.sms_provider || 'twilio'
     const config: any = { provider: smsProvider }
-    
+
     if (smsProvider === 'twilio') {
       config.twilioAccountSid = businessWithSMS.twilio_account_sid || process.env.TWILIO_ACCOUNT_SID
       config.twilioAuthToken = process.env.TWILIO_AUTH_TOKEN
@@ -171,12 +209,13 @@ async function executeMessageStep(enrollment: any, step: any, supabase: any) {
       fromName: businessWithSMS.sender_name || business.name || 'BRNNO',
     })
 
-    // Record execution
+    // Record execution WITH the generated message
     await supabase.from('sequence_step_executions').insert({
       enrollment_id: enrollment.id,
       step_id: step.id,
       status: result.success ? 'sent' : 'failed',
       error_message: result.error || null,
+      message_sent: message // Store the AI-generated message
     })
 
     // Move to next step if successful
@@ -187,12 +226,12 @@ async function executeMessageStep(enrollment: any, step: any, supabase: any) {
         .eq('id', enrollment.id)
     }
   } else if (step.step_type === 'send_email' && lead.email) {
-    // Email sending would go here
-    // For now, just mark as executed
+    // Email with AI would go here
     await supabase.from('sequence_step_executions').insert({
       enrollment_id: enrollment.id,
       step_id: step.id,
       status: 'sent',
+      message_sent: message
     })
 
     await supabase
