@@ -200,7 +200,7 @@ export async function sendTestSMS(phoneNumber?: string) {
 
       // Check SMS credits for AI Auto Lead users
       const { hasSMSCredits } = await import('./sms-credits')
-      const hasCredits = await hasSMSCredits(businessId)
+      const hasCredits = await hasSMSCredits(business.id)
       if (!hasCredits) {
         throw new Error('SMS credit limit reached (500/month). Your credits will reset on the 1st of next month.')
       }
@@ -244,7 +244,7 @@ export async function sendTestSMS(phoneNumber?: string) {
   // Decrement SMS credits for AI Auto Lead users (subaccount)
   if (smsProvider === 'twilio' && subaccountCreds) {
     const { decrementSMSCredits } = await import('./sms-credits')
-    await decrementSMSCredits(businessId, 1)
+    await decrementSMSCredits(business.id, 1)
   }
 
   return { success: true, messageId: result.messageId }
