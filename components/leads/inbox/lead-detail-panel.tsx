@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { X, Phone, Mail, MessageSquare, Clock, FileText, Calendar, Sparkles, Send, Loader2 } from 'lucide-react'
+import { X, Phone, Mail, MessageSquare, Clock, FileText, Calendar, Sparkles, Send, Loader2, Lock } from 'lucide-react'
+import { useFeatureGate } from '@/hooks/use-feature-gate'
 import { cn } from '@/lib/utils'
 import { updateLeadStatus, addLeadInteraction } from '@/lib/actions/leads'
 import { LeadTimeline } from './lead-timeline'
@@ -46,6 +47,9 @@ interface LeadDetailPanelProps {
 }
 
 export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
+  const { can } = useFeatureGate()
+  const hasAILeadAssistant = can('ai_auto_lead')
+
   const [activeTab, setActiveTab] = useState<'timeline' | 'notes' | 'quote' | 'booking'>('timeline')
   const [message, setMessage] = useState('')
   const [tone, setTone] = useState<'human' | 'premium' | 'direct'>('human')
@@ -312,49 +316,147 @@ export function LeadDetailPanel({ lead, onClose }: LeadDetailPanelProps) {
               variant="outline"
               className="text-xs transition-all hover:bg-violet-500/10 hover:border-violet-500/30"
               onClick={async () => {
+                if (!hasAILeadAssistant) {
+                  toast.error('AI Lead Assistant requires the $49.99/mo add-on', {
+                    description: 'Visit Settings > Add-Ons to enable AI-powered lead responses'
+                  })
+                  return
+                }
+
                 setShowAiSuggestions(true)
-                // TODO: Call AI API to generate suggestions
-                setAiSuggestions([
-                  "Hi {name}! Still interested in {service}? I can lock in your spot today!",
-                  "Hey {name}, quick question - what's the best time to reach you about {service}?",
-                  "{name}, I noticed you were looking at {service}. Want to schedule? I have availability this week!"
-                ])
+                setAiSuggestions([]) // Clear previous
+
+                try {
+                  const { generateAILeadResponse, getLeadContext } = await import('@/lib/ai/generate-lead-response')
+                  const context = await getLeadContext(lead.id)
+                  const suggestions = await generateAILeadResponse(context, {
+                    tone: tone,
+                    channel: interactionType as 'sms' | 'email',
+                    intent: 'followup'
+                  })
+                  setAiSuggestions(suggestions)
+                  toast.success('AI suggestions generated!')
+                } catch (error) {
+                  console.error('AI suggestion error:', error)
+                  toast.error('Failed to generate suggestions')
+                  setShowAiSuggestions(false)
+                }
               }}
+              disabled={sending}
             >
-              <Sparkles className="h-3 w-3 mr-1" />
+              {hasAILeadAssistant ? (
+                <Sparkles className="h-3 w-3 mr-1" />
+              ) : (
+                <Lock className="h-3 w-3 mr-1" />
+              )}
               AI Suggest
             </Button>
             <Button
               size="sm"
               variant="outline"
               className="text-xs transition-all hover:bg-amber-500/10 hover:border-amber-500/30"
-              onClick={() => {
-                const incentiveMessage = `Hi ${lead.name}! I can offer you 10% off ${lead.interested_in_service_name || 'your service'} if you book this week. Interested?`
-                setMessage(incentiveMessage)
+              onClick={async () => {
+                if (!hasAILeadAssistant) {
+                  toast.error('AI Lead Assistant requires the $49.99/mo add-on', {
+                    description: 'Visit Settings > Add-Ons to enable AI-powered lead responses'
+                  })
+                  return
+                }
+
+                setShowAiSuggestions(true)
+                setAiSuggestions([])
+
+                try {
+                  const { generateAILeadResponse, getLeadContext } = await import('@/lib/ai/generate-lead-response')
+                  const context = await getLeadContext(lead.id)
+                  const suggestions = await generateAILeadResponse(context, {
+                    tone: tone,
+                    channel: interactionType as 'sms' | 'email',
+                    intent: 'incentive'
+                  })
+                  setAiSuggestions(suggestions)
+                  toast.success('Incentive offers generated!')
+                } catch (error) {
+                  console.error('AI suggestion error:', error)
+                  toast.error('Failed to generate offers')
+                  setShowAiSuggestions(false)
+                }
               }}
+              disabled={sending}
             >
+              {hasAILeadAssistant ? null : <Lock className="h-3 w-3 mr-1" />}
               Offer Incentive
             </Button>
             <Button
               size="sm"
               variant="outline"
               className="text-xs transition-all hover:bg-cyan-500/10 hover:border-cyan-500/30"
-              onClick={() => {
-                const questionsMessage = `Hi ${lead.name}! Quick questions: 1) What's your preferred date? 2) Any specific concerns about ${lead.interested_in_service_name || 'the service'}?`
-                setMessage(questionsMessage)
+              onClick={async () => {
+                if (!hasAILeadAssistant) {
+                  toast.error('AI Lead Assistant requires the $49.99/mo add-on', {
+                    description: 'Visit Settings > Add-Ons to enable AI-powered lead responses'
+                  })
+                  return
+                }
+
+                setShowAiSuggestions(true)
+                setAiSuggestions([])
+
+                try {
+                  const { generateAILeadResponse, getLeadContext } = await import('@/lib/ai/generate-lead-response')
+                  const context = await getLeadContext(lead.id)
+                  const suggestions = await generateAILeadResponse(context, {
+                    tone: tone,
+                    channel: interactionType as 'sms' | 'email',
+                    intent: 'questions'
+                  })
+                  setAiSuggestions(suggestions)
+                  toast.success('Questions generated!')
+                } catch (error) {
+                  console.error('AI suggestion error:', error)
+                  toast.error('Failed to generate questions')
+                  setShowAiSuggestions(false)
+                }
               }}
+              disabled={sending}
             >
-              Ask 2 Questions
+              {hasAILeadAssistant ? null : <Lock className="h-3 w-3 mr-1" />}
+              Ask Questions
             </Button>
             <Button
               size="sm"
               variant="outline"
               className="text-xs transition-all hover:bg-emerald-500/10 hover:border-emerald-500/30"
-              onClick={() => {
-                const bookingMessage = `Hi ${lead.name}! Ready to book ${lead.interested_in_service_name || 'your service'}? Here's your link: [booking link]`
-                setMessage(bookingMessage)
+              onClick={async () => {
+                if (!hasAILeadAssistant) {
+                  toast.error('AI Lead Assistant requires the $49.99/mo add-on', {
+                    description: 'Visit Settings > Add-Ons to enable AI-powered lead responses'
+                  })
+                  return
+                }
+
+                setShowAiSuggestions(true)
+                setAiSuggestions([])
+
+                try {
+                  const { generateAILeadResponse, getLeadContext } = await import('@/lib/ai/generate-lead-response')
+                  const context = await getLeadContext(lead.id)
+                  const suggestions = await generateAILeadResponse(context, {
+                    tone: tone,
+                    channel: interactionType as 'sms' | 'email',
+                    intent: 'booking'
+                  })
+                  setAiSuggestions(suggestions)
+                  toast.success('Booking messages generated!')
+                } catch (error) {
+                  console.error('AI suggestion error:', error)
+                  toast.error('Failed to generate booking messages')
+                  setShowAiSuggestions(false)
+                }
               }}
+              disabled={sending}
             >
+              {hasAILeadAssistant ? null : <Lock className="h-3 w-3 mr-1" />}
               Send Booking Link
             </Button>
           </div>

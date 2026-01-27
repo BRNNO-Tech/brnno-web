@@ -166,7 +166,7 @@ async function executeMessageStep(enrollment: any, step: any, supabase: any) {
   try {
     const { generateAIMessage, getMessageContext } = await import('@/lib/ai/generate-message')
 
-    const messageContext = getMessageContext(
+    const messageContext = await getMessageContext(
       enrollment.current_step_order,
       step.step_type,
       step.message_template,

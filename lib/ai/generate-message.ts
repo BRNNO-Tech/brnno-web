@@ -148,13 +148,13 @@ Generate the ${channel} message now:`
     }
 }
 
-// Helper to determine message context from step data
-export function getMessageContext(
+// Helper to determine message context from step data (async for server actions)
+export async function getMessageContext(
     stepOrder: number,
     stepType: string,
     messageTemplate: string,
     daysSinceEnrolled: number
-): MessageContext {
+): Promise<MessageContext> {
     // Infer context from step metadata
     let contextType: MessageContext['stepType'] = 'follow_up'
 
