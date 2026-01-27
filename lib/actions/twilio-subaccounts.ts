@@ -96,7 +96,7 @@ export async function setupTwilioSubaccount(businessInfo: BusinessInfo) {
 
         console.log('[Twilio Setup] Phone number added to messaging service')
 
-        // 5. Store credentials in database
+        // 5. Store credentials in database and initialize SMS credits
         await supabase
             .from('businesses')
             .update({
@@ -113,6 +113,12 @@ export async function setupTwilioSubaccount(businessInfo: BusinessInfo) {
             .eq('id', businessId)
 
         console.log('[Twilio Setup] Credentials saved to database')
+
+        // Initialize SMS credits (500/month for AI Auto Lead)
+        const { initializeSMSCredits } = await import('./sms-credits')
+        await initializeSMSCredits(businessId, 500)
+
+        console.log('[Twilio Setup] SMS credits initialized (500/month)')
 
         // 6. Submit A2P Brand Registration (this is async and takes time)
         // We'll do this in the background and update status later

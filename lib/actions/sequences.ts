@@ -65,12 +65,8 @@ export async function getSequences(): Promise<Sequence[]> {
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
-    // Check if business has AI Auto Lead add-on
-    const hasAccess = await hasAIAutoLead(businessId)
-    if (!hasAccess) {
-      // Return empty array if they don't have the add-on
-      return []
-    }
+    // Note: Email sequences are available to all users
+    // Only SMS sequences require AI Auto Lead add-on (checked when sequence runs)
 
     const { data: sequences, error } = await supabase
       .from('sequences')
@@ -189,10 +185,13 @@ export async function createSequence(data: {
     const supabase = await createClient()
     const businessId = await getBusinessId()
 
-    // Check if business has AI Auto Lead add-on
-    const hasAccess = await hasAIAutoLead(businessId)
-    if (!hasAccess) {
-      throw new Error('AI Auto Lead add-on required for automated sequences. Please subscribe to enable this feature.')
+    // Check if sequence has SMS steps and requires AI Auto Lead
+    const hasSMSSteps = data.steps?.some(step => step.step_type === 'send_sms' || step.channel === 'sms')
+    if (hasSMSSteps) {
+      const hasAccess = await hasAIAutoLead(businessId)
+      if (!hasAccess) {
+        throw new Error('AI Auto Lead add-on required for SMS sequences. Email sequences are available to all users.')
+      }
     }
 
     const { data: sequence, error } = await supabase

@@ -14,7 +14,10 @@ ADD COLUMN IF NOT EXISTS a2p_campaign_sid TEXT,
 ADD COLUMN IF NOT EXISTS business_ein TEXT,
 ADD COLUMN IF NOT EXISTS business_ssn TEXT,
 ADD COLUMN IF NOT EXISTS business_legal_name TEXT,
-ADD COLUMN IF NOT EXISTS business_verified BOOLEAN DEFAULT FALSE;
+ADD COLUMN IF NOT EXISTS business_verified BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS sms_credits_remaining INTEGER DEFAULT 500,
+ADD COLUMN IF NOT EXISTS sms_credits_reset_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+ADD COLUMN IF NOT EXISTS sms_credits_monthly_limit INTEGER DEFAULT 500;
 
 -- Create indexes for faster lookups
 CREATE INDEX IF NOT EXISTS idx_businesses_twilio_subaccount ON businesses(twilio_subaccount_sid) WHERE twilio_subaccount_sid IS NOT NULL;
@@ -34,3 +37,6 @@ COMMENT ON COLUMN businesses.business_ein IS 'Business EIN (encrypted, for A2P r
 COMMENT ON COLUMN businesses.business_ssn IS 'Business SSN (encrypted, for sole proprietors, for A2P registration)';
 COMMENT ON COLUMN businesses.business_legal_name IS 'Legal business name for A2P registration';
 COMMENT ON COLUMN businesses.business_verified IS 'Whether business info has been verified for A2P';
+COMMENT ON COLUMN businesses.sms_credits_remaining IS 'Remaining SMS credits for the current period';
+COMMENT ON COLUMN businesses.sms_credits_reset_at IS 'When SMS credits will reset (monthly)';
+COMMENT ON COLUMN businesses.sms_credits_monthly_limit IS 'Monthly SMS credit limit (500 for AI Auto Lead)';

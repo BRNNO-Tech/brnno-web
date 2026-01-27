@@ -51,7 +51,7 @@ export const SUBSCRIPTION_ADDONS: SubscriptionAddon[] = [
       'Your own business phone number',
       'Dedicated Twilio subaccount',
       'A2P compliance & brand registration',
-      'Unlimited SMS conversations',
+      '500 SMS messages per month included',
       'Lead qualification automation'
     ]
   },

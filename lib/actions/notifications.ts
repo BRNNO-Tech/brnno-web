@@ -219,7 +219,6 @@ export async function generateSmartNotifications(
         }
     }
 
-    revalidatePath('/dashboard/schedule')
     return notifications
 }
 

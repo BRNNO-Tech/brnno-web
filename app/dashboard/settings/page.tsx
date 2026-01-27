@@ -502,7 +502,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function loadBusinessHours() {
-      if (!business) return
+      if (!business?.id) return
       try {
         const hours = await getBusinessHours()
         setBusinessHours(hours)
@@ -511,7 +511,7 @@ export default function SettingsPage() {
       }
     }
     loadBusinessHours()
-  }, [business])
+  }, [business?.id])
 
   // Check URL params for Stripe redirect
   useEffect(() => {
@@ -622,7 +622,7 @@ export default function SettingsPage() {
 
   // Initialize SMS provider settings when business loads
   useEffect(() => {
-    if (business) {
+    if (business?.id) {
       // Default to Twilio for now (Surge is temporarily hidden)
       let provider: 'surge' | 'twilio' | null = null
 
@@ -643,7 +643,7 @@ export default function SettingsPage() {
       setTwilioAuthToken(business.twilio_auth_token || '')
       setTwilioPhoneNumber(business.twilio_phone_number || '')
     }
-  }, [business])
+  }, [business?.id])
 
   async function handleBusinessUpdate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -1069,13 +1069,10 @@ export default function SettingsPage() {
                 <form onSubmit={handleBusinessHours} className="space-y-6" style={{ overflow: 'visible', maxHeight: 'none' }}>
                   {(() => {
                     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-                    console.log('[Settings] Rendering business hours for days:', days)
                     return days.map((day, index) => {
                       const dayKey = day.toLowerCase()
                       const dayHours = businessHours?.[dayKey]
                       const isClosed = dayHours?.closed === true
-
-                      console.log(`[Settings] Rendering ${day} (${dayKey}) at index ${index}:`, { dayHours, isClosed })
 
                       return (
                         <div
