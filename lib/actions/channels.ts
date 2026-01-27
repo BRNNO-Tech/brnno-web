@@ -87,6 +87,9 @@ export async function sendTestSMS(phoneNumber?: string) {
 
   // Type assertion for properties that may not be in the base type
   const businessWithFields = business as any
+  
+  // Track if using AI Auto Lead subaccount for credit tracking
+  let isUsingSubaccount = false
 
   // Determine which provider to use
   // Priority: 1. Explicit sms_provider setting, 2. Check for credentials
@@ -189,7 +192,6 @@ export async function sendTestSMS(phoneNumber?: string) {
     // Check if business has their own Twilio subaccount (AI Auto Lead - auto-setup)
     const { getTwilioCredentials } = await import('./twilio-subaccounts')
     const subaccountCreds = await getTwilioCredentials()
-    let isUsingSubaccount = false
 
     if (subaccountCreds) {
       // Use business's own Twilio subaccount (from AI Auto Lead)
