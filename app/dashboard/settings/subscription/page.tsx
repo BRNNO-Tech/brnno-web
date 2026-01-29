@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getBusiness } from '@/lib/actions/business'
 import { getSubscriptionAddons, getBusinessSubscriptionAddons } from '@/lib/actions/subscription-addons'
-import { getTierFromBusiness } from '@/lib/permissions'
+import { getTierFromBusiness, type Tier } from '@/lib/permissions'
 import { createClient } from '@/lib/supabase/server'
 import SubscriptionAddonsList from '@/components/subscription/addons-list'
 import { CardShell } from '@/components/ui/card-shell'
@@ -19,7 +19,7 @@ export default async function SubscriptionPage({
   const params = await searchParams
 
   let business: Awaited<ReturnType<typeof getBusiness>>
-  let tier: string | null = null
+  let tier: Tier = null
   let availableAddons: Awaited<ReturnType<typeof getSubscriptionAddons>>
   let activeAddons: Awaited<ReturnType<typeof getBusinessSubscriptionAddons>>
 
